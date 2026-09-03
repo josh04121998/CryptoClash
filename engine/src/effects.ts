@@ -1,4 +1,6 @@
 import { CARD_POOL } from "./cards.js";
+import { applyVolatilityChange } from "./marketEvents.js";
+import { applyDamageToTarget, pushLog } from "./matchOps.js";
 import { BoardCreature, EffectDef, Keyword, MatchState, PlayerId, TargetRef, TargetSelector, Trigger } from "./types.js";
 import { enemyOf, firstEmptySlot } from "./util.js";
 
@@ -10,50 +12,12 @@ export interface EffectContext {
   chosenTarget?: TargetRef;
 }
 
-function pushLog(state: MatchState, text: string) {
-  state.log.push({ turn: state.turnNumber, text });
-}
-
 function resolveTargets(selector: TargetSelector, ctx: EffectContext): TargetRef[] {
   if (selector.kind === "enemyPlayer") {
     return [{ type: "player", playerId: enemyOf(ctx.controller) }];
   }
-  // "chosen" — validated as present by the caller before effects run.
+  // "chosen" — validated as present (and targetable) by the caller before effects run.
   return ctx.chosenTarget ? [ctx.chosenTarget] : [];
-}
-
-export function removeIfDead(state: MatchState, playerId: PlayerId, slot: number) {
-  const creature = state.players[playerId].board[slot];
-  if (creature && creature.health <= 0) {
-    pushLog(state, `${CARD_POOL[creature.templateId].name} (${playerId}, slot ${slot + 1}) dies.`);
-    state.players[playerId].board[slot] = null;
-  }
-}
-
-export function checkWin(state: MatchState) {
-  const aDead = state.players.A.hp <= 0;
-  const bDead = state.players.B.hp <= 0;
-  if (aDead && bDead) state.winner = "Draw";
-  else if (aDead) state.winner = "B";
-  else if (bDead) state.winner = "A";
-}
-
-function applyDamage(state: MatchState, target: TargetRef, amount: number) {
-  if (target.type === "player") {
-    const player = state.players[target.playerId];
-    player.hp -= amount;
-    pushLog(state, `${target.playerId} takes ${amount} damage (HP: ${player.hp}).`);
-    checkWin(state);
-  } else {
-    const creature = state.players[target.playerId].board[target.slot];
-    if (!creature) return;
-    creature.health -= amount;
-    pushLog(
-      state,
-      `${CARD_POOL[creature.templateId].name} (${target.playerId}, slot ${target.slot + 1}) takes ${amount} damage.`,
-    );
-    removeIfDead(state, target.playerId, target.slot);
-  }
 }
 
 function createBoardCreature(state: MatchState, templateId: string): BoardCreature {
@@ -70,6 +34,8 @@ function createBoardCreature(state: MatchState, templateId: string): BoardCreatu
     hasAttackedThisTurn: false,
     buffAttack: 0,
     buffHealth: 0,
+    tempAttackBonus: 0,
+    stealthed: template.keywords?.includes("Stealth") ?? false,
   };
 }
 
@@ -92,7 +58,7 @@ export function resolveEffects(state: MatchState, effects: EffectDef[], trigger:
     switch (action.kind) {
       case "damage": {
         for (const target of resolveTargets(action.target, ctx)) {
-          applyDamage(state, target, action.amount);
+          applyDamageToTarget(state, target, action.amount);
         }
         break;
       }
@@ -121,6 +87,17 @@ export function resolveEffects(state: MatchState, effects: EffectDef[], trigger:
           creature?.tempKeywords.add(action.keyword);
         }
         pushLog(state, `${ctx.controller}'s creatures gain ${action.keyword} this turn.`);
+        break;
+      }
+      case "volatility": {
+        applyVolatilityChange(state, action.amount);
+        break;
+      }
+      case "burn": {
+        for (const target of resolveTargets(action.target, ctx)) {
+          state.activeBurns.push({ target, amountPerTurn: action.amountPerTurn, turnsRemaining: action.turns });
+        }
+        pushLog(state, `${ctx.controller} applies Burn (${action.amountPerTurn}/turn for ${action.turns} turns).`);
         break;
       }
     }

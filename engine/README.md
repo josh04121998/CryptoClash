@@ -6,9 +6,9 @@ No rendering, no networking. Takes a `(seed, deck lists)` pair plus a stream of 
 
 ## What's implemented
 
-Turn loop (Energy, Draw, Play, Attack, End) · 5-slot board with adjacency auras · Creatures/Spells · Rush, Guard, HODL keywords · fatigue · the exact Moon Dog / Puppy Swarm / Pack Rush combo from `batlleSpec.md` Section 21.
+Turn loop (Energy, Draw, Play, Attack, End) · 5-slot board with adjacency auras · Creatures/Spells · all five launch keywords — Rush, Guard, Stealth, Burn, HODL · Volatility & the five Market Events (MARKET_CRASH, PUMP, LIQUIDATION, FOMO, BLACK_SWAN) · fatigue · the exact Moon Dog / Puppy Swarm / Pack Rush combo from `batlleSpec.md` Section 21.
 
-Not yet implemented (next slice): Stealth, Burn, Volatility/Market Events, Items.
+Not yet implemented (next slice): Items, and only 3 of the 6 factions have any cards (Doggos, Degens, and a few Neutral/CryptoBros/Normies utility spells) — the card pool is still deliberately minimal, just enough to exercise every system.
 
 ## Running it
 

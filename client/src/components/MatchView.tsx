@@ -4,6 +4,7 @@ import { BoardRow } from "./BoardRow.js";
 import { HandRow } from "./HandRow.js";
 import { LogPanel } from "./LogPanel.js";
 import { PlayerHeader } from "./PlayerHeader.js";
+import { VolatilityMeter } from "./VolatilityMeter.js";
 
 type Selection = { type: "none" } | { type: "hand"; handIndex: number } | { type: "attacker"; slot: number };
 
@@ -157,6 +158,8 @@ export function MatchView({
           onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
         />
         <BoardRow state={state} playerId={opponentId} targetable={enemyTargetable} onSlotClick={onEnemySlotClick} />
+
+        <VolatilityMeter volatility={state.volatility} />
 
         <div className="table__divider">
           {winnerText ? (

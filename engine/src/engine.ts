@@ -1,18 +1,16 @@
+import { tickBurns } from "./burn.js";
 import { CARD_POOL } from "./cards.js";
 import { resolveAttack } from "./combat.js";
-import { checkWin, createBoardCreature, resolveEffects } from "./effects.js";
+import { drawCard } from "./draw.js";
+import { createBoardCreature, resolveEffects } from "./effects.js";
+import { isTargetable, pushLog } from "./matchOps.js";
 import { mulberry32, shuffle } from "./rng.js";
 import { BOARD_SIZE, Intent, MatchState, PlayerId, PlayerState } from "./types.js";
 import { enemyOf } from "./util.js";
 
 const STARTING_HP = 30;
 const OPENING_HAND_SIZE = 4;
-const MAX_HAND_SIZE = 10;
 const MAX_ENERGY = 10;
-
-function pushLog(state: MatchState, text: string) {
-  state.log.push({ turn: state.turnNumber, text });
-}
 
 function createPlayer(id: PlayerId, deckList: string[], rng: () => number): PlayerState {
   const shuffled = shuffle(deckList, rng);
@@ -28,43 +26,35 @@ function createPlayer(id: PlayerId, deckList: string[], rng: () => number): Play
   };
 }
 
-function drawCard(state: MatchState, playerId: PlayerId) {
-  const player = state.players[playerId];
-  if (player.deck.length === 0) {
-    player.fatigue += 1;
-    player.hp -= player.fatigue;
-    pushLog(state, `${playerId} draws from an empty deck and takes ${player.fatigue} fatigue damage (HP: ${player.hp}).`);
-    checkWin(state);
-    return;
-  }
-  const cardId = player.deck.shift()!;
-  if (player.hand.length >= MAX_HAND_SIZE) {
-    pushLog(state, `${playerId}'s hand is full — ${CARD_POOL[cardId].name} is discarded.`);
-    return;
-  }
-  player.hand.push(cardId);
-}
-
 function startTurn(state: MatchState) {
-  const player = state.players[state.activePlayer];
+  const playerId = state.activePlayer;
+  const player = state.players[playerId];
   player.maxEnergy = Math.min(MAX_ENERGY, player.maxEnergy + 1);
   player.energy = player.maxEnergy;
+
+  const penalty = state.pendingEnergyPenalty[playerId];
+  if (penalty > 0) {
+    player.energy = Math.max(0, player.energy - penalty);
+    state.pendingEnergyPenalty[playerId] = 0;
+    pushLog(state, `${playerId} loses ${penalty} Energy from LIQUIDATION (Energy ${player.energy}/${player.maxEnergy}).`);
+  }
 
   for (const creature of player.board) {
     if (!creature) continue;
     creature.hasAttackedThisTurn = false;
     creature.tempKeywords.clear();
+    creature.tempAttackBonus = 0;
   }
 
-  pushLog(state, `Turn ${state.turnNumber}: ${state.activePlayer}'s turn begins (Energy ${player.energy}/${player.maxEnergy}).`);
+  pushLog(state, `Turn ${state.turnNumber}: ${playerId}'s turn begins (Energy ${player.energy}/${player.maxEnergy}).`);
 
-  drawCard(state, state.activePlayer);
+  drawCard(state, playerId);
 
   player.board.forEach((creature, slot) => {
     if (!creature) return;
     const template = CARD_POOL[creature.templateId];
     if (template.effects) {
-      resolveEffects(state, template.effects, "onTurnStart", { controller: state.activePlayer, sourceSlot: slot });
+      resolveEffects(state, template.effects, "onTurnStart", { controller: playerId, sourceSlot: slot });
     }
   });
 }
@@ -84,6 +74,9 @@ function playCard(state: MatchState, intent: Extract<Intent, { kind: "playCard" 
 
   const requiresTarget = template.effects?.some((e) => e.trigger === "onPlay" && e.requiresTarget);
   if (requiresTarget && !intent.target) throw new Error("This card requires a target.");
+  if (intent.target && !isTargetable(state, intent.target)) {
+    throw new Error("That creature is Stealthed and cannot be targeted.");
+  }
 
   player.energy -= template.cost;
   player.hand.splice(intent.handIndex, 1);
@@ -106,6 +99,9 @@ function playCard(state: MatchState, intent: Extract<Intent, { kind: "playCard" 
 
 function endTurn(state: MatchState, intent: Extract<Intent, { kind: "endTurn" }>) {
   pushLog(state, `${intent.playerId} ends their turn.`);
+  tickBurns(state);
+  if (state.winner) return;
+
   const next = enemyOf(intent.playerId);
   state.activePlayer = next;
   if (next === "A") state.turnNumber += 1;
@@ -125,6 +121,9 @@ export function createMatch(deckA: string[], deckB: string[], seed: number): Mat
     log: [],
     winner: null,
     rng,
+    volatility: 0,
+    activeBurns: [],
+    pendingEnergyPenalty: { A: 0, B: 0 },
   };
   startTurn(state);
   return state;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SAMPLE_DECK } from "../src/cards.js";
 import { applyIntent, createMatch } from "../src/engine.js";
+import { triggerMarketEvent } from "../src/marketEvents.js";
 import { getEffectiveAttack } from "../src/stats.js";
 import { MatchState, PlayerId } from "../src/types.js";
 
@@ -172,5 +173,166 @@ describe("fatigue", () => {
 
     expect(state.players.B.hp).toBe(hpBefore - 1);
     expect(state.players.B.fatigue).toBe(1);
+  });
+});
+
+describe("Stealth", () => {
+  it("cannot be chosen as an attack target", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 21);
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn, so B can act
+    applyIntent(state, { kind: "playCard", playerId: "B", handIndex: giveCard(state, "B", "shadow_pup"), slot: 0 });
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // -> back to A's turn
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "fast_fang"), slot: 0 }); // has innate Rush
+
+    expect(() =>
+      applyIntent(state, {
+        kind: "attack",
+        playerId: "A",
+        attackerSlot: 0,
+        target: { type: "creature", playerId: "B", slot: 0 },
+      }),
+    ).toThrow(/Stealth/);
+  });
+
+  it("cannot be chosen as a spell target, and rejecting it doesn't spend energy", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 22);
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn, so B can act
+    applyIntent(state, { kind: "playCard", playerId: "B", handIndex: giveCard(state, "B", "shadow_pup"), slot: 0 });
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // -> back to A's turn
+    const handIndex = giveCard(state, "A", "spark_bolt");
+    const energyBefore = state.players.A.energy;
+
+    expect(() =>
+      applyIntent(state, {
+        kind: "playCard",
+        playerId: "A",
+        handIndex,
+        target: { type: "creature", playerId: "B", slot: 0 },
+      }),
+    ).toThrow(/Stealth/);
+    expect(state.players.A.energy).toBe(energyBefore);
+  });
+
+  it("is revealed the moment it attacks, after which it can be targeted", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "shadow_pup"), slot: 0 });
+    expect(state.players.A.board[0]!.stealthed).toBe(true);
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pack_rush") });
+    applyIntent(state, {
+      kind: "attack",
+      playerId: "A",
+      attackerSlot: 0,
+      target: { type: "player", playerId: "B" },
+    });
+
+    expect(state.players.A.board[0]!.stealthed).toBe(false);
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn
+    applyIntent(state, {
+      kind: "playCard",
+      playerId: "B",
+      handIndex: giveCard(state, "B", "spark_bolt"),
+      target: { type: "creature", playerId: "A", slot: 0 },
+    });
+    // Shadow Pup is 1/3; Spark Bolt's 3 damage kills it — reaching this line without a
+    // "Stealth" throw already proves the now-revealed creature was a legal spell target.
+    expect(state.players.A.board[0]).toBeNull();
+  });
+});
+
+describe("Burn", () => {
+  it("deals damage at the end of each turn for the stated number of turns, then stops", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 25);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "ember_curse") });
+    const hpAfterCast = state.players.B.hp;
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // tick 1 (end of A's turn)
+    expect(state.players.B.hp).toBe(hpAfterCast - 1);
+
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // tick 2
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // tick 3 — burn should now be exhausted
+    expect(state.players.B.hp).toBe(hpAfterCast - 3);
+    expect(state.activeBurns.length).toBe(0);
+
+    const hpAfterThreeTicks = state.players.B.hp;
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // no more burn damage
+    expect(state.players.B.hp).toBe(hpAfterThreeTicks);
+  });
+});
+
+describe("Volatility & Market Events", () => {
+  it("rises and falls within [0,10] as cards direct", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 27);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pump_signal") });
+    expect(state.volatility).toBe(4);
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "cool_down") });
+    expect(state.volatility).toBe(1);
+  });
+
+  it("triggers a Market Event and resets to 0 once it reaches 10", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 29);
+    state.volatility = 9;
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pump_signal") });
+
+    expect(state.volatility).toBe(0);
+    expect(state.log.some((e) => e.text.includes("reaches 10"))).toBe(true);
+  });
+
+  it("MARKET_CRASH deals 2 damage to the strongest creature on each side", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 31);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "loyal_hound"), slot: 0 }); // 5/5
+    applyIntent(state, { kind: "endTurn", playerId: "A" });
+    applyIntent(state, { kind: "playCard", playerId: "B", handIndex: giveCard(state, "B", "diamond_hands"), slot: 0 }); // 2/6
+
+    triggerMarketEvent(state, "MARKET_CRASH");
+
+    expect(state.players.A.board[0]!.health).toBe(3);
+    expect(state.players.B.board[0]!.health).toBe(4);
+  });
+
+  it("PUMP gives every creature on the board +1 Attack for the rest of the turn only", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 33);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "loyal_hound"), slot: 0 });
+    const before = getEffectiveAttack(state, "A", 0);
+
+    triggerMarketEvent(state, "PUMP");
+    expect(getEffectiveAttack(state, "A", 0)).toBe(before + 1);
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" });
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // back to A's turn — PUMP bonus should be cleared
+    expect(getEffectiveAttack(state, "A", 0)).toBe(before);
+  });
+
+  it("LIQUIDATION docks 2 Energy from both players' next turn only", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 35);
+    triggerMarketEvent(state, "LIQUIDATION");
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn 1: maxEnergy 1, penalty 2 -> energy 0
+    expect(state.players.B.energy).toBe(0);
+
+    applyIntent(state, { kind: "endTurn", playerId: "B" });
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn 2: no penalty left, maxEnergy 2
+    expect(state.players.B.energy).toBe(2);
+  });
+
+  it("FOMO draws both players a card", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 37);
+    const aBefore = state.players.A.hand.length;
+    const bBefore = state.players.B.hand.length;
+
+    triggerMarketEvent(state, "FOMO");
+
+    expect(state.players.A.hand.length).toBe(aBefore + 1);
+    expect(state.players.B.hand.length).toBe(bBefore + 1);
+  });
+
+  it("BLACK_SWAN resolves to exactly one of the other four events", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 39);
+    triggerMarketEvent(state, "BLACK_SWAN");
+
+    const resolvedOneOf = ["MARKET CRASH", "PUMP —", "LIQUIDATION", "FOMO —"];
+    expect(resolvedOneOf.some((marker) => state.log.some((e) => e.text.includes(marker)))).toBe(true);
   });
 });

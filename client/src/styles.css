@@ -157,6 +157,36 @@ button {
   animation: pulse 1.2s infinite;
 }
 
+.volatility-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  max-width: 220px;
+}
+
+.volatility-meter__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+.volatility-meter__track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.volatility-meter__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--energy), var(--danger));
+  transition: width 0.3s ease;
+}
+
 .table__divider {
   display: flex;
   flex-direction: column;

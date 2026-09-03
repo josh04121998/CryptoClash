@@ -1,12 +1,8 @@
 import { CARD_POOL } from "./cards.js";
-import { checkWin, removeIfDead } from "./effects.js";
+import { checkWin, isTargetable, pushLog, removeIfDead } from "./matchOps.js";
 import { getEffectiveAttack } from "./stats.js";
 import { Intent, MatchState } from "./types.js";
 import { enemyOf } from "./util.js";
-
-function pushLog(state: MatchState, text: string) {
-  state.log.push({ turn: state.turnNumber, text });
-}
 
 export function resolveAttack(state: MatchState, intent: Extract<Intent, { kind: "attack" }>) {
   const attackerId = intent.playerId;
@@ -21,6 +17,10 @@ export function resolveAttack(state: MatchState, intent: Extract<Intent, { kind:
   const hasRush = attacker.keywords.has("Rush") || attacker.tempKeywords.has("Rush");
   if (attacker.summonedOnTurn === state.turnNumber && !hasRush) {
     throw new Error("That creature was just summoned and cannot attack yet.");
+  }
+
+  if (!isTargetable(state, intent.target)) {
+    throw new Error("That creature is Stealthed and cannot be targeted.");
   }
 
   const enemyGuardSlots = defenderPlayer.board
@@ -41,6 +41,10 @@ export function resolveAttack(state: MatchState, intent: Extract<Intent, { kind:
 
   const attackDamage = getEffectiveAttack(state, attackerId, intent.attackerSlot);
   attacker.hasAttackedThisTurn = true;
+  if (attacker.stealthed) {
+    attacker.stealthed = false;
+    pushLog(state, `${CARD_POOL[attacker.templateId].name} is revealed.`);
+  }
 
   if (intent.target.type === "player") {
     defenderPlayer.hp -= attackDamage;

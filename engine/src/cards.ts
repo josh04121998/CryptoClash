@@ -3,7 +3,8 @@ import { CardTemplate } from "./types.js";
 /**
  * Prototype card pool. Deliberately small — just enough to exercise every
  * system in this engine slice: energy curve, positioning/aura, summon,
- * temporary keyword grants, direct damage, Guard, Rush, HODL.
+ * temporary keyword grants, direct damage, Guard, Rush, Stealth, Burn,
+ * HODL, and Volatility/Market Events.
  *
  * Moon Dog / Puppy Swarm / Pack Rush are the exact combo example from
  * batlleSpec.md Section 21.
@@ -131,18 +132,63 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 5,
     text: "Vanilla.",
   },
+  shadow_pup: {
+    id: "shadow_pup",
+    name: "Shadow Pup",
+    faction: "Doggos",
+    type: "Creature",
+    cost: 1,
+    attack: 1,
+    health: 3,
+    keywords: ["Stealth"],
+    text: "Stealth.",
+  },
+  ember_curse: {
+    id: "ember_curse",
+    name: "Ember Curse",
+    faction: "Degens",
+    type: "Spell",
+    cost: 2,
+    keywords: ["Burn"],
+    text: "Deal 1 damage to the enemy player at the end of each turn for 3 turns.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "burn", target: { kind: "enemyPlayer" }, amountPerTurn: 1, turns: 3 } },
+    ],
+  },
+  pump_signal: {
+    id: "pump_signal",
+    name: "Pump Signal",
+    faction: "CryptoBros",
+    type: "Spell",
+    cost: 1,
+    text: "Increase Volatility by 4.",
+    effects: [{ trigger: "onPlay", action: { kind: "volatility", amount: 4 } }],
+  },
+  cool_down: {
+    id: "cool_down",
+    name: "Cool Down",
+    faction: "Normies",
+    type: "Spell",
+    cost: 1,
+    text: "Decrease Volatility by 3.",
+    effects: [{ trigger: "onPlay", action: { kind: "volatility", amount: -3 } }],
+  },
 };
 
 /** A legal 30-card deck built entirely from the pool above (mirror-match sample). */
 export const SAMPLE_DECK: string[] = [
-  ...Array(4).fill("fast_fang"),
-  ...Array(4).fill("pup_scout"),
-  ...Array(3).fill("shield_pup"),
-  ...Array(3).fill("puppy_swarm"),
+  ...Array(3).fill("fast_fang"),
+  ...Array(3).fill("pup_scout"),
+  ...Array(2).fill("shadow_pup"),
+  ...Array(2).fill("shield_pup"),
+  ...Array(3).fill("guard_dog"),
+  ...Array(2).fill("puppy_swarm"),
   ...Array(2).fill("pack_rush"),
-  ...Array(3).fill("spark_bolt"),
-  ...Array(3).fill("moon_dog"),
-  ...Array(4).fill("guard_dog"),
+  ...Array(2).fill("spark_bolt"),
+  ...Array(2).fill("ember_curse"),
+  ...Array(2).fill("pump_signal"),
+  ...Array(2).fill("cool_down"),
+  ...Array(2).fill("moon_dog"),
   ...Array(2).fill("diamond_hands"),
-  ...Array(2).fill("loyal_hound"),
+  ...Array(1).fill("loyal_hound"),
 ];

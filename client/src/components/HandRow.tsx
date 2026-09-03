@@ -17,6 +17,7 @@ export function HandRow({ player, selectedIndex, interactive, onCardClick }: Han
           <CardFace
             key={`${templateId}-${index}`}
             template={template}
+            keywords={template.keywords}
             size="hand"
             affordable={player.energy >= template.cost}
             selected={selectedIndex === index}

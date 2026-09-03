@@ -13,8 +13,8 @@ export type Faction =
 
 export type CardType = "Creature" | "Spell" | "Item";
 
-/** Launch keyword vocabulary (batlleSpec.md, Section 11). Stealth/Burn land in a later slice. */
-export type Keyword = "Rush" | "Guard" | "HODL";
+/** Launch keyword vocabulary (batlleSpec.md, Section 11). */
+export type Keyword = "Rush" | "Guard" | "Stealth" | "Burn" | "HODL";
 
 export type TargetSelector = { kind: "enemyPlayer" } | { kind: "chosen" };
 
@@ -22,7 +22,11 @@ export type EffectAction =
   | { kind: "damage"; target: TargetSelector; amount: number }
   | { kind: "summon"; templateId: string; count: number }
   | { kind: "buffSelf"; attack?: number; health?: number }
-  | { kind: "grantKeywordFriendlyBoard"; keyword: Keyword };
+  | { kind: "grantKeywordFriendlyBoard"; keyword: Keyword }
+  /** Section 16/17/18: shared meter, clamped [0,10]; reaching 10 triggers a Market Event and resets it. */
+  | { kind: "volatility"; amount: number }
+  /** Section 14: ongoing damage — amountPerTurn damage at the end of every turn, for `turns` turns. */
+  | { kind: "burn"; target: TargetSelector; amountPerTurn: number; turns: number };
 
 export type Trigger = "onPlay" | "onTurnStart";
 
@@ -70,6 +74,10 @@ export interface BoardCreature {
   /** Accumulated permanent buffs from effects like HODL. */
   buffAttack: number;
   buffHealth: number;
+  /** Cleared on the owner's next startTurn — e.g. a Market Event's PUMP. */
+  tempAttackBonus: number;
+  /** True while a Stealth creature is untargetable; cleared the moment it attacks (is "revealed"). */
+  stealthed: boolean;
 }
 
 export type Board = (BoardCreature | null)[];
@@ -99,6 +107,13 @@ export interface LogEntry {
   text: string;
 }
 
+/** A ticking Burn instance — resolved at the end of every turn until turnsRemaining hits 0. */
+export interface BurnStatus {
+  target: TargetRef;
+  amountPerTurn: number;
+  turnsRemaining: number;
+}
+
 export interface MatchState {
   players: Record<PlayerId, PlayerState>;
   activePlayer: PlayerId;
@@ -107,4 +122,9 @@ export interface MatchState {
   log: LogEntry[];
   winner: PlayerId | "Draw" | null;
   rng: () => number;
+  /** Section 16-18: shared global meter, 0-10. */
+  volatility: number;
+  activeBurns: BurnStatus[];
+  /** Section: LIQUIDATION Market Event — energy owed off a player's next startTurn. */
+  pendingEnergyPenalty: Record<PlayerId, number>;
 }

@@ -20,9 +20,12 @@ function computeAuraBonusAttack(state: MatchState, playerId: PlayerId, slot: num
   return bonus;
 }
 
-/** Base + accumulated buffs + live aura contribution from the current board. */
+/** Base + accumulated buffs + this-turn bonuses (e.g. a PUMP Market Event) + live aura contribution. */
 export function getEffectiveAttack(state: MatchState, playerId: PlayerId, slot: number): number {
   const creature = state.players[playerId].board[slot];
   if (!creature) return 0;
-  return Math.max(0, creature.baseAttack + creature.buffAttack + computeAuraBonusAttack(state, playerId, slot));
+  return Math.max(
+    0,
+    creature.baseAttack + creature.buffAttack + creature.tempAttackBonus + computeAuraBonusAttack(state, playerId, slot),
+  );
 }
