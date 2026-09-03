@@ -6,8 +6,18 @@ export type ConnectionStatus = "idle" | "connecting" | "queued" | "in-match" | "
 
 const DEFAULT_SERVER_URL = "ws://localhost:8787";
 
+/**
+ * VITE_SERVER_URL is easy to paste in as the host's https:// URL (that's
+ * what Railway etc. show you) — the WebSocket constructor requires ws(s)://,
+ * so normalize rather than fail with an unhelpful SyntaxError.
+ */
+function toWebSocketUrl(url: string): string {
+  return url.replace(/^http:\/\//, "ws://").replace(/^https:\/\//, "wss://");
+}
+
 export function serverUrl(): string {
-  return (import.meta.env.VITE_SERVER_URL as string | undefined) ?? DEFAULT_SERVER_URL;
+  const configured = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? DEFAULT_SERVER_URL;
+  return toWebSocketUrl(configured);
 }
 
 /** Same shape as useMatch, but state is pushed by the match server over a WebSocket instead of computed locally. */
