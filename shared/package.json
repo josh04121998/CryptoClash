@@ -1,0 +1,16 @@
+{
+  "name": "@cryptoclash/protocol",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cryptoclash/engine": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

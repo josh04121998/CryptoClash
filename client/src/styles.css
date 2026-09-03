@@ -322,6 +322,67 @@ button {
   background: #7f1d1d;
 }
 
+/* Menu */
+
+.menu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.menu__option {
+  width: 100%;
+  max-width: 360px;
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.menu__option:hover {
+  border-color: var(--accent);
+}
+
+.menu__option-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.menu__option-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+/* Connection status */
+
+.connect-status {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-dim);
+}
+
+.connect-status button {
+  background: var(--accent);
+  color: #1a1200;
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.4rem;
+  font-weight: 700;
+}
+
 /* Log panel */
 
 .log-panel {

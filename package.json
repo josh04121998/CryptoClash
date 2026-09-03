@@ -3,6 +3,8 @@
   "private": true,
   "workspaces": [
     "engine",
+    "shared",
+    "server",
     "client"
   ]
 }
