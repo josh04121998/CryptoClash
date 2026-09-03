@@ -1,0 +1,8 @@
+{
+  "name": "cryptoclash",
+  "private": true,
+  "workspaces": [
+    "engine",
+    "client"
+  ]
+}
