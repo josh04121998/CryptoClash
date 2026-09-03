@@ -229,6 +229,8 @@ Example:
 
 No complicated rules text is necessary.
 
+**Implementation note (resolved ambiguity):** this text is silent on whether Guard also blocks attacks against *other* creatures, not just the player. The engine resolves it as full Taunt-style lockout — while any Guard creature is alive on a side, every attack against that side (player or any other creature) must target a Guard creature. See `card-schema.md` Section 4 for the mechanical detail.
+
 ---
 
 # 12. Rush

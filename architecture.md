@@ -171,12 +171,12 @@ Falls out of the architecture almost for free:
 Maps directly to spec.md Section 34.
 
 ### Build for MVP
-* Battle Engine (headless TS/Go library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events
-* Match server + WebSocket layer + matchmaking (skill-based only)
-* Unity client: tutorial, casual, ranked queues; board rendering; pack-opening screen
-* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history
-* Deck builder + collection screen (Section 19)
-* Pack service + crafting service
+* Battle Engine (headless TS library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events — **done except Items; see STATUS.md**
+* Match server + WebSocket layer + matchmaking — **done, skill-based ranking still outstanding; see STATUS.md**
+* React web client: tutorial, casual, ranked queues; board rendering; pack-opening screen — **vs-AI and online play modes done; ranked queues, tutorial flow, and pack-opening not started**
+* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **not started**
+* Deck builder + collection screen (Section 19) — **not started**
+* Pack service + crafting service — **not started**
 
 ### Explicitly deferred (do not build yet)
 * Web3 Service, minting, on-chain token standard
@@ -191,8 +191,18 @@ Building the Web3 Service against a game that doesn't exist yet is the classic f
 
 # 13. Open Decisions
 
-Flagging rather than deciding, since these need team/budget/community input:
+### Resolved
 
-* Node/TypeScript vs. Go for the battle engine
+* **Battle engine language: TypeScript**, not Go. Proven in production — the match server runs it live via `tsx` rather than a compiled build (see `server/README.md` for why: the workspace packages point `main` at raw `.ts` source, so a plain `node dist/index.js` would crash trying to resolve them).
+* **Client: web-first (React + Vite)**, confirmed and shipped — see Section 3 above.
+* **Hosting split: Vercel (client) + Railway (match server).** Vercel's serverless functions can't hold the persistent WebSocket connections a match server needs; Railway runs it as a normal long-lived Node process. Both auto-deploy from `main`.
+* **Monorepo shape:** `engine` / `shared` (`@cryptoclash/protocol`) / `server` / `client` as npm workspaces. `shared` wasn't anticipated in this doc's original package list — it exists because `MatchState` carries `Set`-typed fields and an `rng` function, neither of which survives `JSON.stringify`, so both client and server needed one shared place owning that (de)serialization boundary.
+
+### Still open
+
+Flagging rather than deciding, since these need team/budget/community input once the game is far enough along to need them:
+
 * L2 chain choice (Base vs. Polygon vs. other) for the eventual Web3 Service
 * Custodial vs. non-custodial-first wallet strategy
+
+See `STATUS.md` for the living day-to-day status; this document stays focused on design decisions and their rationale.
