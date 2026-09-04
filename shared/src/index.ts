@@ -49,7 +49,10 @@ export function deserializeState(net: NetworkMatchState): MatchState {
   };
 }
 
-export type ClientMessage = { type: "findMatch" } | { type: "intent"; intent: Intent } | { type: "leave" };
+export type ClientMessage =
+  | { type: "findMatch"; deckId?: string }
+  | { type: "intent"; intent: Intent }
+  | { type: "leave" };
 
 export type ServerMessage =
   | { type: "queued" }

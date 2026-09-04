@@ -22,38 +22,49 @@ A monorepo (npm workspaces) with four packages, all live and deployed:
 - Match server: `vivacious-passion-production-1a17.up.railway.app` (Railway, auto-deploys on push to `main`, Root Directory repo root)
 - Repo: `github.com/josh04121998/CryptoClash`
 
-**Test coverage:** 29 engine tests + 4 server integration tests, all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
+**Test coverage:** 36 engine tests + 5 server integration tests, all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
 
 ---
 
 # 2. Battle Engine (`engine/`)
 
-Implements batlleSpec.md's full "First Prototype" checklist (Section 32) **except Items**:
+Implements batlleSpec.md's full "First Prototype" checklist (Section 32), **Items included**:
 
 - Turn loop: Energy (1→10, refills each turn), Draw, Play, Attack, End
 - 5-slot board with adjacency (Section 5/8) — auras key off it (Moon Dog's "+1 Attack while next to another Doggo")
-- Creatures and Spells (Items — the third card type — not yet implemented)
+- Creatures, Spells, **and Items** (equip-style buffs/keyword grants — see below)
 - All five launch keywords (Section 11): **Rush**, **Guard**, **Stealth**, **Burn**, **HODL**
 - **Volatility & all five Market Events** (Sections 16-18): MARKET_CRASH, PUMP, LIQUIDATION, FOMO, BLACK_SWAN
 - Fatigue (escalating damage on empty-deck draw), hand size cap
 - Server-authoritative by construction: the engine is pure/deterministic (`seed` + ordered `Intent`s → identical result every time), so replay/anti-cheat (Section 31) falls out for free — `state.log` already is that replay
 
-**Card pool:** 37 templates. Three factions now have real depth and their own standalone 30-card deck (`cards.ts`): **Doggos** (`SAMPLE_DECK` — 9 cards + Puppy token, swarm/adjacency), **Frogs** (`FROG_SAMPLE_DECK` — 10 cards + Tadpole token, copying via the new `copyRandomFriendly` effect + controlled-randomness Volatility play), **Builders** (`BUILDER_SAMPLE_DECK` — 10 cards, card draw/combo via the new `draw` effect). **Degens**/**CryptoBros**/**Normies** still only have one or two utility spells each and no dedicated deck — that's the remaining content gap against spec.md Section 6.
+**Card pool:** 60 templates. All six spec.md Section 6 factions now have real depth and their own standalone 30-card deck (`cards.ts`, indexed by `DECKS`/`getDeck()`):
 
-See `card-schema.md` for the effect DSL these cards are built from (now including `draw` and `copyRandomFriendly`), and `engine/README.md` for how to run/extend it.
+| Faction | Deck export | Signature mechanic |
+|---|---|---|
+| Doggos | `SAMPLE_DECK` | Swarm/adjacency (existing) |
+| Frogs | `FROG_SAMPLE_DECK` | `copyRandomFriendly` — copy a random friendly creature |
+| Builders | `BUILDER_SAMPLE_DECK` | `draw` — card advantage/combo |
+| Degens | `DEGEN_SAMPLE_DECK` | `damage` targeted at `selfPlayer` — pay your own HP for power |
+| Crypto Bros | `CRYPTOBRO_SAMPLE_DECK` | `gainEnergy` (this-turn burst) / `gainMaxEnergy` (permanent ramp) |
+| Normies | `NORMIE_SAMPLE_DECK` | `heal` — steady, defensive toolkit |
+
+Plus **5 Neutral Items** (`buffTarget` for permanent +stat upgrades, `grantKeywordTarget` for temporary Rush/Guard grants — Guard/Rush are the only keywords `combat.ts` checks generically via `keywords ∪ tempKeywords`, so those are the only two safe to grant this way).
+
+See `card-schema.md` for the full effect DSL (now 10 `EffectAction` kinds), and `engine/README.md` for how to run/extend it.
 
 ---
 
 # 3. Client (`client/`)
 
-Two modes, both live:
+Two modes, both live, both now with a **deck picker** (`DeckPicker.tsx`) in front of them — pick any of the 6 pre-built decks before a match starts:
 
-- **Play vs AI** — runs the engine directly in the browser against a greedy-heuristic bot (`takeBotTurn`). No backend required. This is the permanent practice/tutorial mode, not a placeholder.
-- **Play Online** — real matchmaking through the Railway match server. FIFO queue, one match per pair, live state sync over WebSocket.
+- **Play vs AI** — runs the engine directly in the browser against a greedy-heuristic bot (`takeBotTurn`), which now also picks a random deck each match for variety. No backend required. This is the permanent practice/tutorial mode, not a placeholder.
+- **Play Online** — real matchmaking through the Railway match server; your chosen `deckId` rides along on the `findMatch` message so the server builds the match with the right cards for both sides.
 
-Board/hand/interaction UI (`MatchView`) is shared between both modes, parameterized by which player is "me," so every fix or feature (the Volatility meter, keyword badges, etc.) applies to both at once.
+Board/hand/interaction UI (`MatchView`) is shared between both modes, parameterized by which player is "me," so every fix or feature (the Volatility meter, keyword badges, etc.) applies to both at once. Targeting now distinguishes friendly-target cards (Items — click your own board) from enemy-target cards (damage/burn spells — click the opponent's board/portrait), via the shared `targetsFriendlyCreature()` helper (also used by the bot, so it doesn't waste Items targeting the wrong side).
 
-**Not yet built:** deck builder (decks are currently the hardcoded `SAMPLE_DECK` — everyone plays the same 30 cards), collection screen, accounts, Coins, packs. None of the economy/collectible layer from spec.md exists yet — see Section 6 below.
+**Not yet built:** an actual deck *builder* (players still pick one of 6 fixed pre-built decks, not their own list from the full pool), collection screen, accounts, Coins, packs. None of the economy/collectible layer from spec.md exists yet — see Section 6 below.
 
 ---
 
@@ -89,14 +100,17 @@ NFTs / Web3 Service, wallet linking, marketplace, staking/Vaults, accounts, Coin
 
 # 7. What's Next
 
-No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time.
+No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time. Working plan agreed with the user (2026-09-04): push toward a complete, polished, "good indie/prototype standard" game (explicitly not chasing Hearthstone's production values — no painted art/VFX/voice/live-ops budget here), working autonomously and only surfacing genuine decisions.
 
-As of this update: Frogs and Builders now have full 30-card decks (`FROG_SAMPLE_DECK`, `BUILDER_SAMPLE_DECK` in `engine/src/cards.ts`), each introducing a new signature effect (`copyRandomFriendly` for Frogs' copying identity, `draw` for Builders' combo identity) — closing the "only Doggos has depth" gap that made a deck builder feel premature. Neither deck is reachable from a live match yet: `server/src/matchRoom.ts` and `client/src/useMatch.ts` still hardcode `SAMPLE_DECK` for both players.
+**Just landed:** all six spec.md factions now have real 30-card decks with distinct signature mechanics (see Section 2), Items are implemented, and a deck picker wires all of it into both Play vs AI and Play Online. Engine content-completeness (batlleSpec.md Section 32 + spec.md Section 6) is essentially done.
 
-Two natural next steps, not yet decided between:
+Roadmap, in rough order:
 
-- **Deck builder** — now genuinely worth building: three decks' worth of cards exist to build with.
-- **Deck picker** — a much smaller step than a full builder: let a player choose Doggos/Frogs/Builders (as a fixed pre-built deck) before a match, in both Play vs AI and Play Online. Wires the new content into the actual game loop without the larger deck-builder UI/persistence surface.
-- **Degens/CryptoBros/Normies content** — still only one or two utility spells each; same treatment (signature mechanic + dedicated deck) would round out all six factions from spec.md Section 6.
+1. ~~Finish the card layer (all 6 factions + Items)~~ — done.
+2. ~~Wire content into the live game (deck selection)~~ — done.
+3. **Deck builder + collection screen** — let players build a deck from the full 60-card pool instead of picking one of 6 fixed lists.
+4. **Smarter AI** — the bot (`bot.ts`) is a greedy heuristic (play what's affordable, attack with everything); it needs real decision-making to hold up as the permanent solo mode.
+5. **Client polish pass** — animations, attack/damage feedback, sound effects, keyword tooltips, better board/hand feel, mobile pass. Art direction (clean vector/icon style vs. something else) is a real decision to raise with the user before this phase, not decided unilaterally.
+6. **Multiplayer robustness** — reconnect-to-in-progress-match (a dropped connection currently ends the match for both players), and eventually less naive matchmaking than FIFO.
 
-Check the conversation, not this bullet, for the actual current call.
+Check the conversation, not this list, for what's actually being worked on right now.

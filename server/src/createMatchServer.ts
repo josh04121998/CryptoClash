@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createServer, Server as HttpServer } from "node:http";
+import { DEFAULT_DECK_ID } from "@cryptoclash/engine";
 import { ClientMessage } from "@cryptoclash/protocol";
 import { WebSocket, WebSocketServer } from "ws";
 import { MatchRoom } from "./matchRoom.js";
@@ -32,7 +33,7 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
   }
 
   wss.on("connection", (socket: WebSocket) => {
-    const session: Session = { id: randomUUID(), socket, room: null };
+    const session: Session = { id: randomUUID(), socket, room: null, deckId: DEFAULT_DECK_ID };
 
     socket.on("message", (raw) => {
       let message: ClientMessage;
@@ -45,6 +46,7 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
       switch (message.type) {
         case "findMatch": {
           if (session.room) return;
+          session.deckId = message.deckId ?? DEFAULT_DECK_ID;
           const opponent = queue.shift();
           if (opponent) {
             const room = new MatchRoom(opponent, session);

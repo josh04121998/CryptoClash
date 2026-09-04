@@ -402,3 +402,116 @@ describe("Frogs — copyRandomFriendly effect", () => {
     expect(deepCroakCopies.length).toBe(1);
   });
 });
+
+describe("Degens — self-damage effects", () => {
+  it("Margin Call damages the enemy player and its own controller", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 53);
+    const aHpBefore = state.players.A.hp;
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "margin_call") });
+
+    expect(state.players.B.hp).toBe(bHpBefore - 3);
+    expect(state.players.A.hp).toBe(aHpBefore - 2);
+  });
+
+  it("Leverage Trade pays 1 HP for a permanent +2 Attack on itself", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 55);
+    const aHpBefore = state.players.A.hp;
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "leverage_trade"), slot: 0 });
+
+    expect(state.players.A.hp).toBe(aHpBefore - 1);
+    expect(getEffectiveAttack(state, "A", 0)).toBe(5); // base 3 + buffSelf 2
+  });
+});
+
+describe("Normies — heal effect", () => {
+  it("First Aid restores HP, clamped to MAX_PLAYER_HP", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 57);
+    state.players.A.hp = 29;
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "first_aid") });
+    expect(state.players.A.hp).toBe(30); // clamped, not 32
+
+    state.players.A.hp = 10;
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "rainy_day_fund") });
+    expect(state.players.A.hp).toBe(15);
+  });
+});
+
+describe("Crypto Bros — energy effects", () => {
+  it("Seed Round grants extra Energy for the current turn only, without raising maxEnergy", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 59);
+    // Bypass giveCard here — it forces energy/maxEnergy to 10/10, which would
+    // mask gainEnergy's clamp-at-MAX behavior since both actions are no-ops at the cap.
+    state.players.A.maxEnergy = 3;
+    state.players.A.energy = 3;
+    state.players.A.hand.push("seed_round");
+    const idx = state.players.A.hand.length - 1;
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: idx }); // cost 1, gains 1 back
+    expect(state.players.A.energy).toBe(3); // 3 - 1 (cost) + 1 (gainEnergy) = 3
+    expect(state.players.A.maxEnergy).toBe(3); // unaffected
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" });
+    applyIntent(state, { kind: "endTurn", playerId: "B" });
+    // Back to A's turn: maxEnergy only went up by the normal 1/turn, not by the temporary Seed Round bonus.
+    expect(state.players.A.maxEnergy).toBe(4);
+  });
+
+  it("Venture Capital permanently raises maxEnergy, unlike Seed Round", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 61);
+    state.players.A.maxEnergy = 4;
+    state.players.A.energy = 4;
+    state.players.A.hand.push("venture_capital");
+    const idx = state.players.A.hand.length - 1;
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: idx }); // cost 2
+
+    expect(state.players.A.maxEnergy).toBe(5);
+    expect(state.players.A.energy).toBe(3); // 4 - 2 (cost) + 1 (gainMaxEnergy's immediate bump) = 3
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" });
+    applyIntent(state, { kind: "endTurn", playerId: "B" });
+    // Back to A's turn: startTurn's usual +1 stacks on top of the now-permanent 5.
+    expect(state.players.A.maxEnergy).toBe(6);
+  });
+});
+
+describe("Items — buffTarget and grantKeywordTarget", () => {
+  it("Sharpening Stone permanently buffs the chosen friendly creature", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 63);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pup_scout"), slot: 0 });
+
+    applyIntent(state, {
+      kind: "playCard",
+      playerId: "A",
+      handIndex: giveCard(state, "A", "sharpening_stone"),
+      target: { type: "creature", playerId: "A", slot: 0 },
+    });
+
+    expect(getEffectiveAttack(state, "A", 0)).toBe(3); // base 1 + 2
+  });
+
+  it("Rocket Boots grants Rush to a freshly summoned creature just for this turn", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 65);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pup_scout"), slot: 0 });
+
+    // Without Rush, a freshly summoned creature can't attack this turn.
+    expect(() =>
+      applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "player", playerId: "B" } }),
+    ).toThrow();
+
+    applyIntent(state, {
+      kind: "playCard",
+      playerId: "A",
+      handIndex: giveCard(state, "A", "rocket_boots"),
+      target: { type: "creature", playerId: "A", slot: 0 },
+    });
+
+    expect(() =>
+      applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "player", playerId: "B" } }),
+    ).not.toThrow();
+  });
+});

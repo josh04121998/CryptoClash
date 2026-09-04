@@ -61,6 +61,28 @@ describe("matchmaking", () => {
   });
 });
 
+describe("deck selection", () => {
+  it("uses each player's chosen deckId when building the match", async () => {
+    const { FROG_SAMPLE_DECK } = await import("@cryptoclash/engine");
+    const a = await connect();
+    const b = await connect();
+
+    send(a, { type: "findMatch", deckId: "frogs" });
+    await nextMessage(a); // queued
+    send(b, { type: "findMatch", deckId: "frogs" });
+    const [foundA] = await Promise.all([nextMessage(a), nextMessage(b)]);
+    if (foundA.type !== "matchFound") throw new Error("unreachable");
+
+    const frogCardIds = new Set(FROG_SAMPLE_DECK);
+    for (const cardId of foundA.state.players.A.hand) {
+      expect(frogCardIds.has(cardId)).toBe(true);
+    }
+
+    a.close();
+    b.close();
+  });
+});
+
 describe("in-match play", () => {
   async function setUpMatch() {
     const a = await connect();

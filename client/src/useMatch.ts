@@ -1,7 +1,12 @@
-import { Intent, MatchState, SAMPLE_DECK, applyIntent, createMatch, takeBotTurn } from "@cryptoclash/engine";
+import { DECKS, DEFAULT_DECK_ID, Intent, MatchState, applyIntent, createMatch, getDeck, takeBotTurn } from "@cryptoclash/engine";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const BOT_DELAY_MS = 700;
+
+/** The bot plays a randomly chosen pre-built deck each match, for variety. */
+function randomDeck(): string[] {
+  return DECKS[Math.floor(Math.random() * DECKS.length)].cards;
+}
 
 /**
  * Holds a MatchState (the engine mutates in place) plus a version counter to
@@ -9,8 +14,8 @@ const BOT_DELAY_MS = 700;
  * server would push over the network — the UI never touches engine logic
  * directly, only `dispatch`.
  */
-export function useMatch() {
-  const stateRef = useRef<MatchState>(createMatch(SAMPLE_DECK, SAMPLE_DECK, Date.now()));
+export function useMatch(deckId: string = DEFAULT_DECK_ID) {
+  const stateRef = useRef<MatchState>(createMatch(getDeck(deckId), randomDeck(), Date.now()));
   const [version, setVersion] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -25,10 +30,10 @@ export function useMatch() {
   }, []);
 
   const restart = useCallback(() => {
-    stateRef.current = createMatch(SAMPLE_DECK, SAMPLE_DECK, Date.now());
+    stateRef.current = createMatch(getDeck(deckId), randomDeck(), Date.now());
     setLastError(null);
     setVersion((v) => v + 1);
-  }, []);
+  }, [deckId]);
 
   useEffect(() => {
     const state = stateRef.current;

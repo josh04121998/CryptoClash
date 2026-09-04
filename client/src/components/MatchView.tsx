@@ -1,4 +1,4 @@
-import { CARD_POOL, Intent, MatchState, PlayerId } from "@cryptoclash/engine";
+import { CARD_POOL, Intent, MatchState, PlayerId, targetsFriendlyCreature } from "@cryptoclash/engine";
 import { useState } from "react";
 import { BoardRow } from "./BoardRow.js";
 import { HandRow } from "./HandRow.js";
@@ -11,6 +11,10 @@ type Selection = { type: "none" } | { type: "hand"; handIndex: number } | { type
 function needsTarget(templateId: string): boolean {
   const template = CARD_POOL[templateId];
   return Boolean(template.effects?.some((e) => e.trigger === "onPlay" && e.requiresTarget));
+}
+
+function targetsFriendly(templateId: string): boolean {
+  return targetsFriendlyCreature(CARD_POOL[templateId]);
 }
 
 export interface MatchViewProps {
@@ -75,6 +79,17 @@ export function MatchView({
       const template = CARD_POOL[templateId];
       if (template.type === "Creature" && !creature) {
         act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex, slot }));
+        return;
+      }
+      if (needsTarget(templateId) && targetsFriendly(templateId) && creature) {
+        act(() =>
+          dispatch({
+            kind: "playCard",
+            playerId: myPlayerId,
+            handIndex: selection.handIndex,
+            target: { type: "creature", playerId: myPlayerId, slot },
+          }),
+        );
       }
       return;
     }
@@ -92,7 +107,7 @@ export function MatchView({
 
     if (selection.type === "hand") {
       const templateId = me.hand[selection.handIndex];
-      if (needsTarget(templateId) && enemyCreature) {
+      if (needsTarget(templateId) && !targetsFriendly(templateId) && enemyCreature) {
         act(() =>
           dispatch({
             kind: "playCard",
@@ -122,7 +137,7 @@ export function MatchView({
 
     if (selection.type === "hand") {
       const templateId = me.hand[selection.handIndex];
-      if (needsTarget(templateId)) {
+      if (needsTarget(templateId) && !targetsFriendly(templateId)) {
         act(() =>
           dispatch({
             kind: "playCard",
@@ -143,7 +158,12 @@ export function MatchView({
   }
 
   const enemyTargetable =
-    canAct && (selection.type === "attacker" || (selection.type === "hand" && needsTarget(me.hand[selection.handIndex])));
+    canAct &&
+    (selection.type === "attacker" ||
+      (selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && !targetsFriendly(me.hand[selection.handIndex])));
+
+  const ownBoardTargetable =
+    canAct && selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && targetsFriendly(me.hand[selection.handIndex]);
 
   const winnerText = state.winner ? (state.winner === "Draw" ? "Draw!" : state.winner === myPlayerId ? "You win!" : "You lose.") : null;
 
@@ -176,6 +196,7 @@ export function MatchView({
           state={state}
           playerId={myPlayerId}
           selectedSlot={selection.type === "attacker" ? selection.slot : undefined}
+          targetable={ownBoardTargetable}
           onSlotClick={onOwnSlotClick}
         />
         <PlayerHeader name={myLabel} player={me} isActive={state.activePlayer === myPlayerId} />

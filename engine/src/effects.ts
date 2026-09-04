@@ -2,7 +2,18 @@ import { CARD_POOL } from "./cards.js";
 import { drawCard } from "./draw.js";
 import { applyVolatilityChange } from "./marketEvents.js";
 import { applyDamageToTarget, pushLog } from "./matchOps.js";
-import { BoardCreature, EffectDef, Keyword, MatchState, PlayerId, TargetRef, TargetSelector, Trigger } from "./types.js";
+import {
+  BoardCreature,
+  EffectDef,
+  Keyword,
+  MatchState,
+  MAX_ENERGY,
+  MAX_PLAYER_HP,
+  PlayerId,
+  TargetRef,
+  TargetSelector,
+  Trigger,
+} from "./types.js";
 import { enemyOf, firstEmptySlot } from "./util.js";
 
 export interface EffectContext {
@@ -16,6 +27,9 @@ export interface EffectContext {
 function resolveTargets(selector: TargetSelector, ctx: EffectContext): TargetRef[] {
   if (selector.kind === "enemyPlayer") {
     return [{ type: "player", playerId: enemyOf(ctx.controller) }];
+  }
+  if (selector.kind === "selfPlayer") {
+    return [{ type: "player", playerId: ctx.controller }];
   }
   // "chosen" — validated as present (and targetable) by the caller before effects run.
   return ctx.chosenTarget ? [ctx.chosenTarget] : [];
@@ -134,6 +148,60 @@ export function resolveEffects(state: MatchState, effects: EffectDef[], trigger:
       }
       case "copyRandomFriendly": {
         copyRandomFriendly(state, ctx, action.count);
+        break;
+      }
+      case "heal": {
+        const player = state.players[ctx.controller];
+        const before = player.hp;
+        player.hp = Math.min(MAX_PLAYER_HP, player.hp + action.amount);
+        pushLog(state, `${ctx.controller} heals ${player.hp - before} (HP: ${player.hp}).`);
+        break;
+      }
+      case "gainEnergy": {
+        const player = state.players[ctx.controller];
+        player.energy = Math.min(MAX_ENERGY, player.energy + action.amount);
+        pushLog(state, `${ctx.controller} gains ${action.amount} Energy this turn (Energy ${player.energy}).`);
+        break;
+      }
+      case "gainMaxEnergy": {
+        const player = state.players[ctx.controller];
+        player.maxEnergy = Math.min(MAX_ENERGY, player.maxEnergy + action.amount);
+        player.energy = Math.min(MAX_ENERGY, player.energy + action.amount);
+        pushLog(
+          state,
+          `${ctx.controller}'s max Energy grows by ${action.amount} (Energy ${player.energy}/${player.maxEnergy}).`,
+        );
+        break;
+      }
+      case "buffTarget": {
+        for (const target of resolveTargets(action.target, ctx)) {
+          if (target.type !== "creature") continue;
+          const creature = state.players[target.playerId].board[target.slot];
+          if (!creature) continue;
+          creature.buffAttack += action.attack ?? 0;
+          if (action.health) {
+            creature.buffHealth += action.health;
+            creature.health += action.health;
+            creature.maxHealth += action.health;
+          }
+          pushLog(
+            state,
+            `${CARD_POOL[creature.templateId].name} (${target.playerId}, slot ${target.slot + 1}) gains +${action.attack ?? 0}/+${action.health ?? 0}.`,
+          );
+        }
+        break;
+      }
+      case "grantKeywordTarget": {
+        for (const target of resolveTargets(action.target, ctx)) {
+          if (target.type !== "creature") continue;
+          const creature = state.players[target.playerId].board[target.slot];
+          if (!creature) continue;
+          creature.tempKeywords.add(action.keyword);
+          pushLog(
+            state,
+            `${CARD_POOL[creature.templateId].name} (${target.playerId}, slot ${target.slot + 1}) gains ${action.keyword} this turn.`,
+          );
+        }
         break;
       }
     }

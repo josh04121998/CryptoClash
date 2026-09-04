@@ -1,4 +1,4 @@
-import { CardTemplate } from "./types.js";
+import { CardTemplate, Faction } from "./types.js";
 
 /**
  * Prototype card pool. Deliberately small — just enough to exercise every
@@ -411,6 +411,361 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard. The whole stack, defended.",
   },
+
+  // --- Degens ("Risk everything.") — self-damage, sacrifice, explosive
+  // turns, high risk/high reward. Signature: pay your own HP for power.
+  degen_ape: {
+    id: "degen_ape",
+    name: "Degen Ape",
+    faction: "Degens",
+    type: "Creature",
+    cost: 1,
+    attack: 3,
+    health: 1,
+    text: "All in, no plan.",
+  },
+  margin_call: {
+    id: "margin_call",
+    name: "Margin Call",
+    faction: "Degens",
+    type: "Spell",
+    cost: 1,
+    text: "Deal 3 damage to the enemy player. Take 2 damage yourself.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "enemyPlayer" }, amount: 3 } },
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
+    ],
+  },
+  rug_pull: {
+    id: "rug_pull",
+    name: "Rug Pull",
+    faction: "Degens",
+    type: "Spell",
+    cost: 2,
+    text: "Deal 5 damage. Take 2 damage yourself.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "damage", target: { kind: "chosen" }, amount: 5 },
+      },
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
+    ],
+  },
+  leverage_trade: {
+    id: "leverage_trade",
+    name: "Leverage Trade",
+    faction: "Degens",
+    type: "Creature",
+    cost: 2,
+    attack: 3,
+    health: 1,
+    text: "Deal 1 damage to yourself. Gain +2 Attack.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 1 } },
+      { trigger: "onPlay", action: { kind: "buffSelf", attack: 2 } },
+    ],
+  },
+  yolo_allin: {
+    id: "yolo_allin",
+    name: "YOLO All-In",
+    faction: "Degens",
+    type: "Spell",
+    cost: 2,
+    text: "Increase Volatility by 6. Take 2 damage yourself.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "volatility", amount: 6 } },
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
+    ],
+  },
+  blown_account: {
+    id: "blown_account",
+    name: "Blown Account",
+    faction: "Degens",
+    type: "Creature",
+    cost: 3,
+    attack: 5,
+    health: 2,
+    text: "High reward, paper hands.",
+  },
+  liquidated_ledger: {
+    id: "liquidated_ledger",
+    name: "Liquidated Ledger",
+    faction: "Degens",
+    type: "Creature",
+    cost: 4,
+    attack: 3,
+    health: 3,
+    text: "Deal 2 damage to yourself. Gain +3 Attack.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
+      { trigger: "onPlay", action: { kind: "buffSelf", attack: 3 } },
+    ],
+  },
+  moonshot: {
+    id: "moonshot",
+    name: "Moonshot",
+    faction: "Degens",
+    type: "Creature",
+    cost: 5,
+    attack: 7,
+    health: 6,
+    text: "Deal 3 damage to yourself.",
+    effects: [{ trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 3 } }],
+  },
+
+  // --- Crypto Bros ("Make money. Make more money.") — energy, resource
+  // generation, scaling, investment. Signature: gainEnergy / gainMaxEnergy.
+  seed_round: {
+    id: "seed_round",
+    name: "Seed Round",
+    faction: "CryptoBros",
+    type: "Spell",
+    cost: 1,
+    text: "Gain 1 Energy this turn.",
+    effects: [{ trigger: "onPlay", action: { kind: "gainEnergy", amount: 1 } }],
+  },
+  hodl_wallet: {
+    id: "hodl_wallet",
+    name: "HODL Wallet",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 1,
+    attack: 1,
+    health: 3,
+    text: "At the start of your turn, gain 1 Energy this turn.",
+    effects: [{ trigger: "onTurnStart", action: { kind: "gainEnergy", amount: 1 } }],
+  },
+  angel_investor: {
+    id: "angel_investor",
+    name: "Angel Investor",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 2,
+    attack: 2,
+    health: 3,
+    text: "Gain 1 Energy this turn.",
+    effects: [{ trigger: "onPlay", action: { kind: "gainEnergy", amount: 1 } }],
+  },
+  venture_capital: {
+    id: "venture_capital",
+    name: "Venture Capital",
+    faction: "CryptoBros",
+    type: "Spell",
+    cost: 2,
+    text: "Your maximum Energy permanently increases by 1.",
+    effects: [{ trigger: "onPlay", action: { kind: "gainMaxEnergy", amount: 1 } }],
+  },
+  bull_run: {
+    id: "bull_run",
+    name: "Bull Run",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 3,
+    attack: 3,
+    health: 4,
+    text: "Gain +1 Attack while next to another Crypto Bro.",
+    aura: { filter: "adjacentSameFaction", attack: 1 },
+  },
+  to_the_moon: {
+    id: "to_the_moon",
+    name: "To The Moon",
+    faction: "CryptoBros",
+    type: "Spell",
+    cost: 3,
+    text: "Gain 2 Energy this turn. Increase Volatility by 2.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "gainEnergy", amount: 2 } },
+      { trigger: "onPlay", action: { kind: "volatility", amount: 2 } },
+    ],
+  },
+  whale_wallet: {
+    id: "whale_wallet",
+    name: "Whale Wallet",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 4,
+    attack: 2,
+    health: 5,
+    text: "Gain 2 Energy this turn.",
+    effects: [{ trigger: "onPlay", action: { kind: "gainEnergy", amount: 2 } }],
+  },
+  compound_interest: {
+    id: "compound_interest",
+    name: "Compound Interest",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 5,
+    attack: 4,
+    health: 7,
+    text: "Vanilla.",
+  },
+
+  // --- Normies ("Keep it simple.") — flexible, reliable, defensive,
+  // adaptable. Signature: heal (a steady, no-frills toolkit).
+  steady_hand: {
+    id: "steady_hand",
+    name: "Steady Hand",
+    faction: "Normies",
+    type: "Creature",
+    cost: 1,
+    attack: 2,
+    health: 2,
+    text: "Vanilla.",
+  },
+  first_aid: {
+    id: "first_aid",
+    name: "First Aid",
+    faction: "Normies",
+    type: "Spell",
+    cost: 1,
+    text: "Restore 3 HP.",
+    effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 3 } }],
+  },
+  safe_harbor: {
+    id: "safe_harbor",
+    name: "Safe Harbor",
+    faction: "Normies",
+    type: "Creature",
+    cost: 2,
+    attack: 2,
+    health: 4,
+    keywords: ["Guard"],
+    text: "Guard. Steady and dependable.",
+  },
+  rainy_day_fund: {
+    id: "rainy_day_fund",
+    name: "Rainy Day Fund",
+    faction: "Normies",
+    type: "Spell",
+    cost: 2,
+    text: "Restore 5 HP.",
+    effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 5 } }],
+  },
+  adaptive_trader: {
+    id: "adaptive_trader",
+    name: "Adaptive Trader",
+    faction: "Normies",
+    type: "Creature",
+    cost: 3,
+    attack: 3,
+    health: 3,
+    text: "Gain +1 Attack while next to another Normie.",
+    aura: { filter: "adjacentSameFaction", attack: 1 },
+  },
+  old_reliable: {
+    id: "old_reliable",
+    name: "Old Reliable",
+    faction: "Normies",
+    type: "Creature",
+    cost: 3,
+    attack: 3,
+    health: 4,
+    text: "Keep it simple.",
+  },
+  community_shield: {
+    id: "community_shield",
+    name: "Community Shield",
+    faction: "Normies",
+    type: "Creature",
+    cost: 4,
+    attack: 4,
+    health: 6,
+    keywords: ["Guard"],
+    text: "Guard. The community has your back.",
+  },
+  steadfast_normie: {
+    id: "steadfast_normie",
+    name: "Steadfast Normie",
+    faction: "Normies",
+    type: "Creature",
+    cost: 5,
+    attack: 5,
+    health: 7,
+    keywords: ["Guard"],
+    text: "Guard. Never panic sells.",
+  },
+
+  // --- Items (batlleSpec.md Section 9: "simple permanent or temporary
+  // upgrades") — Neutral, equip-style buffs/keyword grants aimed at a
+  // friendly creature. buffTarget = permanent; grantKeywordTarget = this
+  // turn only (Rush/Guard are the only keywords enforced generically by
+  // combat.ts — see util.ts's targetsFriendlyCreature).
+  sharpening_stone: {
+    id: "sharpening_stone",
+    name: "Sharpening Stone",
+    faction: "Neutral",
+    type: "Item",
+    cost: 1,
+    text: "Give a friendly creature +2 Attack.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "buffTarget", target: { kind: "chosen" }, attack: 2 },
+      },
+    ],
+  },
+  rocket_boots: {
+    id: "rocket_boots",
+    name: "Rocket Boots",
+    faction: "Neutral",
+    type: "Item",
+    cost: 1,
+    text: "Give a friendly creature Rush this turn.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "grantKeywordTarget", target: { kind: "chosen" }, keyword: "Rush" },
+      },
+    ],
+  },
+  reinforced_plating: {
+    id: "reinforced_plating",
+    name: "Reinforced Plating",
+    faction: "Neutral",
+    type: "Item",
+    cost: 2,
+    text: "Give a friendly creature +0/+4.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "buffTarget", target: { kind: "chosen" }, health: 4 },
+      },
+    ],
+  },
+  bodyguard_badge: {
+    id: "bodyguard_badge",
+    name: "Bodyguard Badge",
+    faction: "Neutral",
+    type: "Item",
+    cost: 2,
+    text: "Give a friendly creature Guard this turn.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "grantKeywordTarget", target: { kind: "chosen" }, keyword: "Guard" },
+      },
+    ],
+  },
+  power_core: {
+    id: "power_core",
+    name: "Power Core",
+    faction: "Neutral",
+    type: "Item",
+    cost: 3,
+    text: "Give a friendly creature +3/+3.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "buffTarget", target: { kind: "chosen" }, attack: 3, health: 3 },
+      },
+    ],
+  },
 };
 
 /** A legal 30-card deck built entirely from the pool above (mirror-match sample). */
@@ -460,3 +815,74 @@ export const BUILDER_SAMPLE_DECK: string[] = [
   ...Array(2).fill("full_stack_titan"),
   ...Array(2).fill("spark_bolt"),
 ];
+
+/** A legal 30-card Degens deck, exercising the pay-your-own-HP signature. */
+export const DEGEN_SAMPLE_DECK: string[] = [
+  ...Array(3).fill("degen_ape"),
+  ...Array(3).fill("margin_call"),
+  ...Array(3).fill("leverage_trade"),
+  ...Array(3).fill("rug_pull"),
+  ...Array(2).fill("yolo_allin"),
+  ...Array(3).fill("blown_account"),
+  ...Array(3).fill("ember_curse"),
+  ...Array(3).fill("liquidated_ledger"),
+  ...Array(2).fill("diamond_hands"),
+  ...Array(2).fill("moonshot"),
+  ...Array(2).fill("sharpening_stone"),
+  ...Array(1).fill("bodyguard_badge"),
+];
+
+/** A legal 30-card Crypto Bros deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
+export const CRYPTOBRO_SAMPLE_DECK: string[] = [
+  ...Array(3).fill("seed_round"),
+  ...Array(3).fill("hodl_wallet"),
+  ...Array(3).fill("angel_investor"),
+  ...Array(3).fill("venture_capital"),
+  ...Array(3).fill("bull_run"),
+  ...Array(2).fill("to_the_moon"),
+  ...Array(3).fill("whale_wallet"),
+  ...Array(2).fill("compound_interest"),
+  ...Array(3).fill("pump_signal"),
+  ...Array(3).fill("spark_bolt"),
+  ...Array(2).fill("power_core"),
+];
+
+/** A legal 30-card Normies deck, exercising the heal/defensive signature. */
+export const NORMIE_SAMPLE_DECK: string[] = [
+  ...Array(3).fill("steady_hand"),
+  ...Array(3).fill("first_aid"),
+  ...Array(3).fill("safe_harbor"),
+  ...Array(3).fill("rainy_day_fund"),
+  ...Array(3).fill("adaptive_trader"),
+  ...Array(3).fill("old_reliable"),
+  ...Array(3).fill("community_shield"),
+  ...Array(2).fill("steadfast_normie"),
+  ...Array(2).fill("cool_down"),
+  ...Array(2).fill("reinforced_plating"),
+  ...Array(3).fill("rocket_boots"),
+];
+
+export interface DeckDefinition {
+  id: string;
+  name: string;
+  faction: Faction;
+  /** Shown on the deck-picker screen. */
+  description: string;
+  cards: string[];
+}
+
+/** Every playable pre-built deck, keyed for the client's deck picker and the server's matchmaking. */
+export const DECKS: DeckDefinition[] = [
+  { id: "doggos", name: "Doggos", faction: "Doggos", description: "Swarm the board — more friends, more Attack.", cards: SAMPLE_DECK },
+  { id: "frogs", name: "Frogs", faction: "Frogs", description: "Copy your best creature and lean into chaos.", cards: FROG_SAMPLE_DECK },
+  { id: "builders", name: "Builders", faction: "Builders", description: "Draw cards, chain combos, out-value the board.", cards: BUILDER_SAMPLE_DECK },
+  { id: "degens", name: "Degens", faction: "Degens", description: "Pay your own HP for explosive, above-rate power.", cards: DEGEN_SAMPLE_DECK },
+  { id: "cryptobros", name: "Crypto Bros", faction: "CryptoBros", description: "Ramp your Energy and scale out of control.", cards: CRYPTOBRO_SAMPLE_DECK },
+  { id: "normies", name: "Normies", faction: "Normies", description: "Simple, sturdy, defensive — hard to punish.", cards: NORMIE_SAMPLE_DECK },
+];
+
+export const DEFAULT_DECK_ID = "doggos";
+
+export function getDeck(deckId: string): string[] {
+  return DECKS.find((d) => d.id === deckId)?.cards ?? SAMPLE_DECK;
+}

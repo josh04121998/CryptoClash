@@ -1,7 +1,7 @@
 import { CARD_POOL } from "./cards.js";
 import { applyIntent } from "./engine.js";
-import { BOARD_SIZE, Intent, MatchState, PlayerId } from "./types.js";
-import { enemyOf } from "./util.js";
+import { BOARD_SIZE, Intent, MatchState, PlayerId, TargetRef } from "./types.js";
+import { enemyOf, targetsFriendlyCreature } from "./util.js";
 
 function tryIntent(state: MatchState, intent: Intent): boolean {
   try {
@@ -27,9 +27,16 @@ function playAffordableCards(state: MatchState, playerId: PlayerId) {
         if (slot === -1) continue;
       }
 
-      const target = template.effects?.some((e) => e.trigger === "onPlay" && e.requiresTarget)
-        ? ({ type: "player", playerId: enemyOf(playerId) } as const)
-        : undefined;
+      let target: TargetRef | undefined;
+      if (template.effects?.some((e) => e.trigger === "onPlay" && e.requiresTarget)) {
+        if (targetsFriendlyCreature(template)) {
+          const friendlySlot = player.board.findIndex((c) => c !== null);
+          if (friendlySlot === -1) continue; // nothing to buff yet — try again once something's on board
+          target = { type: "creature", playerId, slot: friendlySlot };
+        } else {
+          target = { type: "player", playerId: enemyOf(playerId) };
+        }
+      }
 
       if (tryIntent(state, { kind: "playCard", playerId, handIndex: i, slot, target })) {
         progressed = true;

@@ -6,11 +6,11 @@ No rendering, no networking. Takes a `(seed, deck lists)` pair plus a stream of 
 
 ## What's implemented
 
-Turn loop (Energy, Draw, Play, Attack, End) · 5-slot board with adjacency auras · Creatures/Spells · all five launch keywords — Rush, Guard, Stealth, Burn, HODL · Volatility & the five Market Events (MARKET_CRASH, PUMP, LIQUIDATION, FOMO, BLACK_SWAN) · fatigue · the exact Moon Dog / Puppy Swarm / Pack Rush combo from `batlleSpec.md` Section 21.
+Turn loop (Energy, Draw, Play, Attack, End) · 5-slot board with adjacency auras · Creatures/Spells/Items · all five launch keywords — Rush, Guard, Stealth, Burn, HODL · Volatility & the five Market Events (MARKET_CRASH, PUMP, LIQUIDATION, FOMO, BLACK_SWAN) · fatigue · the exact Moon Dog / Puppy Swarm / Pack Rush combo from `batlleSpec.md` Section 21.
 
-Three factions now have real card depth, each with its own standalone 30-card deck export: `SAMPLE_DECK` (Doggos — swarm/adjacency), `FROG_SAMPLE_DECK` (Frogs — copying via the `copyRandomFriendly` effect, plus controlled-randomness Volatility play), `BUILDER_SAMPLE_DECK` (Builders — card draw/combo via the `draw` effect). Degens/CryptoBros/Normies still only have one or two utility spells each.
+All six spec.md Section 6 factions now have real card depth, each with its own standalone 30-card deck export — `SAMPLE_DECK` (Doggos — swarm/adjacency), `FROG_SAMPLE_DECK` (Frogs — copying via `copyRandomFriendly`), `BUILDER_SAMPLE_DECK` (Builders — card draw/combo via `draw`), `DEGEN_SAMPLE_DECK` (Degens — pay your own HP for power, via `damage` targeted at `selfPlayer`), `CRYPTOBRO_SAMPLE_DECK` (Crypto Bros — Energy ramp via `gainEnergy`/`gainMaxEnergy`), `NORMIE_SAMPLE_DECK` (Normies — a defensive `heal` toolkit) — plus 5 Neutral Items (`buffTarget`/`grantKeywordTarget`). All six are collected in `DECKS` and look-up-able via `getDeck(deckId)`.
 
-Not yet implemented (next slice): Items, a deck-selection UI/deck builder (the new Frog/Builder decks aren't reachable from a live match yet — `server`/`client` still hardcode `SAMPLE_DECK`), and full Degens/CryptoBros/Normies rosters.
+Not yet implemented (next slice): a deck *builder* (players currently pick one of the 6 fixed decks above via the client's deck picker, not a custom list from the full pool), a smarter bot (still a greedy heuristic), and reconnect-to-in-progress-match on the server.
 
 ## Running it
 

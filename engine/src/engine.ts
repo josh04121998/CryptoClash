@@ -5,18 +5,16 @@ import { drawCard } from "./draw.js";
 import { createBoardCreature, resolveEffects } from "./effects.js";
 import { isTargetable, pushLog } from "./matchOps.js";
 import { mulberry32, shuffle } from "./rng.js";
-import { BOARD_SIZE, Intent, MatchState, PlayerId, PlayerState } from "./types.js";
+import { BOARD_SIZE, Intent, MatchState, MAX_ENERGY, MAX_PLAYER_HP, PlayerId, PlayerState } from "./types.js";
 import { enemyOf } from "./util.js";
 
-const STARTING_HP = 30;
 const OPENING_HAND_SIZE = 4;
-const MAX_ENERGY = 10;
 
 function createPlayer(id: PlayerId, deckList: string[], rng: () => number): PlayerState {
   const shuffled = shuffle(deckList, rng);
   return {
     id,
-    hp: STARTING_HP,
+    hp: MAX_PLAYER_HP,
     maxEnergy: 0,
     energy: 0,
     deck: shuffled.slice(OPENING_HAND_SIZE),

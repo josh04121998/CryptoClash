@@ -1,4 +1,6 @@
 export const BOARD_SIZE = 5;
+export const MAX_ENERGY = 10;
+export const MAX_PLAYER_HP = 30;
 
 export type PlayerId = "A" | "B";
 
@@ -16,7 +18,7 @@ export type CardType = "Creature" | "Spell" | "Item";
 /** Launch keyword vocabulary (batlleSpec.md, Section 11). */
 export type Keyword = "Rush" | "Guard" | "Stealth" | "Burn" | "HODL";
 
-export type TargetSelector = { kind: "enemyPlayer" } | { kind: "chosen" };
+export type TargetSelector = { kind: "enemyPlayer" } | { kind: "selfPlayer" } | { kind: "chosen" };
 
 export type EffectAction =
   | { kind: "damage"; target: TargetSelector; amount: number }
@@ -30,7 +32,17 @@ export type EffectAction =
   /** Controller draws `count` cards (Builders faction signature — card advantage/combo enabler). */
   | { kind: "draw"; count: number }
   /** Frogs faction signature — summons a copy of `count` random *other* friendly creatures into empty slots; fizzles (per-copy) if there's no source or no room. */
-  | { kind: "copyRandomFriendly"; count: number };
+  | { kind: "copyRandomFriendly"; count: number }
+  /** Normies faction signature — controller's own player gains `amount` HP, clamped to MAX_PLAYER_HP. */
+  | { kind: "heal"; amount: number }
+  /** CryptoBros faction signature — controller gains `amount` Energy immediately this turn, clamped to MAX_ENERGY (doesn't raise maxEnergy). */
+  | { kind: "gainEnergy"; amount: number }
+  /** CryptoBros faction signature — controller's maxEnergy (and current energy) permanently increases by `amount`, clamped to MAX_ENERGY. */
+  | { kind: "gainMaxEnergy"; amount: number }
+  /** Items' "permanent upgrade" flavor — permanently buffs whatever creature `target` resolves to (no-op if it resolves to a player). */
+  | { kind: "buffTarget"; target: TargetSelector; attack?: number; health?: number }
+  /** Items' "temporary upgrade" flavor — grants `keyword` to whatever creature `target` resolves to until its owner's next startTurn (no-op if it resolves to a player). */
+  | { kind: "grantKeywordTarget"; target: TargetSelector; keyword: Keyword };
 
 export type Trigger = "onPlay" | "onTurnStart";
 
