@@ -6,16 +6,22 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "migrate": "tsx src/runMigrate.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
     "@cryptoclash/engine": "*",
     "@cryptoclash/protocol": "*",
+    "ethers": "^6.17.0",
+    "jose": "^6.2.11",
+    "pg": "^8.23.0",
+    "siwe": "^3.0.0",
     "tsx": "^4.16.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
     "@types/ws": "^8.5.12",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"

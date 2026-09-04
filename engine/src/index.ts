@@ -12,6 +12,7 @@ export {
   getDeck,
 } from "./cards.js";
 export type { DeckDefinition } from "./cards.js";
+export { DECK_SIZE, MAX_COPIES_PER_CARD, validateDeck } from "./deckRules.js";
 export { createMatch, applyIntent } from "./engine.js";
 export { getEffectiveAttack } from "./stats.js";
 export { takeBotTurn } from "./bot.js";

@@ -3,12 +3,12 @@ import { MatchView } from "./components/MatchView.js";
 import { useMatch } from "./useMatch.js";
 
 export interface LocalMatchProps {
-  deckId: string;
+  deckCards: string[];
   onExit: () => void;
 }
 
-export function LocalMatch({ deckId, onExit }: LocalMatchProps) {
-  const { state, dispatch, restart, lastError } = useMatch(deckId);
+export function LocalMatch({ deckCards, onExit }: LocalMatchProps) {
+  const { state, dispatch, restart, lastError } = useMatch(deckCards);
   const [logOpen, setLogOpen] = useState(false);
 
   return (

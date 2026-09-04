@@ -39,7 +39,8 @@ button {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-bar {
@@ -87,6 +88,8 @@ button {
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .player-header {
@@ -362,6 +365,8 @@ button {
   justify-content: center;
   gap: 1rem;
   padding: 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .menu__option {
@@ -401,6 +406,8 @@ button {
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .deck-picker__prompt {
@@ -439,6 +446,149 @@ button {
 .deck-picker__card-desc {
   font-size: 0.82rem;
   color: var(--text-dim);
+}
+
+.deck-picker__card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.deck-picker__card-actions button {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.deck-picker__empty {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.wallet-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  text-align: center;
+  margin: 0.5rem 1rem 0;
+}
+
+/* Deck builder */
+
+.deck-builder {
+  flex: 1;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.deck-builder__pool {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.6rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.deck-builder__pool-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.deck-builder__pool-count {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.deck-builder__pool-card button {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.deck-builder__pool-card button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.deck-builder__sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.deck-builder__name-input {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.deck-builder__count {
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.deck-builder__count--legal {
+  color: var(--accent-2);
+}
+
+.deck-builder__list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.deck-builder__empty {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.deck-builder__list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  background: var(--panel-alt);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+}
+
+.deck-builder__list-row button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--text);
+  line-height: 1;
+}
+
+.deck-builder__errors {
+  color: var(--danger);
+  font-size: 0.78rem;
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 /* Connection status */

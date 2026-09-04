@@ -62,20 +62,41 @@ describe("matchmaking", () => {
 });
 
 describe("deck selection", () => {
-  it("uses each player's chosen deckId when building the match", async () => {
+  it("uses each player's submitted cards when building the match", async () => {
     const { FROG_SAMPLE_DECK } = await import("@cryptoclash/engine");
     const a = await connect();
     const b = await connect();
 
-    send(a, { type: "findMatch", deckId: "frogs" });
+    send(a, { type: "findMatch", cards: FROG_SAMPLE_DECK });
     await nextMessage(a); // queued
-    send(b, { type: "findMatch", deckId: "frogs" });
+    send(b, { type: "findMatch", cards: FROG_SAMPLE_DECK });
     const [foundA] = await Promise.all([nextMessage(a), nextMessage(b)]);
     if (foundA.type !== "matchFound") throw new Error("unreachable");
 
     const frogCardIds = new Set(FROG_SAMPLE_DECK);
     for (const cardId of foundA.state.players.A.hand) {
       expect(frogCardIds.has(cardId)).toBe(true);
+    }
+
+    a.close();
+    b.close();
+  });
+
+  it("falls back to the default deck when a client submits an illegal card list", async () => {
+    const { SAMPLE_DECK } = await import("@cryptoclash/engine");
+    const a = await connect();
+    const b = await connect();
+
+    // Not a legal 30-card deck (way over the copy limit, wrong size) — the server must not trust it as-is.
+    send(a, { type: "findMatch", cards: Array(30).fill("pup_scout") });
+    await nextMessage(a); // queued
+    send(b, { type: "findMatch" }); // no cards at all — also falls back
+    const [foundA] = await Promise.all([nextMessage(a), nextMessage(b)]);
+    if (foundA.type !== "matchFound") throw new Error("unreachable");
+
+    const defaultCardIds = new Set(SAMPLE_DECK);
+    for (const cardId of foundA.state.players.A.hand) {
+      expect(defaultCardIds.has(cardId)).toBe(true);
     }
 
     a.close();

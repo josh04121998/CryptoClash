@@ -142,6 +142,8 @@ Kept in its own service, deliberately decoupled from the Game Backend.
 * **Wallet linking** is a separate, later step a player opts into from their profile — connects an external wallet (or provisions a custodial one) to an existing game account. This should be introduced progressively (Section 23), e.g. surfaced only once a player owns something mint-eligible, not on day one.
 * Custodial wallet option recommended for MVP+1: lets non-crypto-native players (Section 4's "secondary" audience) hold and eventually trade collectibles without ever installing a wallet extension.
 
+> **Overridden 2026-09-04 (see STATUS.md Section 6):** this project's actual go-to-market is crypto-native (token launch, Web3-community acquisition) rather than the broad/mainstream-first audience this section assumed — so **wallet-connect (Sign-In with Ethereum) is the primary and only identity system from day one**, not email/social. The reasoning above still holds for a broad-audience launch; it just isn't this one. The part of the intent that *is* kept: no login wall in front of gameplay — connecting a wallet is asked for only once something needs to persist (a saved deck; eventually a collection), never to access Play vs AI/Online. Implemented in `server/src/auth.ts` + `client/src/useWallet.ts`; no custodial wallet exists or is needed yet — see Section 13.
+
 ---
 
 # 10. Economy Services
@@ -171,11 +173,11 @@ Falls out of the architecture almost for free:
 Maps directly to spec.md Section 34.
 
 ### Build for MVP
-* Battle Engine (headless TS library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events — **done except Items; see STATUS.md**
+* Battle Engine (headless TS library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events — **done, including Items; see STATUS.md**
 * Match server + WebSocket layer + matchmaking — **done, skill-based ranking still outstanding; see STATUS.md**
 * React web client: tutorial, casual, ranked queues; board rendering; pack-opening screen — **vs-AI and online play modes done; ranked queues, tutorial flow, and pack-opening not started**
-* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **not started**
-* Deck builder + collection screen (Section 19) — **not started**
+* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts + decks done (deliberately no templates/editions/instances/Coins/match-history yet — nothing to back them until Section 12-20's rarity layer exists); see STATUS.md**
+* Deck builder + collection screen (Section 19) — **deck builder done (build from the full card pool, no ownership/rarity gating yet); collection screen not started (moot without rarity/editions)**
 * Pack service + crafting service — **not started**
 
 ### Explicitly deferred (do not build yet)
@@ -197,12 +199,13 @@ Building the Web3 Service against a game that doesn't exist yet is the classic f
 * **Client: web-first (React + Vite)**, confirmed and shipped — see Section 3 above.
 * **Hosting split: Vercel (client) + Railway (match server).** Vercel's serverless functions can't hold the persistent WebSocket connections a match server needs; Railway runs it as a normal long-lived Node process. Both auto-deploy from `main`.
 * **Monorepo shape:** `engine` / `shared` (`@cryptoclash/protocol`) / `server` / `client` as npm workspaces. `shared` wasn't anticipated in this doc's original package list — it exists because `MatchState` carries `Set`-typed fields and an `rng` function, neither of which survives `JSON.stringify`, so both client and server needed one shared place owning that (de)serialization boundary.
+* **Identity: wallet-connect (Sign-In with Ethereum) from day one**, not email/social-first — see Section 9's amendment for why this project's go-to-market makes that the right call despite Section 9's original reasoning.
 
 ### Still open
 
 Flagging rather than deciding, since these need team/budget/community input once the game is far enough along to need them:
 
 * L2 chain choice (Base vs. Polygon vs. other) for the eventual Web3 Service
-* Custodial vs. non-custodial-first wallet strategy
+* Custodial wallet strategy — moot for now (nothing custodies an asset yet; wallet-connect only signs the player in), but still a real open question once minting (Section 8) actually exists and the "secondary," non-crypto-native audience (Section 4) needs a way in without installing a wallet
 
 See `STATUS.md` for the living day-to-day status; this document stays focused on design decisions and their rationale.

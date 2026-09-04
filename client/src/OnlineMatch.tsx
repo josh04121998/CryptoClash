@@ -3,16 +3,16 @@ import { MatchView } from "./components/MatchView.js";
 import { useOnlineMatch } from "./useOnlineMatch.js";
 
 export interface OnlineMatchProps {
-  deckId: string;
+  deckCards: string[];
   onExit: () => void;
 }
 
-export function OnlineMatch({ deckId, onExit }: OnlineMatchProps) {
+export function OnlineMatch({ deckCards, onExit }: OnlineMatchProps) {
   const { status, playerId, state, dispatch, connect, disconnect, lastError } = useOnlineMatch();
   const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
-    connect(deckId);
+    connect(deckCards);
     return () => disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -58,7 +58,7 @@ export function OnlineMatch({ deckId, onExit }: OnlineMatchProps) {
           {status === "opponent-left" && (
             <>
               <p>Your opponent disconnected.</p>
-              <button type="button" onClick={() => connect(deckId)}>
+              <button type="button" onClick={() => connect(deckCards)}>
                 Find another match
               </button>
             </>
@@ -66,7 +66,7 @@ export function OnlineMatch({ deckId, onExit }: OnlineMatchProps) {
           {status === "error" && (
             <>
               <p>Couldn't reach the match server.</p>
-              <button type="button" onClick={() => connect(deckId)}>
+              <button type="button" onClick={() => connect(deckCards)}>
                 Retry
               </button>
             </>

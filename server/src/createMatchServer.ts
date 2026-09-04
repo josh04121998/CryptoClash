@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createServer, Server as HttpServer } from "node:http";
-import { DEFAULT_DECK_ID } from "@cryptoclash/engine";
+import { DEFAULT_DECK_ID, getDeck, validateDeck } from "@cryptoclash/engine";
 import { ClientMessage } from "@cryptoclash/protocol";
 import { WebSocket, WebSocketServer } from "ws";
+import { getPool } from "./db.js";
+import { handleApiRequest } from "./httpApi.js";
 import { MatchRoom } from "./matchRoom.js";
 import { Session } from "./types.js";
 
@@ -16,7 +18,22 @@ export interface MatchServerHandle {
 export function createMatchServer(port = 0): Promise<MatchServerHandle> {
   const queue: Session[] = [];
 
-  const httpServer = createServer((_req, res) => {
+  const httpServer = createServer((req, res) => {
+    if ((req.url ?? "/").startsWith("/api/")) {
+      let pool;
+      try {
+        pool = getPool();
+      } catch {
+        res.writeHead(503, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "Accounts/decks API is not configured (DATABASE_URL unset)." }));
+        return;
+      }
+      handleApiRequest(req, res, pool).catch((e) => {
+        res.writeHead(500, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: (e as Error).message }));
+      });
+      return;
+    }
     res.writeHead(200, { "content-type": "text/plain" });
     res.end("CRYPTO CLASH match server\n");
   });
@@ -33,7 +50,7 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
   }
 
   wss.on("connection", (socket: WebSocket) => {
-    const session: Session = { id: randomUUID(), socket, room: null, deckId: DEFAULT_DECK_ID };
+    const session: Session = { id: randomUUID(), socket, room: null, cards: getDeck(DEFAULT_DECK_ID) };
 
     socket.on("message", (raw) => {
       let message: ClientMessage;
@@ -46,7 +63,9 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
       switch (message.type) {
         case "findMatch": {
           if (session.room) return;
-          session.deckId = message.deckId ?? DEFAULT_DECK_ID;
+          // Client-supplied deck (starter or a saved custom deck) — re-validated here since
+          // the server can't trust anything a client claims about its own deck's legality.
+          session.cards = message.cards && validateDeck(message.cards).length === 0 ? message.cards : getDeck(DEFAULT_DECK_ID);
           const opponent = queue.shift();
           if (opponent) {
             const room = new MatchRoom(opponent, session);

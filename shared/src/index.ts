@@ -50,7 +50,11 @@ export function deserializeState(net: NetworkMatchState): MatchState {
 }
 
 export type ClientMessage =
-  | { type: "findMatch"; deckId?: string }
+  // `cards` is the resolved 30-card list (a starter deck's cards, or a saved
+  // custom deck's cards) — the server no longer needs to know deck ids, just
+  // re-validates whatever list it's handed (see engine's validateDeck) and
+  // falls back to a default deck if it's missing or illegal.
+  | { type: "findMatch"; cards?: string[] }
   | { type: "intent"; intent: Intent }
   | { type: "leave" };
 

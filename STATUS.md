@@ -1,10 +1,20 @@
 # CRYPTO CLASH — Status
 
-### Last updated: 2026-09-04
+### Last updated: 2026-09-04 (session 2)
 
 ---
 
 This is a living document — read it for "where are we right now," and read `spec.md` / `batlleSpec.md` / `architecture.md` for "what are we building toward." Update this file, don't accumulate a second one, whenever a milestone lands or the plan changes.
+
+# 0. Project Direction (read this first)
+
+The end goal, per the user (2026-09-04): **bring the Pokémon-collectibles experience on-chain** — collecting/chasing rarity is the *main* draw, not a side layer bolted onto a card game. Battle gameplay (engine, factions, matches) is the vehicle; the thing players are meant to get hooked on is owning, showing off, and trading cards.
+
+Go-to-market is crypto-native: launch via a token, acquire early users from the crypto/Web3 community rather than a broad mainstream audience first. Consequence: **wallet-connect is the primary identity system from day one** (not email/social-first-then-wallet-later, which is what `architecture.md` Section 9 originally recommended — see Section 5 below for that reconciliation). Guiding principle from the user: *least possible friction to just play* — no login wall in front of Play vs AI or Play Online; a wallet is only asked for the moment something needs to persist (a saved deck, eventually a collection/NFT).
+
+Explicit non-goal: literal Hearthstone production values (painted art, voice, orchestral audio, live-ops team) — not achievable solo/small-team and not the point. The bar is "complete, fun, well-balanced, genuinely collectible," not "AAA."
+
+---
 
 # 1. What Exists Right Now
 
@@ -14,15 +24,16 @@ A monorepo (npm workspaces) with four packages, all live and deployed:
 |---|---|---|
 | `engine/` | Headless, deterministic battle engine | Core systems complete |
 | `shared/` (`@cryptoclash/protocol`) | Client/server wire format + (de)serialization | Complete for current scope |
-| `server/` | WebSocket match server (real-time PvP) | Working, deployed |
-| `client/` | React web app (mobile-responsive) | Two play modes live |
+| `server/` | WebSocket match server + accounts/decks REST API | Working, deployed (API needs prod DB env vars — see Section 4) |
+| `client/` | React web app (mobile-responsive) | Two play modes + wallet-connect + deck builder live |
 
 **Live deployments:**
 - Client: `crypto-clash-client-six.vercel.app` (Vercel, auto-deploys on push to `main`, Root Directory `client`)
 - Match server: `vivacious-passion-production-1a17.up.railway.app` (Railway, auto-deploys on push to `main`, Root Directory repo root)
 - Repo: `github.com/josh04121998/CryptoClash`
+- **Not yet live in production:** the accounts/decks API needs `DATABASE_URL`/`JWT_SECRET`/`SIWE_DOMAIN` set in Railway and a Postgres instance provisioned (Supabase recommended — see `server/README.md`) before wallet-connect/deck-builder work on the deployed site. Until then `/api/*` returns `503` in prod but the rest of the game is unaffected.
 
-**Test coverage:** 36 engine tests + 5 server integration tests, all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
+**Test coverage:** 42 engine tests, 24 server tests (15 always run; 9 are real-Postgres integration tests that skip gracefully without `DATABASE_URL`, verified green against a live local Postgres this session), all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
 
 ---
 
@@ -57,18 +68,36 @@ See `card-schema.md` for the full effect DSL (now 10 `EffectAction` kinds), and 
 
 # 3. Client (`client/`)
 
-Two modes, both live, both now with a **deck picker** (`DeckPicker.tsx`) in front of them — pick any of the 6 pre-built decks before a match starts:
+Two play modes, both live, both fronted by a **deck picker** (`DeckPicker.tsx`) — pick a starter deck, or (if wallet-connected) one of your own saved decks, before a match starts:
 
-- **Play vs AI** — runs the engine directly in the browser against a greedy-heuristic bot (`takeBotTurn`), which now also picks a random deck each match for variety. No backend required. This is the permanent practice/tutorial mode, not a placeholder.
-- **Play Online** — real matchmaking through the Railway match server; your chosen `deckId` rides along on the `findMatch` message so the server builds the match with the right cards for both sides.
+- **Play vs AI** — runs the engine directly in the browser against a greedy-heuristic bot (`takeBotTurn`), which now also picks a random deck each match for variety. No backend, no wallet required. This is the permanent practice/tutorial mode, not a placeholder.
+- **Play Online** — real matchmaking through the Railway match server; the resolved 30-card list (starter or custom) rides along on the `findMatch` message — the server re-validates it (`validateDeck`) rather than trusting the client, falling back to the default deck if it's missing or illegal.
 
-Board/hand/interaction UI (`MatchView`) is shared between both modes, parameterized by which player is "me," so every fix or feature (the Volatility meter, keyword badges, etc.) applies to both at once. Targeting now distinguishes friendly-target cards (Items — click your own board) from enemy-target cards (damage/burn spells — click the opponent's board/portrait), via the shared `targetsFriendlyCreature()` helper (also used by the bot, so it doesn't waste Items targeting the wrong side).
+Board/hand/interaction UI (`MatchView`) is shared between both modes, parameterized by which player is "me," so every fix or feature (the Volatility meter, keyword badges, etc.) applies to both at once. Targeting distinguishes friendly-target cards (Items — click your own board) from enemy-target cards (damage/burn spells — click the opponent's board/portrait), via the shared `targetsFriendlyCreature()` helper (also used by the bot, so it doesn't waste Items targeting the wrong side).
 
-**Not yet built:** an actual deck *builder* (players still pick one of 6 fixed pre-built decks, not their own list from the full pool), collection screen, accounts, Coins, packs. None of the economy/collectible layer from spec.md exists yet — see Section 6 below.
+**New this session — wallet-connect + deck builder** (`useWallet.ts`, `DeckBuilder.tsx`, `MyDecksScreen.tsx`):
+- "Connect Wallet" in the top-right of the main menu — [Sign-In with Ethereum](https://eips.ethereum.org/EIPS/eip-4361) against any injected browser wallet (MetaMask etc.), verified end-to-end this session with a real cryptographic signature flow. No login wall anywhere else — every other screen works with no wallet connected.
+- Once connected: "My Decks" screen (list/create/edit/delete) and a full deck builder — browse the entire 60-card pool, add/remove with a live `validateDeck()` legality check (exactly 30 cards, max 3 copies, no tokens), save. Saved decks are real Postgres rows, scoped per-wallet, and appear back in the match deck-picker — verified this session by building a deck, saving it, and starting an actual Play-vs-AI match with it.
+- Bundle-size cost: `siwe`/`ethers` (needed for SIWE message construction/signing) added ~670KB gzipped-~95KB to the client bundle, and required a Node `Buffer` polyfill (`vite-plugin-node-polyfills`, scoped to just `buffer`+`process` — deliberately *not* `crypto`, which would've pulled in a vulnerable `elliptic` transitive dependency for a polyfill nothing here needs). Worth revisiting in a later polish pass if load time becomes a concern.
+
+**Not yet built:** collection screen (owned/missing cards — moot until Section 6's rarity/edition layer exists), Coins, packs. See Section 6.
 
 ---
 
-# 4. Multiplayer (`server/`)
+# 4. Accounts & Decks Backend (`server/`)
+
+New this session — the first slice of `architecture.md` Section 6's data model (deliberately just accounts + decks; no `card_templates`/`editions`/`instances` table yet, since there's no rarity/collectible layer to back — see Section 7). Lives in the same Railway service as the match server (same "Game Backend" box the architecture doc's own diagram already draws), exposed as `/api/*` REST routes alongside the existing WebSocket endpoint.
+
+- **Schema** (`server/migrations/0001_accounts_and_decks.sql`, applied via `npm run migrate --workspace=server`, a small hand-rolled runner — no ORM/framework): `accounts` (wallet address, lowercased, unique) and `decks` (account-scoped, `cards` as a JSON array, cascade-deletes with the account).
+- **Auth** (`server/src/auth.ts`): Sign-In with Ethereum — nonce issue/consume (one-time, 5-minute TTL, in-memory), SIWE message verification (`siwe` package) checked against a configured domain (replay/cross-app-reuse protection), session as a signed JWT (`jose`). Fully tested with real ECDSA signing via `ethers.Wallet` — no mocking of the crypto itself.
+- **API** (`server/src/httpApi.ts`): `GET/POST /api/auth/nonce|verify`, `GET/POST /api/decks`, `PUT/DELETE /api/decks/:id`. Every deck write re-validates against `validateDeck()` server-side (422 if illegal) — the client's own check is just UX, never trusted. Ownership checks return `404` (not `403`) for another account's deck, so existence isn't leaked.
+- **Tests**: `auth.test.ts` (pure, no DB — real SIWE crypto round-trips, replay/domain/wrong-signer rejection, JWT round-trip), `db.test.ts` + `api.test.ts` (real Postgres integration — account isolation, cross-account deck protection, cascade delete, full HTTP flow) — the latter two `describe.skip` without `DATABASE_URL` so `npm test` stays green with no DB configured, but were run and passed against a live local Postgres this session.
+
+**Not yet done:** production DB provisioning (see Section 1's live-deployments note) — this is entirely built and tested locally but not reachable on the deployed site yet.
+
+---
+
+# 5. Multiplayer (`server/`)
 
 Matches architecture.md Section 5: FIFO matchmaking, one `MatchState` per room held in server memory, intents validated against the socket that sent them, state broadcast to both players after every legal action, opponent-disconnect notification.
 
@@ -79,7 +108,7 @@ Matches architecture.md Section 5: FIFO matchmaking, one `MatchState` per room h
 
 ---
 
-# 5. Architecture Decisions Made Since `architecture.md` Was Written
+# 6. Architecture Decisions Made Since `architecture.md` Was Written
 
 `architecture.md` is the design doc; this section is the "here's what we actually did" reconciliation. (Also reflected in `architecture.md` Section 13 directly.)
 
@@ -87,30 +116,38 @@ Matches architecture.md Section 5: FIFO matchmaking, one `MatchState` per room h
 - **Battle engine language:** TypeScript — confirmed and proven in production, including the server running it live via `tsx` (see `server/README.md` for why `tsx` in production rather than a compiled `tsc` build — the workspace packages point `main` at raw `.ts` source, so a plain `node dist/index.js` would crash).
 - **Hosting split:** Vercel (client, static) + Railway (match server, needs a persistent WebSocket process — Vercel can't host that). This is the practical resolution of the open question architecture.md Section 13 flagged.
 - **Monorepo shape:** `engine` / `shared` (protocol) / `server` / `client` as npm workspaces. `shared` wasn't in the original architecture doc's package list — it exists because `MatchState` has `Set`-typed fields and an `rng` function that don't survive `JSON.stringify`, so both sides needed one place owning that serialization boundary.
+- **Identity/auth: wallet-connect from day one, overriding Section 9's "email/social first, wallet later."** Deliberate call, not an oversight — Section 9's reasoning (protect non-crypto-native players from wallet friction at signup) assumed a broad launch audience; this project's actual go-to-market is crypto-native (token launch, Web3-community acquisition — see Section 0), where a wallet is *lower* friction than inventing a password. The one piece of Section 9's intent kept: no login wall anywhere — Play vs AI/Online need no wallet at all, it's asked for only when something needs to persist.
+- **Custodial-wallet question (Section 13, "still open"): now moot for the current stage.** Nothing here needs a custodial wallet yet — deck-saving only needs an address to sign in with, no asset custody. Revisit once minting/marketplace (Section 8) are actually being built.
 
 ---
 
-# 6. What's Explicitly Not Started
+# 7. What's Explicitly Not Started
 
-Straight from spec.md Section 34's "Later" list — none of this exists yet, by design (MVP scope was always gameplay-first):
+From spec.md Section 34's "Later" list — this is now the **main line of work**, not a someday-list, per the direction in Section 0. Still true that none of it exists yet:
 
-NFTs / Web3 Service, wallet linking, marketplace, staking/Vaults, accounts, Coins ledger, packs, collection screen, crafting, tournaments, guilds, draft/sealed modes.
+NFTs / Web3 Service, marketplace, staking/Vaults, Coins ledger, packs, collection screen, crafting, tournaments, guilds, draft/sealed modes. **Wallet linking and accounts now exist** (Section 4) — struck from this list.
+
+The full system (rarity ladder, editions, serial numbers, duplicate-protection/crafting, packs, on-chain minting with Postgres as the deck-legality source of truth and the chain as the ownership source of truth) is already specified in spec.md Sections 12-21 and architecture.md Sections 6-8 — nothing here needs to be designed from scratch, only built, in the order architecture.md Section 12 lays out (off-chain data model → off-chain economy UI → only then Web3/minting/marketplace).
 
 ---
 
-# 7. What's Next
+# 8. What's Next
 
-No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time. Working plan agreed with the user (2026-09-04): push toward a complete, polished, "good indie/prototype standard" game (explicitly not chasing Hearthstone's production values — no painted art/VFX/voice/live-ops budget here), working autonomously and only surfacing genuine decisions.
+No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time, working autonomously and only surfacing genuine decisions.
 
-**Just landed:** all six spec.md factions now have real 30-card decks with distinct signature mechanics (see Section 2), Items are implemented, and a deck picker wires all of it into both Play vs AI and Play Online. Engine content-completeness (batlleSpec.md Section 32 + spec.md Section 6) is essentially done.
+**Just landed:** all six spec.md factions with distinct signature mechanics + Items (engine content-complete against batlleSpec.md Section 32 + spec.md Section 6), and — the bigger shift — the first slice of the collectible foundation: wallet-connect accounts and a real deck builder (Sections 3-4), verified end-to-end in a live browser session including actual SIWE signing and a saved custom deck making it into a real match.
 
-Roadmap, in rough order:
+Roadmap, in rough order (collectibility now prioritized ahead of AI/polish per Section 0's direction):
 
 1. ~~Finish the card layer (all 6 factions + Items)~~ — done.
 2. ~~Wire content into the live game (deck selection)~~ — done.
-3. **Deck builder + collection screen** — let players build a deck from the full 60-card pool instead of picking one of 6 fixed lists.
-4. **Smarter AI** — the bot (`bot.ts`) is a greedy heuristic (play what's affordable, attack with everything); it needs real decision-making to hold up as the permanent solo mode.
-5. **Client polish pass** — animations, attack/damage feedback, sound effects, keyword tooltips, better board/hand feel, mobile pass. Art direction (clean vector/icon style vs. something else) is a real decision to raise with the user before this phase, not decided unilaterally.
-6. **Multiplayer robustness** — reconnect-to-in-progress-match (a dropped connection currently ends the match for both players), and eventually less naive matchmaking than FIFO.
+3. ~~Accounts + persistent deck builder (off-chain, no rarity yet)~~ — done this session; **remaining before it's "done done": provision production Postgres + set the Railway env vars** (Section 1/4) so it's reachable on the live site, not just local dev.
+4. **Rarity & editions** — the actual "something to chase" layer (spec.md Sections 12-20): extend the data model with `card_editions`/`card_instances` (architecture.md Section 6), assign every account a starting collection, gate deck-building by ownership instead of "everyone has everything."
+5. **Packs** — Coins-for-packs, seeded server-side RNG against the rarity table, a real reveal moment.
+6. **Collection screen** — owned/missing by faction/rarity, the "digital binder."
+7. **Smarter AI** — the bot (`bot.ts`) is still a greedy heuristic; needs real decision-making to hold up as the permanent solo mode.
+8. **Client polish pass** — animations, attack/damage feedback, sound effects, keyword tooltips, better board/hand feel, mobile pass. Art direction (clean vector/icon style vs. something else) is a real decision to raise with the user before this phase, not decided unilaterally.
+9. **On-chain layer** — minting (opt-in, async, per architecture.md Section 8), marketplace, wallet-as-asset-custody. Deliberately last — chain choice (Base vs. Polygon vs. other) is still an open decision for the user, and architecture.md Section 12 is explicit that building this against a game/economy that doesn't exist yet is the standard crypto-gaming failure mode.
+10. **Multiplayer robustness** — reconnect-to-in-progress-match (a dropped connection currently ends the match for both players), eventually less naive matchmaking than FIFO.
 
 Check the conversation, not this list, for what's actually being worked on right now.

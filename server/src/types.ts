@@ -5,8 +5,8 @@ export interface Session {
   id: string;
   socket: WebSocket;
   room: RoomHandle | null;
-  /** Deck chosen on the findMatch message; set once, used when a room is created. */
-  deckId: string;
+  /** Resolved 30-card deck from the findMatch message; set once, used when a room is created. */
+  cards: string[];
 }
 
 /**

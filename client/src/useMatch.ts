@@ -1,4 +1,4 @@
-import { DECKS, DEFAULT_DECK_ID, Intent, MatchState, applyIntent, createMatch, getDeck, takeBotTurn } from "@cryptoclash/engine";
+import { DECKS, Intent, MatchState, SAMPLE_DECK, applyIntent, createMatch, takeBotTurn } from "@cryptoclash/engine";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const BOT_DELAY_MS = 700;
@@ -14,8 +14,8 @@ function randomDeck(): string[] {
  * server would push over the network — the UI never touches engine logic
  * directly, only `dispatch`.
  */
-export function useMatch(deckId: string = DEFAULT_DECK_ID) {
-  const stateRef = useRef<MatchState>(createMatch(getDeck(deckId), randomDeck(), Date.now()));
+export function useMatch(deckCards: string[] = SAMPLE_DECK) {
+  const stateRef = useRef<MatchState>(createMatch(deckCards, randomDeck(), Date.now()));
   const [version, setVersion] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -30,10 +30,10 @@ export function useMatch(deckId: string = DEFAULT_DECK_ID) {
   }, []);
 
   const restart = useCallback(() => {
-    stateRef.current = createMatch(getDeck(deckId), randomDeck(), Date.now());
+    stateRef.current = createMatch(deckCards, randomDeck(), Date.now());
     setLastError(null);
     setVersion((v) => v + 1);
-  }, [deckId]);
+  }, [deckCards]);
 
   useEffect(() => {
     const state = stateRef.current;

@@ -32,7 +32,7 @@ export function useOnlineMatch() {
     if (socketRef.current?.readyState === WebSocket.OPEN) socketRef.current.send(JSON.stringify(message));
   }, []);
 
-  const connect = useCallback((deckId?: string) => {
+  const connect = useCallback((cards?: string[]) => {
     setStatus("connecting");
     setLastError(null);
     const socket = new WebSocket(serverUrl());
@@ -40,7 +40,7 @@ export function useOnlineMatch() {
 
     socket.onopen = () => {
       setStatus("queued");
-      socket.send(JSON.stringify({ type: "findMatch", deckId } satisfies ClientMessage));
+      socket.send(JSON.stringify({ type: "findMatch", cards } satisfies ClientMessage));
     };
 
     socket.onmessage = (event) => {

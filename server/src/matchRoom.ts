@@ -1,4 +1,4 @@
-import { Intent, MatchState, PlayerId, applyIntent, createMatch, getDeck } from "@cryptoclash/engine";
+import { Intent, MatchState, PlayerId, applyIntent, createMatch } from "@cryptoclash/engine";
 import { ServerMessage, serializeState } from "@cryptoclash/protocol";
 import { RoomHandle, Session } from "./types.js";
 
@@ -9,7 +9,7 @@ export class MatchRoom implements RoomHandle {
 
   constructor(sessionA: Session, sessionB: Session, seed = Date.now() ^ Math.floor(Math.random() * 1e9)) {
     this.sessions = { A: sessionA, B: sessionB };
-    this.state = createMatch(getDeck(sessionA.deckId), getDeck(sessionB.deckId), seed);
+    this.state = createMatch(sessionA.cards, sessionB.cards, seed);
   }
 
   private send(playerId: PlayerId, message: ServerMessage) {
