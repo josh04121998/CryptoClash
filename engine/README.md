@@ -8,7 +8,9 @@ No rendering, no networking. Takes a `(seed, deck lists)` pair plus a stream of 
 
 Turn loop (Energy, Draw, Play, Attack, End) · 5-slot board with adjacency auras · Creatures/Spells · all five launch keywords — Rush, Guard, Stealth, Burn, HODL · Volatility & the five Market Events (MARKET_CRASH, PUMP, LIQUIDATION, FOMO, BLACK_SWAN) · fatigue · the exact Moon Dog / Puppy Swarm / Pack Rush combo from `batlleSpec.md` Section 21.
 
-Not yet implemented (next slice): Items, and only 3 of the 6 factions have any cards (Doggos, Degens, and a few Neutral/CryptoBros/Normies utility spells) — the card pool is still deliberately minimal, just enough to exercise every system.
+Three factions now have real card depth, each with its own standalone 30-card deck export: `SAMPLE_DECK` (Doggos — swarm/adjacency), `FROG_SAMPLE_DECK` (Frogs — copying via the `copyRandomFriendly` effect, plus controlled-randomness Volatility play), `BUILDER_SAMPLE_DECK` (Builders — card draw/combo via the `draw` effect). Degens/CryptoBros/Normies still only have one or two utility spells each.
+
+Not yet implemented (next slice): Items, a deck-selection UI/deck builder (the new Frog/Builder decks aren't reachable from a live match yet — `server`/`client` still hardcode `SAMPLE_DECK`), and full Degens/CryptoBros/Normies rosters.
 
 ## Running it
 

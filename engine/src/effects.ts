@@ -1,4 +1,5 @@
 import { CARD_POOL } from "./cards.js";
+import { drawCard } from "./draw.js";
 import { applyVolatilityChange } from "./marketEvents.js";
 import { applyDamageToTarget, pushLog } from "./matchOps.js";
 import { BoardCreature, EffectDef, Keyword, MatchState, PlayerId, TargetRef, TargetSelector, Trigger } from "./types.js";
@@ -51,6 +52,33 @@ function summon(state: MatchState, controller: PlayerId, templateId: string, cou
   }
 }
 
+/**
+ * Frogs faction signature. Each iteration picks a random *other* friendly creature
+ * (excluding the source itself, when the effect belongs to a creature that's already
+ * on the board) and creates a fresh copy of it — a new base-stat instance, same as
+ * `summon`, not a snapshot of the original's current buffs/damage.
+ */
+function copyRandomFriendly(state: MatchState, ctx: EffectContext, count: number) {
+  const board = state.players[ctx.controller].board;
+  for (let i = 0; i < count; i++) {
+    const candidates = board.filter(
+      (creature, slot): creature is BoardCreature => creature !== null && slot !== ctx.sourceSlot,
+    );
+    if (candidates.length === 0) {
+      pushLog(state, `${ctx.controller} has nothing to copy — the effect fizzles.`);
+      return;
+    }
+    const targetSlot = firstEmptySlot(board);
+    if (targetSlot === -1) {
+      pushLog(state, `${ctx.controller}'s board is full — remaining copy effect(s) fizzle.`);
+      return;
+    }
+    const source = candidates[Math.floor(state.rng() * candidates.length)];
+    board[targetSlot] = createBoardCreature(state, source.templateId);
+    pushLog(state, `${ctx.controller} copies ${CARD_POOL[source.templateId].name} into slot ${targetSlot + 1}.`);
+  }
+}
+
 export function resolveEffects(state: MatchState, effects: EffectDef[], trigger: Trigger, ctx: EffectContext) {
   for (const effect of effects) {
     if (effect.trigger !== trigger) continue;
@@ -98,6 +126,14 @@ export function resolveEffects(state: MatchState, effects: EffectDef[], trigger:
           state.activeBurns.push({ target, amountPerTurn: action.amountPerTurn, turnsRemaining: action.turns });
         }
         pushLog(state, `${ctx.controller} applies Burn (${action.amountPerTurn}/turn for ${action.turns} turns).`);
+        break;
+      }
+      case "draw": {
+        for (let i = 0; i < action.count; i++) drawCard(state, ctx.controller);
+        break;
+      }
+      case "copyRandomFriendly": {
+        copyRandomFriendly(state, ctx, action.count);
         break;
       }
     }

@@ -336,3 +336,69 @@ describe("Volatility & Market Events", () => {
     expect(resolvedOneOf.some((marker) => state.log.some((e) => e.text.includes(marker)))).toBe(true);
   });
 });
+
+describe("Builders — draw effect", () => {
+  it("a creature's onPlay draw adds a card to its controller's hand", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 41);
+    const before = state.players.A.hand.length;
+    // giveCard itself pushes into hand, so account for that +1 before the effect fires.
+    const idx = giveCard(state, "A", "junior_dev");
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: idx, slot: 0 });
+
+    // hand: +1 (junior_dev added by giveCard) -1 (played) +1 (its own draw effect) = before + 1
+    expect(state.players.A.hand.length).toBe(before + 1);
+  });
+
+  it("Blueprint draws two cards", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 43);
+    const before = state.players.A.hand.length;
+    const idx = giveCard(state, "A", "blueprint");
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: idx });
+
+    // +1 (blueprint added) -1 (played) +2 (draw two) = before + 2
+    expect(state.players.A.hand.length).toBe(before + 2);
+  });
+
+  it("Iteration Cycle draws a card at the start of every one of its controller's turns", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 45);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "iteration_cycle"), slot: 0 });
+    const before = state.players.A.hand.length;
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" });
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // back to A — startTurn fires the draw + the normal turn draw
+
+    expect(state.players.A.hand.length).toBe(before + 2);
+  });
+});
+
+describe("Frogs — copyRandomFriendly effect", () => {
+  it("Mimic Frog copies an existing friendly creature into an empty slot", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 47);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "loyal_hound"), slot: 0 }); // 5/5
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "mimic_frog"), slot: 1 });
+
+    const copy = state.players.A.board.find((c, slot) => slot !== 0 && slot !== 1 && c?.templateId === "loyal_hound");
+    expect(copy).toBeDefined();
+    expect(copy!.health).toBe(5);
+  });
+
+  it("fizzles safely (logs, doesn't throw) when there's nothing on the board to copy", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 49);
+    expect(() =>
+      applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "mimic_frog"), slot: 0 }),
+    ).not.toThrow();
+    expect(state.log.some((e) => e.text.includes("nothing to copy"))).toBe(true);
+  });
+
+  it("Deep Croak never copies itself, only other friendly creatures", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 51);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pup_scout"), slot: 0 });
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "deep_croak"), slot: 1 });
+
+    const deepCroakCopies = state.players.A.board.filter((c) => c?.templateId === "deep_croak");
+    // Only the one played from hand — copyRandomFriendly excludes its own board slot as a source.
+    expect(deepCroakCopies.length).toBe(1);
+  });
+});

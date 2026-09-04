@@ -107,6 +107,8 @@ There's no `onAttack`, `onDeath`, or `onDamaged` trigger yet — every card in t
 | `grantKeywordFriendlyBoard` | `{ keyword }` | Grants `keyword` to every creature on the controller's board, until their owner's next `startTurn` | Pack Rush |
 | `volatility` | `{ amount }` | Shifts the shared Volatility meter by `amount` (negative to lower it), clamped to [0,10]; reaching 10 fires a random Market Event and resets to 0 | Pump Signal / Cool Down |
 | `burn` | `{ target, amountPerTurn, turns }` | Applies a ticking Burn status to the target — `amountPerTurn` damage at the end of every turn (anyone's), for `turns` turns | Ember Curse |
+| `draw` | `{ count }` | Controller draws `count` cards, via the same `drawCard` fatigue/hand-cap logic as the normal turn draw | Blueprint, Junior Dev |
+| `copyRandomFriendly` | `{ count }` | For each of `count` iterations: picks a random *other* friendly board creature (excludes the effect's own `sourceSlot`, so a creature can't copy itself) and creates a fresh base-stat copy of it in an empty slot. Fizzles (logs, no throw) per-iteration if there's nothing to copy or no room | Mimic Frog, Copycat, Deep Croak |
 
 ### 3.3 TargetSelector
 
@@ -238,5 +240,6 @@ Nothing about the client needs to change to add a card — `CardFace`, `HandRow`
 # 7. Known Gaps
 
 - **Items** (`CardType`'s third value) have no implementation — no card in `CARD_POOL` uses it, and nothing in `engine.ts`'s `playCard` special-cases it (it would currently be treated like a Spell: no board placement, whatever `effects` it has resolve `onPlay`). batlleSpec.md Section 9 describes Items as "simple permanent or temporary upgrades" — likely an equip-to-creature mechanic, which doesn't exist yet.
-- **Faction coverage:** only Doggos has meaningful creature depth; Degens/CryptoBros/Normies each have one or two utility spells; Frogs and Builders have nothing. See `STATUS.md` Section 2.
+- **Faction coverage:** Doggos (9 cards + Puppy token), Frogs (10 cards + Tadpole token), and Builders (10 cards) now have real depth, each with its own `*_SAMPLE_DECK` export in `cards.ts` (`SAMPLE_DECK`, `FROG_SAMPLE_DECK`, `BUILDER_SAMPLE_DECK`) so each can be smoke-tested/played standalone. Degens/CryptoBros/Normies still only have one or two utility spells each and no dedicated deck. See `STATUS.md` Section 2.
+- **No deck picker in client/server** — `matchRoom.ts` and `useMatch.ts` both still hardcode `SAMPLE_DECK` for both players; the new Frog/Builder decks exist in the engine but aren't reachable from a match yet without a deck-selection UI (or full deck builder).
 - **No card editions/rarity/collectibility** — that's the entire spec.md Sections 12-20 layer (Gameplay Identity vs. Collectible Identity), which lives one level up from this document and isn't started; see architecture.md Section 6 for how that's meant to attach to a `CardTemplate` once it exists (`card_editions` / `card_instances` tables, template stays the single source of gameplay truth).

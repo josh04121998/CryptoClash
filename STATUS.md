@@ -1,6 +1,6 @@
 # CRYPTO CLASH — Status
 
-### Last updated: 2026-09-03
+### Last updated: 2026-09-04
 
 ---
 
@@ -22,7 +22,7 @@ A monorepo (npm workspaces) with four packages, all live and deployed:
 - Match server: `vivacious-passion-production-1a17.up.railway.app` (Railway, auto-deploys on push to `main`, Root Directory repo root)
 - Repo: `github.com/josh04121998/CryptoClash`
 
-**Test coverage:** 23 engine tests + 4 server integration tests, all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
+**Test coverage:** 29 engine tests + 4 server integration tests, all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
 
 ---
 
@@ -38,9 +38,9 @@ Implements batlleSpec.md's full "First Prototype" checklist (Section 32) **excep
 - Fatigue (escalating damage on empty-deck draw), hand size cap
 - Server-authoritative by construction: the engine is pure/deterministic (`seed` + ordered `Intent`s → identical result every time), so replay/anti-cheat (Section 31) falls out for free — `state.log` already is that replay
 
-**Card pool:** 15 templates (14 deck-legal + the Puppy token), almost all **Doggos**, plus a handful of **Degens**/**Neutral**/**CryptoBros**/**Normies** utility spells needed to demonstrate Burn/Volatility. **Frogs, Builders, and full Normies/CryptoBros faction identities have zero cards.** This is the single biggest content gap against spec.md Section 6.
+**Card pool:** 37 templates. Three factions now have real depth and their own standalone 30-card deck (`cards.ts`): **Doggos** (`SAMPLE_DECK` — 9 cards + Puppy token, swarm/adjacency), **Frogs** (`FROG_SAMPLE_DECK` — 10 cards + Tadpole token, copying via the new `copyRandomFriendly` effect + controlled-randomness Volatility play), **Builders** (`BUILDER_SAMPLE_DECK` — 10 cards, card draw/combo via the new `draw` effect). **Degens**/**CryptoBros**/**Normies** still only have one or two utility spells each and no dedicated deck — that's the remaining content gap against spec.md Section 6.
 
-See the new `card-schema.md` for the effect DSL these cards are built from, and `engine/README.md` for how to run/extend it.
+See `card-schema.md` for the effect DSL these cards are built from (now including `draw` and `copyRandomFriendly`), and `engine/README.md` for how to run/extend it.
 
 ---
 
@@ -89,9 +89,14 @@ NFTs / Web3 Service, wallet linking, marketplace, staking/Vaults, accounts, Coin
 
 # 7. What's Next
 
-No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time. As of this update, the live discussion was between two options:
+No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time.
 
-- **Deck builder** — let players build a deck instead of everyone playing the fixed `SAMPLE_DECK`. Arguably the last thing blocking "deck building" from being a real pillar rather than a hardcoded list.
-- **More cards / other factions** — Frogs, Builders, full Normies/CryptoBros identities are currently empty. A deck builder is more interesting once there's more than one deck's worth of cards to build with.
+As of this update: Frogs and Builders now have full 30-card decks (`FROG_SAMPLE_DECK`, `BUILDER_SAMPLE_DECK` in `engine/src/cards.ts`), each introducing a new signature effect (`copyRandomFriendly` for Frogs' copying identity, `draw` for Builders' combo identity) — closing the "only Doggos has depth" gap that made a deck builder feel premature. Neither deck is reachable from a live match yet: `server/src/matchRoom.ts` and `client/src/useMatch.ts` still hardcode `SAMPLE_DECK` for both players.
 
-Leaning deck builder first, but this hasn't been decided — check the conversation, not this bullet, for the actual current call.
+Two natural next steps, not yet decided between:
+
+- **Deck builder** — now genuinely worth building: three decks' worth of cards exist to build with.
+- **Deck picker** — a much smaller step than a full builder: let a player choose Doggos/Frogs/Builders (as a fixed pre-built deck) before a match, in both Play vs AI and Play Online. Wires the new content into the actual game loop without the larger deck-builder UI/persistence surface.
+- **Degens/CryptoBros/Normies content** — still only one or two utility spells each; same treatment (signature mechanic + dedicated deck) would round out all six factions from spec.md Section 6.
+
+Check the conversation, not this bullet, for the actual current call.

@@ -26,7 +26,11 @@ export type EffectAction =
   /** Section 16/17/18: shared meter, clamped [0,10]; reaching 10 triggers a Market Event and resets it. */
   | { kind: "volatility"; amount: number }
   /** Section 14: ongoing damage — amountPerTurn damage at the end of every turn, for `turns` turns. */
-  | { kind: "burn"; target: TargetSelector; amountPerTurn: number; turns: number };
+  | { kind: "burn"; target: TargetSelector; amountPerTurn: number; turns: number }
+  /** Controller draws `count` cards (Builders faction signature — card advantage/combo enabler). */
+  | { kind: "draw"; count: number }
+  /** Frogs faction signature — summons a copy of `count` random *other* friendly creatures into empty slots; fizzles (per-copy) if there's no source or no room. */
+  | { kind: "copyRandomFriendly"; count: number };
 
 export type Trigger = "onPlay" | "onTurnStart";
 
