@@ -3,7 +3,7 @@ const DEFAULT_API_URL = "http://localhost:8787";
 /** Same server as the WebSocket match server (see useOnlineMatch.ts's serverUrl()) — just the http(s):// scheme instead of ws(s)://. */
 export function apiUrl(): string {
   const configured = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? DEFAULT_API_URL;
-  return configured.replace(/^ws:\/\//, "http://").replace(/^wss:\/\//, "https://");
+  return configured.replace(/^ws:\/\//, "http://").replace(/^wss:\/\//, "https://").replace(/\/+$/, "");
 }
 
 export class ApiError extends Error {
