@@ -1,6 +1,6 @@
 # CRYPTO CLASH — Status
 
-### Last updated: 2026-09-04 (session 2)
+### Last updated: 2026-09-05 (session 3)
 
 ---
 
@@ -31,7 +31,7 @@ A monorepo (npm workspaces) with four packages, all live and deployed:
 - Client: `crypto-clash-client-six.vercel.app` (Vercel, auto-deploys on push to `main`, Root Directory `client`)
 - Match server: `vivacious-passion-production-1a17.up.railway.app` (Railway, auto-deploys on push to `main`, Root Directory repo root)
 - Repo: `github.com/josh04121998/CryptoClash`
-- **Not yet live in production:** the accounts/decks API needs `DATABASE_URL`/`JWT_SECRET`/`SIWE_DOMAIN` set in Railway and a Postgres instance provisioned (Supabase recommended — see `server/README.md`) before wallet-connect/deck-builder work on the deployed site. Until then `/api/*` returns `503` in prod but the rest of the game is unaffected.
+- **Now live in production** (2026-09-05): Railway Postgres provisioned, migration applied, `DATABASE_URL`/`JWT_SECRET`/`SIWE_DOMAIN`/`CLIENT_ORIGIN` set on the `vivacious-passion` Railway service. Verified end-to-end against the deployed site with a scripted wallet (Playwright + a mock EIP-1193 provider signing with `ethers`, since there's no real MetaMask in a headless run): connect wallet → SIWE sign/verify → build a legal 30-card deck → save → persists. Found and fixed one real bug in the process: `client/src/api.ts`'s `apiUrl()` didn't strip a trailing slash from `VITE_SERVER_URL`, so `${apiUrl()}${path}` produced a double slash that 404'd before the server's CORS headers could attach — every `/api/*` call from the browser was silently failing with a CORS error, not the `503` the missing-env-var path would give. Fixed by stripping trailing slashes in `apiUrl()` regardless of how the env var is set.
 
 **Test coverage:** 42 engine tests, 24 server tests (15 always run; 9 are real-Postgres integration tests that skip gracefully without `DATABASE_URL`, verified green against a live local Postgres this session), all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
 
@@ -93,7 +93,7 @@ New this session — the first slice of `architecture.md` Section 6's data model
 - **API** (`server/src/httpApi.ts`): `GET/POST /api/auth/nonce|verify`, `GET/POST /api/decks`, `PUT/DELETE /api/decks/:id`. Every deck write re-validates against `validateDeck()` server-side (422 if illegal) — the client's own check is just UX, never trusted. Ownership checks return `404` (not `403`) for another account's deck, so existence isn't leaked.
 - **Tests**: `auth.test.ts` (pure, no DB — real SIWE crypto round-trips, replay/domain/wrong-signer rejection, JWT round-trip), `db.test.ts` + `api.test.ts` (real Postgres integration — account isolation, cross-account deck protection, cascade delete, full HTTP flow) — the latter two `describe.skip` without `DATABASE_URL` so `npm test` stays green with no DB configured, but were run and passed against a live local Postgres this session.
 
-**Not yet done:** production DB provisioning (see Section 1's live-deployments note) — this is entirely built and tested locally but not reachable on the deployed site yet.
+**Done:** production DB provisioned and reachable on the deployed site (see Section 1).
 
 ---
 
@@ -141,7 +141,7 @@ Roadmap, in rough order (collectibility now prioritized ahead of AI/polish per S
 
 1. ~~Finish the card layer (all 6 factions + Items)~~ — done.
 2. ~~Wire content into the live game (deck selection)~~ — done.
-3. ~~Accounts + persistent deck builder (off-chain, no rarity yet)~~ — done this session; **remaining before it's "done done": provision production Postgres + set the Railway env vars** (Section 1/4) so it's reachable on the live site, not just local dev.
+3. ~~Accounts + persistent deck builder (off-chain, no rarity yet)~~ — done, including production DB provisioning and a live-site end-to-end verification (Section 1/4).
 4. **Rarity & editions** — the actual "something to chase" layer (spec.md Sections 12-20): extend the data model with `card_editions`/`card_instances` (architecture.md Section 6), assign every account a starting collection, gate deck-building by ownership instead of "everyone has everything."
 5. **Packs** — Coins-for-packs, seeded server-side RNG against the rarity table, a real reveal moment.
 6. **Collection screen** — owned/missing by faction/rarity, the "digital binder."
