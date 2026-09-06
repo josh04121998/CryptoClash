@@ -27,6 +27,7 @@ interface CardTemplate {
   faction: Faction;         // "Doggos" | "Frogs" | "Degens" | "CryptoBros" | "Builders" | "Normies" | "Neutral"
   type: CardType;           // "Creature" | "Spell" | "Item" (Item not yet implemented — see Section 8)
   cost: number;              // Energy cost
+  rarity?: Rarity;           // "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Genesis" — omit only for tokens
   attack?: number;           // Creatures only
   health?: number;           // Creatures only
   keywords?: Keyword[];      // "Rush" | "Guard" | "Stealth" | "Burn" | "HODL"
@@ -53,6 +54,8 @@ pup_scout: {
 ```
 
 No `effects`, no `keywords` — this is the simplest possible card. Most of the roster should look like this; per batlleSpec.md Section 20, complexity should come from *combinations*, not every individual card doing something.
+
+(`rarity` omitted from this example for brevity — every non-token template in `cards.ts` has one; see spec.md Section 13. It's gameplay-adjacent metadata only: it drives pack odds and collection-screen grouping once those exist, never a stat and never read by the engine's combat/effect resolution. Distinct from a card **edition** — see architecture.md Section 6 — which is a cosmetic variant *of* a template stored in Postgres, not in `CARD_POOL`.)
 
 ### Worked example — a keyword creature
 

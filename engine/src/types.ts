@@ -15,6 +15,16 @@ export type Faction =
 
 export type CardType = "Creature" | "Spell" | "Item";
 
+/**
+ * Collectible rarity tier (spec.md Section 13) — drives pack odds and scarcity
+ * once packs exist (STATUS.md roadmap step 5). Distinct from `edition_type` in
+ * the DB (standard/first_edition/legendary/genesis, architecture.md Section 6),
+ * which is a cosmetic variant *of* a template — a template's rarity here stays
+ * fixed while its editions can vary. Mythic and Genesis are reserved for future,
+ * more scarce content — no current template pool card uses them.
+ */
+export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Genesis";
+
 /** Launch keyword vocabulary (batlleSpec.md, Section 11). */
 export type Keyword = "Rush" | "Guard" | "Stealth" | "Burn" | "HODL";
 
@@ -66,6 +76,8 @@ export interface CardTemplate {
   faction: Faction;
   type: CardType;
   cost: number;
+  /** Absent only for tokens (summon-only, never deck-legal — see `token` below). */
+  rarity?: Rarity;
   attack?: number;
   health?: number;
   keywords?: Keyword[];

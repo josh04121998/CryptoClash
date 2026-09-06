@@ -3,6 +3,7 @@ import { validateDeck } from "@cryptoclash/engine";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
+import { getCollectionCounts, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
@@ -77,8 +78,19 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return true;
       }
       const account = await findOrCreateAccount(pool, result.address);
+      await grantStartingCollection(pool, account.id);
       const token = await issueSessionToken({ accountId: account.id, walletAddress: account.walletAddress });
       sendJson(res, 200, { token, account: { id: account.id, walletAddress: account.walletAddress } });
+      return true;
+    }
+
+    if (url.pathname === "/api/collection" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { owned: await getCollectionCounts(pool, accountId) });
       return true;
     }
 
@@ -103,7 +115,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         sendJson(res, 400, { error: "name and cards[] are required." });
         return true;
       }
-      const errors = validateDeck(body.cards);
+      const errors = validateDeck(body.cards).concat(await validateOwnership(pool, accountId, body.cards));
       if (errors.length > 0) {
         sendJson(res, 422, { error: "Illegal deck.", details: errors });
         return true;
@@ -124,7 +136,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         sendJson(res, 400, { error: "name and cards[] are required." });
         return true;
       }
-      const errors = validateDeck(body.cards);
+      const errors = validateDeck(body.cards).concat(await validateOwnership(pool, accountId, body.cards));
       if (errors.length > 0) {
         sendJson(res, 422, { error: "Illegal deck.", details: errors });
         return true;

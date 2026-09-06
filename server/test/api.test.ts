@@ -29,7 +29,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
 
   afterEach(async () => {
     await pool.query("delete from decks");
-    await pool.query("delete from accounts");
+    await pool.query("delete from accounts"); // cascades to card_instances
   });
 
   async function signIn(): Promise<{ token: string; address: string }> {
@@ -112,6 +112,52 @@ d("/api/* over real HTTP, against real Postgres", () => {
 
     const listAfterDeleteRes = await fetch(`${baseUrl}/api/decks`, { headers: auth });
     expect(((await listAfterDeleteRes.json()) as { decks: unknown[] }).decks).toEqual([]);
+  });
+
+  it("grants a starting collection on sign-in, readable via /api/collection", async () => {
+    const { token } = await signIn();
+    const res = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.status).toBe(200);
+    const { owned } = (await res.json()) as { owned: Record<string, number> };
+    expect(owned["pup_scout"]).toBe(3);
+    expect(owned["puppy"]).toBeUndefined(); // token, never granted
+  });
+
+  it("rejects a deck that needs more copies than the account owns", async () => {
+    const { token, address } = await signIn();
+    const account = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
+    const accountId = account.rows[0].id;
+
+    // Sell off two of this account's three owned Pup Scouts, as duplicate-protection/crafting
+    // will eventually let a player do (spec.md Section 18) — leaves only 1 owned.
+    const instances = await pool.query<{ id: string }>(
+      `select ci.id from card_instances ci
+       join card_editions ce on ce.id = ci.edition_id
+       where ci.owner_id = $1 and ce.template_id = 'pup_scout' limit 2`,
+      [accountId],
+    );
+    await pool.query("delete from card_instances where id = any($1::uuid[])", [instances.rows.map((r) => r.id)]);
+
+    const legalDeck = [
+      ...Array(3).fill("pup_scout"),
+      ...Array(3).fill("fast_fang"),
+      ...Array(3).fill("shield_pup"),
+      ...Array(3).fill("guard_dog"),
+      ...Array(3).fill("shadow_pup"),
+      ...Array(3).fill("moon_dog"),
+      ...Array(3).fill("diamond_hands"),
+      ...Array(3).fill("loyal_hound"),
+      ...Array(3).fill("puppy_swarm"),
+      ...Array(3).fill("pack_rush"),
+    ];
+    const res = await fetch(`${baseUrl}/api/decks`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ name: "Test Deck", cards: legalDeck }),
+    });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { details: string[] };
+    expect(body.details.some((d) => d.includes("Pup Scout"))).toBe(true);
   });
 
   it("won't let one account's token touch another account's deck", async () => {

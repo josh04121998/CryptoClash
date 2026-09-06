@@ -1,5 +1,5 @@
 import { CARD_POOL, CardTemplate, DECK_SIZE, MAX_COPIES_PER_CARD, validateDeck } from "@cryptoclash/engine";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
 import { CardFace } from "./CardFace.js";
 
@@ -20,6 +20,13 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
   const [cards, setCards] = useState<string[]>(existing?.cards ?? []);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [owned, setOwned] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    apiFetch<{ owned: Record<string, number> }>("/api/collection", { token })
+      .then((res) => setOwned(res.owned))
+      .catch(() => setOwned({})); // collection screen/DeckBuilder still usable with nothing shown as owned
+  }, [token]);
 
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -27,12 +34,24 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
     return m;
   }, [cards]);
 
-  const errors = useMemo(() => validateDeck(cards), [cards]);
+  const errors = useMemo(() => {
+    const poolErrors = validateDeck(cards);
+    const ownershipErrors: string[] = [];
+    for (const [id, count] of counts) {
+      const have = owned[id] ?? 0;
+      if (count > have) ownershipErrors.push(`${CARD_POOL[id].name}: you own ${have}, deck needs ${count}.`);
+    }
+    return [...poolErrors, ...ownershipErrors];
+  }, [cards, counts, owned]);
   const isLegal = errors.length === 0;
+
+  function maxOwnedCopies(id: string): number {
+    return Math.min(MAX_COPIES_PER_CARD, owned[id] ?? 0);
+  }
 
   function addCard(id: string) {
     if (cards.length >= DECK_SIZE) return;
-    if ((counts.get(id) ?? 0) >= MAX_COPIES_PER_CARD) return;
+    if ((counts.get(id) ?? 0) >= maxOwnedCopies(id)) return;
     setCards((c) => [...c, id]);
   }
 
@@ -77,14 +96,21 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
       <main className="deck-builder">
         <div className="deck-builder__pool">
           {POOL_CARDS.map((template) => {
-            const owned = counts.get(template.id) ?? 0;
-            const atCopyLimit = owned >= MAX_COPIES_PER_CARD;
+            const inDeck = counts.get(template.id) ?? 0;
+            const ownedCopies = owned[template.id] ?? 0;
+            const atCopyLimit = inDeck >= maxOwnedCopies(template.id);
             const deckFull = cards.length >= DECK_SIZE;
             return (
               <div key={template.id} className="deck-builder__pool-card">
-                <CardFace template={template} keywords={template.keywords} size="hand" onClick={() => addCard(template.id)} />
+                <CardFace
+                  template={template}
+                  keywords={template.keywords}
+                  size="hand"
+                  dimmed={ownedCopies === 0}
+                  onClick={() => addCard(template.id)}
+                />
                 <span className="deck-builder__pool-count">
-                  {owned}/{MAX_COPIES_PER_CARD}
+                  {inDeck}/{Math.min(MAX_COPIES_PER_CARD, ownedCopies)} in deck · {ownedCopies} owned
                 </span>
                 <button type="button" disabled={atCopyLimit || deckFull} onClick={() => addCard(template.id)}>
                   Add

@@ -1,6 +1,8 @@
+import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
+import { getCollectionCounts, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
 
@@ -81,6 +83,50 @@ d("accounts + decks (integration, real Postgres)", () => {
       await pool.query("delete from accounts where id = $1", [account.id]);
       const remaining = await pool.query("select count(*)::int as count from decks");
       expect(remaining.rows[0].count).toBe(0);
+    });
+  });
+
+  describe("collection", () => {
+    it("grants MAX_COPIES_PER_CARD of every non-token template, and stays idempotent on repeat grants", async () => {
+      const account = await findOrCreateAccount(pool, "0xcollector");
+      await grantStartingCollection(pool, account.id);
+
+      const owned = await getCollectionCounts(pool, account.id);
+      const nonTokenIds = Object.values(CARD_POOL).filter((t) => !t.token).map((t) => t.id);
+      for (const id of nonTokenIds) expect(owned[id]).toBe(MAX_COPIES_PER_CARD);
+
+      // Tokens are summon-only, never deck-legal — never granted as owned instances.
+      const tokenIds = Object.values(CARD_POOL).filter((t) => t.token).map((t) => t.id);
+      for (const id of tokenIds) expect(owned[id]).toBeUndefined();
+
+      // Calling it again shouldn't duplicate instances (top-up, not additive).
+      await grantStartingCollection(pool, account.id);
+      const ownedAgain = await getCollectionCounts(pool, account.id);
+      expect(ownedAgain["pup_scout"]).toBe(MAX_COPIES_PER_CARD);
+    });
+
+    it("scopes ownership per-account", async () => {
+      const collector = await findOrCreateAccount(pool, "0xhasit");
+      const bystander = await findOrCreateAccount(pool, "0xdoesnthaveit");
+      await grantStartingCollection(pool, collector.id);
+
+      expect((await getCollectionCounts(pool, collector.id))["pup_scout"]).toBe(MAX_COPIES_PER_CARD);
+      expect((await getCollectionCounts(pool, bystander.id))["pup_scout"]).toBeUndefined();
+    });
+
+    it("validateOwnership passes a deck within owned copies and flags one that exceeds them", async () => {
+      const account = await findOrCreateAccount(pool, "0xdeckowner2");
+      await grantStartingCollection(pool, account.id);
+
+      expect(await validateOwnership(pool, account.id, Array(MAX_COPIES_PER_CARD).fill("pup_scout"))).toEqual([]);
+
+      const tooMany = await validateOwnership(pool, account.id, Array(MAX_COPIES_PER_CARD + 1).fill("pup_scout"));
+      expect(tooMany).toHaveLength(1);
+      expect(tooMany[0]).toMatch(/Pup Scout/);
+
+      // A different account that never had a collection granted owns nothing.
+      const other = await findOrCreateAccount(pool, "0xnocollection");
+      expect(await validateOwnership(pool, other.id, ["pup_scout"])).toHaveLength(1);
     });
   });
 });

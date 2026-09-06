@@ -99,13 +99,15 @@ The single most important modeling decision in the whole system is Section 12's 
 Gameplay identity. One row per unique card design (e.g. "Moon Dog").
 `id, name, faction, cost, attack, health, type, keywords[], effect_data (json)`
 
+> **Deviation, implemented 2026-09-06 (see STATUS.md Section 4):** no `card_templates` table exists — gameplay identity stays exactly where it already lived, `CARD_POOL` in `engine/src/cards.ts` (including a new `rarity` field per Section 13). Same reasoning as the `decks.cards` deviation already noted for Stage 1: a second, DB-resident copy of template data would just be a sync problem with no current benefit, since nothing edits templates at runtime. `card_editions.template_id` below is a plain text column referencing a `CARD_POOL` key, not a foreign key — re-validated against it server-side, same as `decks.cards`.
+
 ### Card Edition (`card_editions`)
 Cosmetic/collectible variants of a template (Section 14).
-`id, template_id, edition_type (standard/first_edition/legendary/genesis), artwork_ref, max_supply`
+`id, template_id, edition_type (standard/first_edition/legendary/genesis), artwork_ref, max_supply` — implemented (`server/migrations/0002_editions_and_instances.sql`).
 
 ### Owned Card Instance (`card_instances`)
 What a specific player actually owns — this is the row that matters for deck-building and collection screens.
-`id, owner_id, edition_id, serial_number (nullable), is_foil, acquired_at, onchain_token_id (nullable)`
+`id, owner_id, edition_id, serial_number (nullable), is_foil, acquired_at, onchain_token_id (nullable)` — implemented, same migration. Every account is granted `MAX_COPIES_PER_CARD` standard-edition instances of every non-token template on sign-in (`server/src/collectionRepo.ts`'s `grantStartingCollection`) — the deliberate "everyone starts with the full pool" baseline until packs (Section 17) become the real acquisition path; see STATUS.md Section 4 for why.
 
 A card instance only gets an `onchain_token_id` once (and if) it's minted — see Section 8. Until then it's a perfectly normal off-chain database row, and gameplay never cares which state it's in.
 
@@ -176,8 +178,8 @@ Maps directly to spec.md Section 34.
 * Battle Engine (headless TS library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events — **done, including Items; see STATUS.md**
 * Match server + WebSocket layer + matchmaking — **done, skill-based ranking still outstanding; see STATUS.md**
 * React web client: tutorial, casual, ranked queues; board rendering; pack-opening screen — **vs-AI and online play modes done; ranked queues, tutorial flow, and pack-opening not started**
-* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts + decks done (deliberately no templates/editions/instances/Coins/match-history yet — nothing to back them until Section 12-20's rarity layer exists); see STATUS.md**
-* Deck builder + collection screen (Section 19) — **deck builder done (build from the full card pool, no ownership/rarity gating yet); collection screen not started (moot without rarity/editions)**
+* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts, decks, editions, and instances done (deliberately no DB `card_templates` table — see Section 6's deviation note; Coins/match-history still not started); see STATUS.md**
+* Deck builder + collection screen (Section 19) — **deck builder now ownership-gated against real `card_instances` rows (ownable pool is "everyone owns 3 of everything" until packs exist — not a UX regression, just real plumbing under the same UX); collection screen itself (the "digital binder" view) still not started**
 * Pack service + crafting service — **not started**
 
 ### Explicitly deferred (do not build yet)

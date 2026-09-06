@@ -1,6 +1,6 @@
 # CRYPTO CLASH — Status
 
-### Last updated: 2026-09-05 (session 3)
+### Last updated: 2026-09-06 (session 4)
 
 ---
 
@@ -33,7 +33,7 @@ A monorepo (npm workspaces) with four packages, all live and deployed:
 - Repo: `github.com/josh04121998/CryptoClash`
 - **Now live in production** (2026-09-05): Railway Postgres provisioned, migration applied, `DATABASE_URL`/`JWT_SECRET`/`SIWE_DOMAIN`/`CLIENT_ORIGIN` set on the `vivacious-passion` Railway service. Verified end-to-end against the deployed site with a scripted wallet (Playwright + a mock EIP-1193 provider signing with `ethers`, since there's no real MetaMask in a headless run): connect wallet → SIWE sign/verify → build a legal 30-card deck → save → persists. Found and fixed one real bug in the process: `client/src/api.ts`'s `apiUrl()` didn't strip a trailing slash from `VITE_SERVER_URL`, so `${apiUrl()}${path}` produced a double slash that 404'd before the server's CORS headers could attach — every `/api/*` call from the browser was silently failing with a CORS error, not the `503` the missing-env-var path would give. Fixed by stripping trailing slashes in `apiUrl()` regardless of how the env var is set.
 
-**Test coverage:** 42 engine tests, 24 server tests (15 always run; 9 are real-Postgres integration tests that skip gracefully without `DATABASE_URL`, verified green against a live local Postgres this session), all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
+**Test coverage:** 42 engine tests, 29 server tests (15 always run; 14 are real-Postgres integration tests that skip gracefully without `DATABASE_URL`, verified green against a live local Postgres this session), all passing. Client type-checks clean and builds clean. No test suite for `shared` (it's pure data transforms, covered indirectly by the server integration tests).
 
 ---
 
@@ -62,6 +62,8 @@ Implements batlleSpec.md's full "First Prototype" checklist (Section 32), **Item
 
 Plus **5 Neutral Items** (`buffTarget` for permanent +stat upgrades, `grantKeywordTarget` for temporary Rush/Guard grants — Guard/Rush are the only keywords `combat.ts` checks generically via `keywords ∪ tempKeywords`, so those are the only two safe to grant this way).
 
+**New this session:** every non-token template now carries a `rarity` (spec.md Section 13's tiers — Common through Genesis), assigned by a simple cost-based heuristic (cost 0-1→Common, 2→Uncommon, 3→Rare, 4→Epic, 5→Legendary; no current template uses Mythic/Genesis, reserved for scarcer future content). It's gameplay-adjacent metadata only — never read by combat/effect resolution, purely there for pack odds and collection-screen grouping once those exist. The heuristic is a placeholder, not tuned game/economy design — worth revisiting deliberately once packs (roadmap step 5) make rarity's drop-rate role real.
+
 See `card-schema.md` for the full effect DSL (now 10 `EffectAction` kinds), and `engine/README.md` for how to run/extend it.
 
 ---
@@ -75,25 +77,30 @@ Two play modes, both live, both fronted by a **deck picker** (`DeckPicker.tsx`) 
 
 Board/hand/interaction UI (`MatchView`) is shared between both modes, parameterized by which player is "me," so every fix or feature (the Volatility meter, keyword badges, etc.) applies to both at once. Targeting distinguishes friendly-target cards (Items — click your own board) from enemy-target cards (damage/burn spells — click the opponent's board/portrait), via the shared `targetsFriendlyCreature()` helper (also used by the bot, so it doesn't waste Items targeting the wrong side).
 
-**New this session — wallet-connect + deck builder** (`useWallet.ts`, `DeckBuilder.tsx`, `MyDecksScreen.tsx`):
-- "Connect Wallet" in the top-right of the main menu — [Sign-In with Ethereum](https://eips.ethereum.org/EIPS/eip-4361) against any injected browser wallet (MetaMask etc.), verified end-to-end this session with a real cryptographic signature flow. No login wall anywhere else — every other screen works with no wallet connected.
-- Once connected: "My Decks" screen (list/create/edit/delete) and a full deck builder — browse the entire 60-card pool, add/remove with a live `validateDeck()` legality check (exactly 30 cards, max 3 copies, no tokens), save. Saved decks are real Postgres rows, scoped per-wallet, and appear back in the match deck-picker — verified this session by building a deck, saving it, and starting an actual Play-vs-AI match with it.
+**Wallet-connect + deck builder** (`useWallet.ts`, `DeckBuilder.tsx`, `MyDecksScreen.tsx`; session 3):
+- "Connect Wallet" in the top-right of the main menu — [Sign-In with Ethereum](https://eips.ethereum.org/EIPS/eip-4361) against any injected browser wallet (MetaMask etc.), verified end-to-end with a real cryptographic signature flow. No login wall anywhere else — every other screen works with no wallet connected.
+- Once connected: "My Decks" screen (list/create/edit/delete) and a full deck builder — browse the pool, add/remove with a live `validateDeck()` legality check (exactly 30 cards, max 3 copies, no tokens), save. Saved decks are real Postgres rows, scoped per-wallet, and appear back in the match deck-picker.
 - Bundle-size cost: `siwe`/`ethers` (needed for SIWE message construction/signing) added ~670KB gzipped-~95KB to the client bundle, and required a Node `Buffer` polyfill (`vite-plugin-node-polyfills`, scoped to just `buffer`+`process` — deliberately *not* `crypto`, which would've pulled in a vulnerable `elliptic` transitive dependency for a polyfill nothing here needs). Worth revisiting in a later polish pass if load time becomes a concern.
 
-**Not yet built:** collection screen (owned/missing cards — moot until Section 6's rarity/edition layer exists), Coins, packs. See Section 6.
+**New this session (session 4) — ownership-gated deck building:** `DeckBuilder.tsx` now fetches `/api/collection` on mount and caps every card's addable copies at what the account actually owns (not just the flat 3-copy rule) — a pool card with 0 owned copies renders dimmed and its Add button disables; the sidebar's legality check now folds in an ownership check client-side too (mirroring the server's `validateOwnership`), so Save disables proactively instead of round-tripping to a 422. Since `grantStartingCollection` currently gives every account 3 of everything, this is invisible in practice today — the point was building the real ownership plumbing under the existing UX, ready for packs/duplicate-protection to actually make ownership scarce.
+
+**Not yet built:** collection screen (the "digital binder" view — owned/missing by faction/rarity; the ownership *data* now exists via `/api/collection`, just no dedicated screen for it yet), Coins, packs. See Section 7.
 
 ---
 
-# 4. Accounts & Decks Backend (`server/`)
+# 4. Accounts, Decks & Collection Backend (`server/`)
 
-New this session — the first slice of `architecture.md` Section 6's data model (deliberately just accounts + decks; no `card_templates`/`editions`/`instances` table yet, since there's no rarity/collectible layer to back — see Section 7). Lives in the same Railway service as the match server (same "Game Backend" box the architecture doc's own diagram already draws), exposed as `/api/*` REST routes alongside the existing WebSocket endpoint.
+Started session 3 (accounts + decks) and extended this session (session 4) with `architecture.md` Section 6's rarity/collectible layer — editions + instances, no `card_templates` table (see Section 6's deviation note in `architecture.md`, same reasoning as `decks.cards`: gameplay identity stays in `CARD_POOL`, nothing duplicates it into Postgres). Lives in the same Railway service as the match server (same "Game Backend" box the architecture doc's own diagram already draws), exposed as `/api/*` REST routes alongside the existing WebSocket endpoint.
 
-- **Schema** (`server/migrations/0001_accounts_and_decks.sql`, applied via `npm run migrate --workspace=server`, a small hand-rolled runner — no ORM/framework): `accounts` (wallet address, lowercased, unique) and `decks` (account-scoped, `cards` as a JSON array, cascade-deletes with the account).
+- **Schema**, applied via `npm run migrate --workspace=server` (a small hand-rolled runner — no ORM/framework):
+  - `0001_accounts_and_decks.sql`: `accounts` (wallet address, lowercased, unique) and `decks` (account-scoped, `cards` as a JSON array, cascade-deletes with the account).
+  - `0002_editions_and_instances.sql` (new this session): `card_editions` (`template_id` text — a `CARD_POOL` key, not an FK — `edition_type` standard/first_edition/legendary/genesis, unique per template+type) and `card_instances` (`owner_id` → `accounts`, `edition_id` → `card_editions`, both cascade-delete, plus nullable `serial_number`/`onchain_token_id` and an `is_foil` flag for when packs/minting actually populate them).
 - **Auth** (`server/src/auth.ts`): Sign-In with Ethereum — nonce issue/consume (one-time, 5-minute TTL, in-memory), SIWE message verification (`siwe` package) checked against a configured domain (replay/cross-app-reuse protection), session as a signed JWT (`jose`). Fully tested with real ECDSA signing via `ethers.Wallet` — no mocking of the crypto itself.
-- **API** (`server/src/httpApi.ts`): `GET/POST /api/auth/nonce|verify`, `GET/POST /api/decks`, `PUT/DELETE /api/decks/:id`. Every deck write re-validates against `validateDeck()` server-side (422 if illegal) — the client's own check is just UX, never trusted. Ownership checks return `404` (not `403`) for another account's deck, so existence isn't leaked.
-- **Tests**: `auth.test.ts` (pure, no DB — real SIWE crypto round-trips, replay/domain/wrong-signer rejection, JWT round-trip), `db.test.ts` + `api.test.ts` (real Postgres integration — account isolation, cross-account deck protection, cascade delete, full HTTP flow) — the latter two `describe.skip` without `DATABASE_URL` so `npm test` stays green with no DB configured, but were run and passed against a live local Postgres this session.
+- **Collection** (`server/src/collectionRepo.ts`, new this session): `grantStartingCollection` gives every account `MAX_COPIES_PER_CARD` (3) standard-edition instances of every non-token template — called on every sign-in, idempotent (tops up rather than duplicates, so it also back-fills any template added to the pool after an account's first sign-in). This is the deliberate "everyone owns the whole pool" baseline: real ownership rows and enforcement exist now, but nothing is scarce yet — that's what packs (roadmap step 5) change, by making `grantStartingCollection`'s blanket grant the thing a later economy pass narrows or removes. `getCollectionCounts` aggregates owned copies per template id; `validateOwnership` checks a prospective deck's card counts against them.
+- **API** (`server/src/httpApi.ts`): `GET/POST /api/auth/nonce|verify`, `GET /api/collection` (new — owned counts per template, authenticated), `GET/POST /api/decks`, `PUT/DELETE /api/decks/:id`. Every deck write re-validates against both `validateDeck()` (pool-legality — unknown ids, tokens, copy cap, deck size) and `validateOwnership()` (new — do you actually own enough copies) server-side, 422 on either failing — the client's own checks are just UX, never trusted. Cross-account deck access returns `404` (not `403`), so existence isn't leaked.
+- **Tests**: `auth.test.ts` (pure, no DB). `db.test.ts` + `api.test.ts` (real Postgres integration — account isolation, cross-account deck protection, cascade delete, full HTTP flow, and new this session: starting-collection grant/idempotency/per-account scoping, `/api/collection`, and a deck save rejected for owning too few copies) — both `describe.skip` without `DATABASE_URL` so `npm test` stays green with no DB configured, but were run and passed against a live local Postgres this session (also verified live: signed in a scripted wallet against the running dev server and confirmed `/api/collection` returns exactly 3 copies of all 63 non-token templates, 0/undefined for the 2 tokens).
 
-**Done:** production DB provisioned and reachable on the deployed site (see Section 1).
+**Done:** production DB provisioned and reachable on the deployed site (see Section 1). `0002_editions_and_instances.sql` has now been applied to production too (`card_editions`/`card_instances` confirmed present) — the production Postgres only has private networking (no public host var), so this ran through `railway connect Postgres --tunnel-only` (an SSH tunnel) rather than `railway run`, which can't resolve `postgres.railway.internal` from outside Railway's network. Note for next time this is needed: the tunnel command prints the DB password directly into its output — rotate the password in Railway after use if that output could be seen by anyone else.
 
 ---
 
@@ -125,7 +132,7 @@ Matches architecture.md Section 5: FIFO matchmaking, one `MatchState` per room h
 
 From spec.md Section 34's "Later" list — this is now the **main line of work**, not a someday-list, per the direction in Section 0. Still true that none of it exists yet:
 
-NFTs / Web3 Service, marketplace, staking/Vaults, Coins ledger, packs, collection screen, crafting, tournaments, guilds, draft/sealed modes. **Wallet linking and accounts now exist** (Section 4) — struck from this list.
+NFTs / Web3 Service, marketplace, staking/Vaults, Coins ledger, packs, collection screen, crafting, tournaments, guilds, draft/sealed modes. **Wallet linking and accounts now exist** (Section 4) — struck from this list. **Rarity/editions/instances (the data model, not the acquisition economy) now exist** (Section 4) — struck from this list too; packs/crafting/Coins are still what's actually not started, since without them the "everyone owns 3 of everything" grant means nothing is scarce yet.
 
 The full system (rarity ladder, editions, serial numbers, duplicate-protection/crafting, packs, on-chain minting with Postgres as the deck-legality source of truth and the chain as the ownership source of truth) is already specified in spec.md Sections 12-21 and architecture.md Sections 6-8 — nothing here needs to be designed from scratch, only built, in the order architecture.md Section 12 lays out (off-chain data model → off-chain economy UI → only then Web3/minting/marketplace).
 
@@ -135,15 +142,15 @@ The full system (rarity ladder, editions, serial numbers, duplicate-protection/c
 
 No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time, working autonomously and only surfacing genuine decisions.
 
-**Just landed:** all six spec.md factions with distinct signature mechanics + Items (engine content-complete against batlleSpec.md Section 32 + spec.md Section 6), and — the bigger shift — the first slice of the collectible foundation: wallet-connect accounts and a real deck builder (Sections 3-4), verified end-to-end in a live browser session including actual SIWE signing and a saved custom deck making it into a real match.
+**Just landed (session 4):** the rarity/editions/instances data model (spec.md Sections 12-20, architecture.md Section 6) — `rarity` on every engine template, `card_editions`/`card_instances` tables, a starting-collection grant on sign-in, and ownership-gating wired into both the deck-save API and the client deck builder. Verified against a live local Postgres (migration applied, full test suite green including new collection/ownership tests) and against the running dev server via a scripted wallet sign-in (`/api/collection` confirmed returning exactly 3 copies of all 63 non-token templates). The `0002` migration has also been applied to the production database (Section 4) — the schema side of this is fully live. **Not yet done this session:** a visual browser check of the DeckBuilder's new dimmed/disabled states — the Chrome extension wasn't connected this session; worth a quick look next session before calling the UI side fully verified.
 
 Roadmap, in rough order (collectibility now prioritized ahead of AI/polish per Section 0's direction):
 
 1. ~~Finish the card layer (all 6 factions + Items)~~ — done.
 2. ~~Wire content into the live game (deck selection)~~ — done.
 3. ~~Accounts + persistent deck builder (off-chain, no rarity yet)~~ — done, including production DB provisioning and a live-site end-to-end verification (Section 1/4).
-4. **Rarity & editions** — the actual "something to chase" layer (spec.md Sections 12-20): extend the data model with `card_editions`/`card_instances` (architecture.md Section 6), assign every account a starting collection, gate deck-building by ownership instead of "everyone has everything."
-5. **Packs** — Coins-for-packs, seeded server-side RNG against the rarity table, a real reveal moment.
+4. ~~Rarity & editions~~ — done (this session): data model, starting-collection grant, ownership-gated deck building. Deliberately still "everyone owns 3 of everything" — nothing is actually scarce until step 5 gives packs a reason to narrow that grant.
+5. **Packs** — Coins-for-packs, seeded server-side RNG against the rarity table, a real reveal moment. This is what makes rarity (step 4) actually matter — likely also means revisiting `grantStartingCollection`'s blanket grant (e.g. a smaller/common-only starter collection) once there's a real acquisition path to fill the gap.
 6. **Collection screen** — owned/missing by faction/rarity, the "digital binder."
 7. **Smarter AI** — the bot (`bot.ts`) is still a greedy heuristic; needs real decision-making to hold up as the permanent solo mode.
 8. **Client polish pass** — animations, attack/damage feedback, sound effects, keyword tooltips, better board/hand feel, mobile pass. Art direction (clean vector/icon style vs. something else) is a real decision to raise with the user before this phase, not decided unilaterally.
