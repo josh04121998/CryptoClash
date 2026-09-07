@@ -4,15 +4,16 @@ import { useOnlineMatch } from "./useOnlineMatch.js";
 
 export interface OnlineMatchProps {
   deckCards: string[];
+  token?: string | null;
   onExit: () => void;
 }
 
-export function OnlineMatch({ deckCards, onExit }: OnlineMatchProps) {
-  const { status, playerId, state, dispatch, connect, disconnect, lastError } = useOnlineMatch();
+export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
+  const { status, playerId, state, dispatch, connect, disconnect, lastError, reward } = useOnlineMatch();
   const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
-    connect(deckCards);
+    connect(deckCards, token ?? undefined);
     return () => disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -28,6 +29,7 @@ export function OnlineMatch({ deckCards, onExit }: OnlineMatchProps) {
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">multiplayer</span>
         <div className="app-bar__actions">
+          {reward && <span className="match-reward">+{reward.coinsEarned} Coins</span>}
           {status === "in-match" && (
             <button type="button" onClick={() => setLogOpen((o) => !o)}>
               Log
@@ -58,7 +60,7 @@ export function OnlineMatch({ deckCards, onExit }: OnlineMatchProps) {
           {status === "opponent-left" && (
             <>
               <p>Your opponent disconnected.</p>
-              <button type="button" onClick={() => connect(deckCards)}>
+              <button type="button" onClick={() => connect(deckCards, token ?? undefined)}>
                 Find another match
               </button>
             </>
@@ -66,7 +68,7 @@ export function OnlineMatch({ deckCards, onExit }: OnlineMatchProps) {
           {status === "error" && (
             <>
               <p>Couldn't reach the match server.</p>
-              <button type="button" onClick={() => connect(deckCards)}>
+              <button type="button" onClick={() => connect(deckCards, token ?? undefined)}>
                 Retry
               </button>
             </>

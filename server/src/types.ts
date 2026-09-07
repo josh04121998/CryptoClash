@@ -7,6 +7,8 @@ export interface Session {
   room: RoomHandle | null;
   /** Resolved 30-card deck from the findMatch message; set once, used when a room is created. */
   cards: string[];
+  /** Resolved from the findMatch message's optional `token` (see auth.ts's verifySessionToken); null for anonymous play. Used to attribute a match's Coins reward to a real account. */
+  accountId: string | null;
 }
 
 /**

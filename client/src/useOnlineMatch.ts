@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type ConnectionStatus = "idle" | "connecting" | "queued" | "in-match" | "opponent-left" | "error";
 
+export interface MatchReward {
+  coinsEarned: number;
+  balance: number;
+}
+
 const DEFAULT_SERVER_URL = "ws://localhost:8787";
 
 /**
@@ -27,20 +32,22 @@ export function useOnlineMatch() {
   const [playerId, setPlayerId] = useState<PlayerId | null>(null);
   const [state, setState] = useState<MatchState | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [reward, setReward] = useState<MatchReward | null>(null);
 
   const send = useCallback((message: ClientMessage) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) socketRef.current.send(JSON.stringify(message));
   }, []);
 
-  const connect = useCallback((cards?: string[]) => {
+  const connect = useCallback((cards?: string[], token?: string) => {
     setStatus("connecting");
     setLastError(null);
+    setReward(null);
     const socket = new WebSocket(serverUrl());
     socketRef.current = socket;
 
     socket.onopen = () => {
       setStatus("queued");
-      socket.send(JSON.stringify({ type: "findMatch", cards } satisfies ClientMessage));
+      socket.send(JSON.stringify({ type: "findMatch", cards, token } satisfies ClientMessage));
     };
 
     socket.onmessage = (event) => {
@@ -62,6 +69,9 @@ export function useOnlineMatch() {
           break;
         case "opponentLeft":
           setStatus("opponent-left");
+          break;
+        case "matchReward":
+          setReward({ coinsEarned: message.coinsEarned, balance: message.balance });
           break;
       }
     };
@@ -85,6 +95,7 @@ export function useOnlineMatch() {
     setState(null);
     setPlayerId(null);
     setLastError(null);
+    setReward(null);
   }, [send]);
 
   useEffect(() => {
@@ -93,5 +104,5 @@ export function useOnlineMatch() {
     };
   }, []);
 
-  return { status, playerId, state, dispatch, connect, disconnect, lastError };
+  return { status, playerId, state, dispatch, connect, disconnect, lastError, reward };
 }

@@ -54,7 +54,10 @@ export type ClientMessage =
   // custom deck's cards) — the server no longer needs to know deck ids, just
   // re-validates whatever list it's handed (see engine's validateDeck) and
   // falls back to a default deck if it's missing or illegal.
-  | { type: "findMatch"; cards?: string[] }
+  // `token` is the wallet-connect session token (useWallet.ts), sent so the
+  // server can attribute a match's Coins reward to a real account — omitted
+  // entirely for anonymous play, which still works exactly as before.
+  | { type: "findMatch"; cards?: string[]; token?: string }
   | { type: "intent"; intent: Intent }
   | { type: "leave" };
 
@@ -63,4 +66,7 @@ export type ServerMessage =
   | { type: "matchFound"; playerId: PlayerId; state: NetworkMatchState }
   | { type: "state"; state: NetworkMatchState }
   | { type: "error"; message: string }
-  | { type: "opponentLeft" };
+  | { type: "opponentLeft" }
+  // Sent once, right after a match concludes, only to a socket whose session
+  // resolved to a real account (see matchRoom.ts) — anonymous/Play-vs-AI never get this.
+  | { type: "matchReward"; coinsEarned: number; balance: number };

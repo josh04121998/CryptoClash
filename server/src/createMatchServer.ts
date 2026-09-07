@@ -3,6 +3,7 @@ import { createServer, Server as HttpServer } from "node:http";
 import { DEFAULT_DECK_ID, getDeck, validateDeck } from "@cryptoclash/engine";
 import { ClientMessage } from "@cryptoclash/protocol";
 import { WebSocket, WebSocketServer } from "ws";
+import { verifySessionToken } from "./auth.js";
 import { getPool } from "./db.js";
 import { handleApiRequest } from "./httpApi.js";
 import { MatchRoom } from "./matchRoom.js";
@@ -49,8 +50,15 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
     }
   }
 
+  /** Never throws — a bad/missing/expired token just means anonymous play, exactly as if none was sent. */
+  async function resolveAccountId(token: string | undefined): Promise<string | null> {
+    if (!token) return null;
+    const claims = await verifySessionToken(token);
+    return claims?.accountId ?? null;
+  }
+
   wss.on("connection", (socket: WebSocket) => {
-    const session: Session = { id: randomUUID(), socket, room: null, cards: getDeck(DEFAULT_DECK_ID) };
+    const session: Session = { id: randomUUID(), socket, room: null, cards: getDeck(DEFAULT_DECK_ID), accountId: null };
 
     socket.on("message", (raw) => {
       let message: ClientMessage;
@@ -66,16 +74,21 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
           // Client-supplied deck (starter or a saved custom deck) — re-validated here since
           // the server can't trust anything a client claims about its own deck's legality.
           session.cards = message.cards && validateDeck(message.cards).length === 0 ? message.cards : getDeck(DEFAULT_DECK_ID);
-          const opponent = queue.shift();
-          if (opponent) {
-            const room = new MatchRoom(opponent, session);
-            opponent.room = room;
-            session.room = room;
-            room.start();
-          } else {
-            queue.push(session);
-            socket.send(JSON.stringify({ type: "queued" }));
-          }
+          resolveAccountId(message.token).then((accountId) => {
+            session.accountId = accountId;
+            // Left, matched, or disconnected already while the token was resolving.
+            if (session.room || socket.readyState !== WebSocket.OPEN) return;
+            const opponent = queue.shift();
+            if (opponent) {
+              const room = new MatchRoom(opponent, session);
+              opponent.room = room;
+              session.room = room;
+              room.start();
+            } else {
+              queue.push(session);
+              socket.send(JSON.stringify({ type: "queued" }));
+            }
+          });
           return;
         }
         case "intent":
