@@ -4,7 +4,9 @@ import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
 import { getCollectionCounts, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
+import { getBalance, grantWelcomeBonus } from "./coinsRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
+import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
 function corsHeaders(): Record<string, string> {
@@ -79,6 +81,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       const account = await findOrCreateAccount(pool, result.address);
       await grantStartingCollection(pool, account.id);
+      if (account.isNew) await grantWelcomeBonus(pool, account.id);
       const token = await issueSessionToken({ accountId: account.id, walletAddress: account.walletAddress });
       sendJson(res, 200, { token, account: { id: account.id, walletAddress: account.walletAddress } });
       return true;
@@ -91,6 +94,44 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return true;
       }
       sendJson(res, 200, { owned: await getCollectionCounts(pool, accountId) });
+      return true;
+    }
+
+    if (url.pathname === "/api/coins" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { balance: await getBalance(pool, accountId) });
+      return true;
+    }
+
+    if (url.pathname === "/api/packs" && req.method === "GET") {
+      sendJson(res, 200, { packs: Object.values(PACK_DEFINITIONS) });
+      return true;
+    }
+
+    if (url.pathname === "/api/packs/open" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { packType?: string };
+      const packType = body.packType ?? "standard";
+      try {
+        const result = await openPack(pool, accountId, packType);
+        sendJson(res, 200, result);
+      } catch (e) {
+        if (e instanceof InsufficientCoinsError) {
+          sendJson(res, 402, { error: e.message });
+        } else if (e instanceof UnknownPackTypeError) {
+          sendJson(res, 400, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
       return true;
     }
 

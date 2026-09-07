@@ -37,7 +37,7 @@ Required environment variables (missing `DATABASE_URL` makes `/api/*` return `50
 |---|---|
 | `DATABASE_URL` | Postgres connection string (Supabase, Railway Postgres, or local — see below) |
 | `JWT_SECRET` | Signs session tokens — any long random string, must stay stable across deploys |
-| `SIWE_DOMAIN` | Must exactly match the client's host (e.g. `crypto-clash-client-six.vercel.app`, or `localhost:5183` for local dev) — SIWE messages signed for a different domain are rejected |
+| `SIWE_DOMAIN` | Must exactly match the client's host (e.g. `crypto-clash-client-six.vercel.app`, or `localhost:5173` for local dev) — SIWE messages signed for a different domain are rejected |
 | `DATABASE_SSL` | Set to `false` for a local/non-TLS Postgres (e.g. Docker); omit (defaults to a permissive TLS mode) for Supabase/Railway |
 | `CLIENT_ORIGIN` | CORS `Access-Control-Allow-Origin` value; defaults to `*` if unset |
 
@@ -46,7 +46,7 @@ Required environment variables (missing `DATABASE_URL` makes `/api/*` return `50
 ```
 docker run -d --name cryptoclash-pg -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=cryptoclash -p 5433:5432 postgres:16-alpine
 DATABASE_URL="postgres://postgres:devpass@localhost:5433/cryptoclash" DATABASE_SSL=false npm run migrate --workspace=server
-DATABASE_URL="postgres://postgres:devpass@localhost:5433/cryptoclash" DATABASE_SSL=false JWT_SECRET=dev-secret SIWE_DOMAIN=localhost:5183 npm run dev --workspace=server
+DATABASE_URL="postgres://postgres:devpass@localhost:5433/cryptoclash" DATABASE_SSL=false JWT_SECRET=dev-secret SIWE_DOMAIN=localhost:5173 npm run dev --workspace=server
 ```
 
 `server/test/db.test.ts` and `server/test/api.test.ts` are real integration tests against Postgres — they `describe.skip` automatically when `DATABASE_URL` isn't set, so `npm test` stays green without a database, but run them for real (same env vars as above) before trusting a change to `accounts.ts`/`decksRepo.ts`/`httpApi.ts`.

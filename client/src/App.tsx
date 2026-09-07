@@ -1,13 +1,15 @@
 import { SAMPLE_DECK } from "@cryptoclash/engine";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "./api.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
+import { PacksScreen } from "./components/PacksScreen.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
 
-type Mode = "menu" | "pick-local" | "pick-online" | "local" | "online" | "my-decks" | "deck-builder";
+type Mode = "menu" | "pick-local" | "pick-online" | "local" | "online" | "my-decks" | "deck-builder" | "packs";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -17,7 +19,19 @@ export default function App() {
   const [mode, setMode] = useState<Mode>("menu");
   const [deckCards, setDeckCards] = useState<string[]>(SAMPLE_DECK);
   const [editingDeck, setEditingDeck] = useState<SavedDeck | undefined>(undefined);
+  const [coinsBalance, setCoinsBalance] = useState<number | null>(null);
   const wallet = useWallet();
+
+  const refreshCoins = useCallback((token: string) => {
+    apiFetch<{ balance: number }>("/api/coins", { token })
+      .then((res) => setCoinsBalance(res.balance))
+      .catch(() => setCoinsBalance(null));
+  }, []);
+
+  useEffect(() => {
+    if (wallet.token) refreshCoins(wallet.token);
+    else setCoinsBalance(null);
+  }, [wallet.token, refreshCoins]);
 
   if (mode === "local") return <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
   if (mode === "online") return <OnlineMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
@@ -32,6 +46,17 @@ export default function App() {
           setDeckCards(cards);
           setMode(mode === "pick-local" ? "local" : "online");
         }}
+      />
+    );
+  }
+
+  if (mode === "packs" && wallet.token) {
+    return (
+      <PacksScreen
+        token={wallet.token}
+        balance={coinsBalance}
+        onBalanceChange={setCoinsBalance}
+        onBack={() => setMode("menu")}
       />
     );
   }
@@ -72,6 +97,12 @@ export default function App() {
         <div className="app-bar__actions">
           {wallet.status === "connected" && wallet.walletAddress ? (
             <>
+              <span className="app-bar__coins" title="Coins">
+                🪙 {coinsBalance ?? "…"}
+              </span>
+              <button type="button" onClick={() => setMode("packs")}>
+                Packs
+              </button>
               <button type="button" onClick={() => setMode("my-decks")}>
                 My Decks
               </button>

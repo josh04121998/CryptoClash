@@ -14,6 +14,8 @@ export {
 export type { DeckDefinition } from "./cards.js";
 export { DECK_SIZE, MAX_COPIES_PER_CARD, validateDeck } from "./deckRules.js";
 export { createMatch, applyIntent } from "./engine.js";
+export { mulberry32 } from "./rng.js";
+export type { RNG } from "./rng.js";
 export { getEffectiveAttack } from "./stats.js";
 export { takeBotTurn } from "./bot.js";
 export { applyVolatilityChange, triggerMarketEvent } from "./marketEvents.js";

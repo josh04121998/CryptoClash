@@ -4,6 +4,8 @@ import { SiweMessage } from "siwe";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
+import { WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
+import { PACK_DEFINITIONS } from "../src/packsRepo.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 const d = databaseUrl ? describe : describe.skip;
@@ -83,17 +85,19 @@ d("/api/* over real HTTP, against real Postgres", () => {
     // MAX_COPIES_PER_CARD is 3 — 30 copies of one card should be rejected as illegal, not silently saved.
     expect(createRes.status).toBe(422);
 
+    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
+    // any test exercising deck save/ownership together needs a deck buildable from those.
     const legalDeck = [
       ...Array(3).fill("pup_scout"),
       ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shield_pup"),
-      ...Array(3).fill("guard_dog"),
       ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("moon_dog"),
-      ...Array(3).fill("diamond_hands"),
-      ...Array(3).fill("loyal_hound"),
-      ...Array(3).fill("puppy_swarm"),
-      ...Array(3).fill("pack_rush"),
+      ...Array(3).fill("pump_signal"),
+      ...Array(3).fill("cool_down"),
+      ...Array(3).fill("leap_frog"),
+      ...Array(3).fill("warty_lookout"),
+      ...Array(3).fill("sticky_tongue"),
+      ...Array(3).fill("chaos_croak"),
+      ...Array(3).fill("junior_dev"),
     ];
     const goodCreateRes = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
@@ -119,7 +123,8 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const res = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${token}` } });
     expect(res.status).toBe(200);
     const { owned } = (await res.json()) as { owned: Record<string, number> };
-    expect(owned["pup_scout"]).toBe(3);
+    expect(owned["pup_scout"]).toBe(3); // Common
+    expect(owned["moon_dog"]).toBeUndefined(); // Rare — pack-only now
     expect(owned["puppy"]).toBeUndefined(); // token, never granted
   });
 
@@ -138,17 +143,19 @@ d("/api/* over real HTTP, against real Postgres", () => {
     );
     await pool.query("delete from card_instances where id = any($1::uuid[])", [instances.rows.map((r) => r.id)]);
 
+    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
+    // any test exercising deck save/ownership together needs a deck buildable from those.
     const legalDeck = [
       ...Array(3).fill("pup_scout"),
       ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shield_pup"),
-      ...Array(3).fill("guard_dog"),
       ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("moon_dog"),
-      ...Array(3).fill("diamond_hands"),
-      ...Array(3).fill("loyal_hound"),
-      ...Array(3).fill("puppy_swarm"),
-      ...Array(3).fill("pack_rush"),
+      ...Array(3).fill("pump_signal"),
+      ...Array(3).fill("cool_down"),
+      ...Array(3).fill("leap_frog"),
+      ...Array(3).fill("warty_lookout"),
+      ...Array(3).fill("sticky_tongue"),
+      ...Array(3).fill("chaos_croak"),
+      ...Array(3).fill("junior_dev"),
     ];
     const res = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
@@ -163,17 +170,19 @@ d("/api/* over real HTTP, against real Postgres", () => {
   it("won't let one account's token touch another account's deck", async () => {
     const owner = await signIn();
     const intruder = await signIn();
+    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
+    // any test exercising deck save/ownership together needs a deck buildable from those.
     const legalDeck = [
       ...Array(3).fill("pup_scout"),
       ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shield_pup"),
-      ...Array(3).fill("guard_dog"),
       ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("moon_dog"),
-      ...Array(3).fill("diamond_hands"),
-      ...Array(3).fill("loyal_hound"),
-      ...Array(3).fill("puppy_swarm"),
-      ...Array(3).fill("pack_rush"),
+      ...Array(3).fill("pump_signal"),
+      ...Array(3).fill("cool_down"),
+      ...Array(3).fill("leap_frog"),
+      ...Array(3).fill("warty_lookout"),
+      ...Array(3).fill("sticky_tongue"),
+      ...Array(3).fill("chaos_croak"),
+      ...Array(3).fill("junior_dev"),
     ];
     const createRes = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
@@ -188,5 +197,72 @@ d("/api/* over real HTTP, against real Postgres", () => {
       body: JSON.stringify({ name: "Hijacked", cards: legalDeck }),
     });
     expect(hijackRes.status).toBe(404);
+  });
+
+  it("grants the welcome bonus on first sign-in, readable via /api/coins", async () => {
+    const { token } = await signIn();
+    const res = await fetch(`${baseUrl}/api/coins`, { headers: { Authorization: `Bearer ${token}` } });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { balance: number }).balance).toBe(WELCOME_BONUS_COINS);
+  });
+
+  it("rejects /api/coins with no Authorization header", async () => {
+    const res = await fetch(`${baseUrl}/api/coins`);
+    expect(res.status).toBe(401);
+  });
+
+  it("lists pack definitions with no auth required", async () => {
+    const res = await fetch(`${baseUrl}/api/packs`);
+    expect(res.status).toBe(200);
+    const { packs } = (await res.json()) as { packs: { id: string; cost: number; cardCount: number }[] };
+    expect(packs.find((p) => p.id === "standard")?.cost).toBe(PACK_DEFINITIONS.standard.cost);
+  });
+
+  it("opens a pack over HTTP: debits Coins and grants cards reflected in /api/collection", async () => {
+    const { token } = await signIn();
+    const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const openRes = await fetch(`${baseUrl}/api/packs/open`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ packType: "standard" }),
+    });
+    expect(openRes.status).toBe(200);
+    const { cards, balance } = (await openRes.json()) as { cards: string[]; balance: number };
+    expect(cards).toHaveLength(PACK_DEFINITIONS.standard.cardCount);
+    expect(balance).toBe(WELCOME_BONUS_COINS - PACK_DEFINITIONS.standard.cost);
+
+    const coinsRes = await fetch(`${baseUrl}/api/coins`, { headers: auth });
+    expect(((await coinsRes.json()) as { balance: number }).balance).toBe(balance);
+  });
+
+  it("rejects opening a pack you can't afford with 402, and an unknown pack type with 400", async () => {
+    const { token } = await signIn();
+    const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    // Spend the welcome bonus down to less than one pack's cost.
+    const packsAffordable = Math.floor(WELCOME_BONUS_COINS / PACK_DEFINITIONS.standard.cost);
+    for (let i = 0; i < packsAffordable; i++) {
+      await fetch(`${baseUrl}/api/packs/open`, { method: "POST", headers: auth, body: JSON.stringify({ packType: "standard" }) });
+    }
+
+    const brokeRes = await fetch(`${baseUrl}/api/packs/open`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ packType: "standard" }),
+    });
+    expect(brokeRes.status).toBe(402);
+
+    const unknownRes = await fetch(`${baseUrl}/api/packs/open`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ packType: "genesis-vault" }),
+    });
+    expect(unknownRes.status).toBe(400);
+  });
+
+  it("rejects /api/packs/open with no Authorization header", async () => {
+    const res = await fetch(`${baseUrl}/api/packs/open`, { method: "POST", body: JSON.stringify({ packType: "standard" }) });
+    expect(res.status).toBe(401);
   });
 });

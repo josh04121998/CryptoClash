@@ -1,5 +1,6 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { factionColor } from "../factionColor.js";
+import { rarityColor } from "../rarityColor.js";
 
 export interface CardFaceProps {
   template: CardTemplate;
@@ -48,6 +49,9 @@ export function CardFace({
       disabled={!onClick}
     >
       <span className="card-face__cost">{template.cost}</span>
+      {template.rarity && (
+        <span className="card-face__rarity" style={{ background: rarityColor(template.rarity) }} title={template.rarity} />
+      )}
       <span className="card-face__name">{template.name}</span>
       {keywords && keywords.length > 0 && (
         <span className="card-face__keywords">{keywords.join(" · ")}</span>

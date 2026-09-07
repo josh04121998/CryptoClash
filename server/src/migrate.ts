@@ -8,8 +8,7 @@ const MIGRATIONS_DIR = join(__dirname, "..", "migrations");
 
 /**
  * Minimal migration runner — no framework, just numbered .sql files applied in
- * order, tracked in `_migrations` so re-running is a no-op. Deliberately small:
- * this project has two tables total right now (see migrations/0001_*.sql).
+ * order, tracked in `_migrations` so re-running is a no-op.
  */
 export async function runMigrations(pool: Pool): Promise<string[]> {
   await pool.query(`

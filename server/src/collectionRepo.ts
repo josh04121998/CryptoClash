@@ -1,32 +1,34 @@
 import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 /**
- * Every non-token template id in the pool, grantable as a starting collection.
- * Recomputed from CARD_POOL each call (not cached) so a newly-added template
+ * Every Common-rarity, non-token template id — the starter set. Recomputed
+ * from CARD_POOL each call (not cached) so a newly-added Common template
  * shows up automatically without a code change here.
  */
-function ownableTemplateIds(): string[] {
+function starterTemplateIds(): string[] {
   return Object.values(CARD_POOL)
-    .filter((t) => !t.token)
+    .filter((t) => !t.token && t.rarity === "Common")
     .map((t) => t.id);
 }
 
 /**
  * Grants an account MAX_COPIES_PER_CARD standard-edition instances of every
- * ownable template — the current "everyone starts with the full pool"
- * baseline (STATUS.md roadmap step 4: real ownership plumbing without
- * regressing deck-building freedom until packs/duplicate-protection exist to
- * be the actual acquisition path). Idempotent and safe to call on every
- * sign-in: only tops up what's missing, so it also back-fills any template
- * added to the pool after an account's first sign-in.
+ * Common template — enough (18 Commons today, need 10 at 3 copies for a
+ * legal 30-card deck) to build a real deck with zero acquisition friction,
+ * while leaving Uncommon-and-above genuinely something packs (roadmap step
+ * 5) are the only way to get. Before this, every account got the entire pool
+ * (STATUS.md roadmap step 4) — that made packs pointless, since there was
+ * nothing left to pull that you didn't already own. Idempotent and safe to
+ * call on every sign-in: only tops up what's missing, so it also back-fills
+ * any Common template added to the pool after an account's first sign-in.
  *
  * Three queries regardless of pool size — bulk upsert editions, bulk-read
  * current counts, bulk-insert the shortfall — rather than one round-trip per
  * template, since this runs on every sign-in, not just account creation.
  */
 export async function grantStartingCollection(pool: Pool, accountId: string): Promise<void> {
-  const templateIds = ownableTemplateIds();
+  const templateIds = starterTemplateIds();
   if (templateIds.length === 0) return;
 
   const client = await pool.connect();
@@ -71,6 +73,34 @@ export async function grantStartingCollection(pool: Pool, accountId: string): Pr
   } finally {
     client.release();
   }
+}
+
+/**
+ * Adds exactly the given template ids as new standard-edition instances —
+ * unlike grantStartingCollection's "top up to N", this always inserts one
+ * instance per array entry, including duplicates: pulling the same Rare
+ * twice in one pack, or a Common you're already capped on for deckbuilding,
+ * is still real collection value (spec.md Section 18's duplicate-protection
+ * intent — crafting resources, not yet built, is what eventually spends
+ * these). Takes a `PoolClient`, not a `Pool`, so a caller with its own outer
+ * transaction (packsRepo's coin-debit + instance-creation) can include this
+ * in it atomically.
+ */
+export async function grantCardInstances(client: PoolClient, accountId: string, templateIds: string[]): Promise<void> {
+  if (templateIds.length === 0) return;
+  const uniqueIds = [...new Set(templateIds)];
+
+  const editionRows = await client.query<{ id: string; template_id: string }>(
+    `insert into card_editions (template_id, edition_type)
+     select unnest($1::text[]), 'standard'
+     on conflict (template_id, edition_type) do update set template_id = excluded.template_id
+     returning id, template_id`,
+    [uniqueIds],
+  );
+  const editionIdByTemplate = new Map(editionRows.rows.map((r) => [r.template_id, r.id]));
+  const editionIds = templateIds.map((id) => editionIdByTemplate.get(id)!);
+
+  await client.query(`insert into card_instances (owner_id, edition_id) select $1, unnest($2::uuid[])`, [accountId, editionIds]);
 }
 
 /** Owned copy count per template id, for the collection screen and deck-ownership gating. */

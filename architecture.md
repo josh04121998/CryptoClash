@@ -107,7 +107,7 @@ Cosmetic/collectible variants of a template (Section 14).
 
 ### Owned Card Instance (`card_instances`)
 What a specific player actually owns — this is the row that matters for deck-building and collection screens.
-`id, owner_id, edition_id, serial_number (nullable), is_foil, acquired_at, onchain_token_id (nullable)` — implemented, same migration. Every account is granted `MAX_COPIES_PER_CARD` standard-edition instances of every non-token template on sign-in (`server/src/collectionRepo.ts`'s `grantStartingCollection`) — the deliberate "everyone starts with the full pool" baseline until packs (Section 17) become the real acquisition path; see STATUS.md Section 4 for why.
+`id, owner_id, edition_id, serial_number (nullable), is_foil, acquired_at, onchain_token_id (nullable)` — implemented, same migration. Every account is granted `MAX_COPIES_PER_CARD` standard-edition instances of every **Common**-rarity template on sign-in (`server/src/collectionRepo.ts`'s `grantStartingCollection`) — enough for one legal deck with zero friction, while leaving Uncommon-and-above genuinely pack-only (Section 17, now implemented — see below). Originally granted the *entire* pool; narrowed once packs existed to be the real acquisition path, since a full-pool grant made packs pointless. See STATUS.md Section 4.
 
 A card instance only gets an `onchain_token_id` once (and if) it's minted — see Section 8. Until then it's a perfectly normal off-chain database row, and gameplay never cares which state it's in.
 
@@ -156,7 +156,9 @@ Off-chain, ordinary backend services against Postgres — no blockchain involvem
 * **Pack service:** server-side RNG (seeded, logged) determines pack contents against the configured rarity table (Section 13); never client-determined.
 * **Crafting service:** converts duplicate `card_instances` into a crafting resource, spendable on chosen templates (Section 18).
 
-These need real economy modeling (drop rates, Coin earn/spend balance, crafting costs) before launch — flagged as a separate, non-technical work item, not part of this doc.
+> **Implemented 2026-09-07 (see STATUS.md Section 4/5):** Coins ledger (`accounts.coins_balance` + an append-only `coin_transactions` audit table, `server/src/coinsRepo.ts`) and Pack service (`server/src/packsRepo.ts`, `server/migrations/0003_coins_and_packs.sql`) are both live — one "Standard Pack" (1,000 Coins, 5 cards), server-side RNG reusing the match engine's own `mulberry32` seeded PRNG (`engine/src/rng.ts`, now exported) so every roll is `(seed, packType)`-reproducible, seed logged per-pull in `pack_openings`. **Crafting service is still not started** — duplicates from packs sit in the collection as real rows today (Section 18's "duplicates have value" holds structurally) but nothing yet lets a player spend them.
+>
+> These need real economy modeling (drop rates, Coin earn/spend balance, crafting costs) before launch — flagged as a separate, non-technical work item, not part of this doc. What exists today is explicitly a first-pass placeholder: pack odds and the one-time "welcome bonus" Coins grant (`WELCOME_BONUS_COINS` in `coinsRepo.ts`) are invented numbers, not tuned design — and there's still no real Coins *earn* loop (Section 21's playing/winning/quests/dailies), since matches aren't tied to authenticated accounts yet. The welcome bonus is the only Coins source until one exists.
 
 ---
 
@@ -178,9 +180,9 @@ Maps directly to spec.md Section 34.
 * Battle Engine (headless TS library) covering: Energy, 5-slot board, Creatures/Spells/Items, Rush/Guard/Stealth/Burn/HODL, Volatility/Market Events — **done, including Items; see STATUS.md**
 * Match server + WebSocket layer + matchmaking — **done, skill-based ranking still outstanding; see STATUS.md**
 * React web client: tutorial, casual, ranked queues; board rendering; pack-opening screen — **vs-AI and online play modes done; ranked queues, tutorial flow, and pack-opening not started**
-* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts, decks, editions, and instances done (deliberately no DB `card_templates` table — see Section 6's deviation note; Coins/match-history still not started); see STATUS.md**
-* Deck builder + collection screen (Section 19) — **deck builder now ownership-gated against real `card_instances` rows (ownable pool is "everyone owns 3 of everything" until packs exist — not a UX regression, just real plumbing under the same UX); collection screen itself (the "digital binder" view) still not started**
-* Pack service + crafting service — **not started**
+* Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts, decks, editions, instances, and the Coins ledger all done (deliberately no DB `card_templates` table — see Section 6's deviation note; match history still not started); see STATUS.md**
+* Deck builder + collection screen (Section 19) — **deck builder ownership-gated against real `card_instances` rows, and the starting grant is now genuinely scarce (Commons only) since packs are live; collection screen itself (the "digital binder" view) still not started**
+* Pack service + crafting service — **pack service done (server + a reveal-animation client screen — see Section 10); crafting still not started**
 
 ### Explicitly deferred (do not build yet)
 * Web3 Service, minting, on-chain token standard
