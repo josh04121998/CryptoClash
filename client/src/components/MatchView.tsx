@@ -186,7 +186,8 @@ export function MatchView({
             <span className="table__winner">{winnerText}</span>
           ) : (
             <span>
-              Turn {state.turnNumber} — {state.activePlayer === myPlayerId ? "Your move" : opponentTurnLabel}
+              Turn {state.turnNumber} —{" "}
+              {state.activePlayer === myPlayerId ? <strong className="table__your-turn">Your move</strong> : opponentTurnLabel}
             </span>
           )}
           {lastError && <span className="table__error">{lastError}</span>}
