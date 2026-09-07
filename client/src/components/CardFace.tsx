@@ -1,5 +1,5 @@
 import { CardTemplate } from "@cryptoclash/engine";
-import { useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 import { factionColor } from "../factionColor.js";
 import { KEYWORD_TOOLTIPS } from "../keywordInfo.js";
 import { rarityColor } from "../rarityColor.js";
@@ -13,6 +13,8 @@ export interface CardFaceProps {
   affordable?: boolean;
   selected?: boolean;
   dimmed?: boolean;
+  /** Cosmetic-only shimmer (spec.md Section 14) — never affects gameplay stats or legality. */
+  foil?: boolean;
   size?: "hand" | "board";
   onClick?: () => void;
 }
@@ -26,6 +28,7 @@ export function CardFace({
   affordable = true,
   selected = false,
   dimmed = false,
+  foil = false,
   size = "board",
   onClick,
 }: CardFaceProps) {
@@ -60,10 +63,14 @@ export function CardFace({
         dimmed ? "card-face--dimmed" : "",
         !affordable ? "card-face--unaffordable" : "",
         justHit ? "card-face--hit" : "",
+        foil ? "card-face--foil" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{ borderColor: factionColor(template.faction) }}
+      // A plain `borderColor` here would always win over CSS (inline style beats any
+      // stylesheet rule regardless of specificity) — setting a custom property instead
+      // lets .card-face--foil's border-color: transparent actually override it.
+      style={{ "--faction-color": factionColor(template.faction) } as CSSProperties}
       onClick={onClick}
       disabled={!onClick}
     >

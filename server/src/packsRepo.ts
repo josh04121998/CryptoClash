@@ -2,7 +2,7 @@ import { CARD_POOL, mulberry32, Rarity } from "@cryptoclash/engine";
 import { randomInt } from "node:crypto";
 import type { Pool } from "pg";
 import { applyCoinDeltaOnClient } from "./coinsRepo.js";
-import { grantCardInstances } from "./collectionRepo.js";
+import { grantCardInstances, PackCard } from "./collectionRepo.js";
 
 export interface PackDefinition {
   id: string;
@@ -22,32 +22,66 @@ export class UnknownPackTypeError extends Error {}
 type RarityOdds = [Rarity, number][];
 
 /**
- * Placeholder pack odds — spec.md Section 17 asks for "rarity chances" and a
- * "guaranteed baseline value" but gives no numbers, so these are a first
- * pass, not tuned economy design (same caveat as cards.ts's rarity
- * heuristic). Every slot rolls NORMAL_ODDS except the last, which rolls the
- * richer LAST_SLOT_ODDS so every pack guarantees at least one Uncommon+.
- * Mythic/Genesis aren't listed because no CARD_POOL template uses them yet —
- * add them here once some do.
+ * Rarities a pack is allowed to roll. Mythic and Genesis are deliberately
+ * excluded, even once templates using them exist — spec.md Section 16
+ * promises Genesis a permanently capped, hand-picked total supply (~10-100),
+ * and a random pack outcome would quietly erode "permanently capped" a
+ * little more with every pack opened industry-wide. Both tiers are reserved
+ * for event/achievement grants outside this RNG path, not something to wire
+ * into NORMAL_ODDS/LAST_SLOT_ODDS below later without re-reading this.
+ */
+const PACK_ELIGIBLE_RARITIES: ReadonlySet<Rarity> = new Set(["Common", "Uncommon", "Rare", "Epic", "Legendary"]);
+
+/**
+ * Real first-pass odds design (2026-09-07), replacing the earlier "everything
+ * basically Common" placeholder — see spec.md Section 17. Every slot but the
+ * last rolls NORMAL_ODDS; the last rolls the richer LAST_SLOT_ODDS so every
+ * pack guarantees at least one Uncommon+ ("guaranteed baseline value").
+ * Against today's pool (18 Common / 21 Uncommon / 12 Rare / 6 Epic / 6
+ * Legendary), expected Legendary pulls/pack ≈ 0.038 (~1 every 26 packs, i.e.
+ * 26,000 Coins) and Epic+ ≈ 0.23/pack (4 × (0.018+0.002) + (0.12+0.03)) — a
+ * real long-tail chase curve. Still a
+ * first design pass to revisit against actual play telemetry before launch,
+ * not final tuned numbers (same caveat as cards.ts's rarity heuristic).
  */
 const NORMAL_ODDS: RarityOdds = [
-  ["Common", 0.6],
+  ["Common", 0.65],
   ["Uncommon", 0.25],
-  ["Rare", 0.1],
-  ["Epic", 0.04],
-  ["Legendary", 0.01],
+  ["Rare", 0.08],
+  ["Epic", 0.018],
+  ["Legendary", 0.002],
 ];
 const LAST_SLOT_ODDS: RarityOdds = [
-  ["Uncommon", 0.55],
-  ["Rare", 0.3],
+  ["Uncommon", 0.52],
+  ["Rare", 0.33],
   ["Epic", 0.12],
   ["Legendary", 0.03],
 ];
 
+for (const odds of [NORMAL_ODDS, LAST_SLOT_ODDS]) {
+  for (const [rarity] of odds) {
+    if (!PACK_ELIGIBLE_RARITIES.has(rarity)) {
+      throw new Error(`Pack odds reference ${rarity}, which PACK_ELIGIBLE_RARITIES excludes — see its comment.`);
+    }
+  }
+}
+
+/**
+ * Cosmetic foil roll (spec.md Section 14's "editions... can differ in...
+ * foiling", Section 12's gameplay/collectible-identity split) — orthogonal to
+ * rarity by design: any template, Common through Legendary, can come out
+ * foil. A flat per-card chance, independent of the rarity roll above, so foil
+ * doesn't compound with or dilute the rarity chase — it's a second, separate
+ * thing to get excited about on a flip, closer to Pokémon's "shiny" than a
+ * value multiplier on rarity. 8%/card ≈ 34% of 5-card packs contain at least
+ * one foil. Same "first pass, not final" caveat as the odds above.
+ */
+const FOIL_CHANCE = 0.08;
+
 function templatesByRarity(): Map<Rarity, string[]> {
   const map = new Map<Rarity, string[]>();
   for (const t of Object.values(CARD_POOL)) {
-    if (t.token || !t.rarity) continue;
+    if (t.token || !t.rarity || !PACK_ELIGIBLE_RARITIES.has(t.rarity)) continue;
     const list = map.get(t.rarity) ?? [];
     list.push(t.id);
     map.set(t.rarity, list);
@@ -66,17 +100,17 @@ function rollRarity(odds: RarityOdds, rng: () => number): Rarity {
 }
 
 /**
- * Pure card roll, kept separate from openPack's DB/coin side so (seed,
+ * Pure card+foil roll, kept separate from openPack's DB/coin side so (seed,
  * packType) is independently testable and reproducible — same
  * determinism-by-construction story as the match engine (engine/src/rng.ts).
  */
-export function rollPackCards(packType: string, seed: number): string[] {
+export function rollPackCards(packType: string, seed: number): PackCard[] {
   const def = PACK_DEFINITIONS[packType];
   if (!def) throw new UnknownPackTypeError(`Unknown pack type: ${packType}`);
 
   const byRarity = templatesByRarity();
   const rng = mulberry32(seed);
-  const cards: string[] = [];
+  const cards: PackCard[] = [];
 
   for (let slot = 0; slot < def.cardCount; slot++) {
     const odds = slot === def.cardCount - 1 ? LAST_SLOT_ODDS : NORMAL_ODDS;
@@ -86,13 +120,15 @@ export function rollPackCards(packType: string, seed: number): string[] {
       rarity = "Common";
       pool = byRarity.get(rarity) ?? [];
     }
-    cards.push(pool[Math.floor(rng() * pool.length)]);
+    const templateId = pool[Math.floor(rng() * pool.length)];
+    const isFoil = rng() < FOIL_CHANCE;
+    cards.push({ templateId, isFoil });
   }
   return cards;
 }
 
 export interface PackOpenResult {
-  cards: string[];
+  cards: PackCard[];
   balance: number;
 }
 

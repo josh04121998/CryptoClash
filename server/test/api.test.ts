@@ -122,10 +122,11 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const { token } = await signIn();
     const res = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${token}` } });
     expect(res.status).toBe(200);
-    const { owned } = (await res.json()) as { owned: Record<string, number> };
+    const { owned, foils } = (await res.json()) as { owned: Record<string, number>; foils: Record<string, number> };
     expect(owned["pup_scout"]).toBe(3); // Common
     expect(owned["moon_dog"]).toBeUndefined(); // Rare — pack-only now
     expect(owned["puppy"]).toBeUndefined(); // token, never granted
+    expect(foils).toEqual({}); // starting collection is never foil — only packs roll foils
   });
 
   it("rejects a deck that needs more copies than the account owns", async () => {
@@ -228,7 +229,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
       body: JSON.stringify({ packType: "standard" }),
     });
     expect(openRes.status).toBe(200);
-    const { cards, balance } = (await openRes.json()) as { cards: string[]; balance: number };
+    const { cards, balance } = (await openRes.json()) as { cards: { templateId: string; isFoil: boolean }[]; balance: number };
     expect(cards).toHaveLength(PACK_DEFINITIONS.standard.cardCount);
     expect(balance).toBe(WELCOME_BONUS_COINS - PACK_DEFINITIONS.standard.cost);
 

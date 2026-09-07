@@ -444,6 +444,16 @@ Packs should have:
 
 The pack-opening experience should be one of the game's signature moments.
 
+## Rarity chances (odds-only) vs. premium editions (cosmetic-variant) — resolved 2026-09-07
+
+These are two separate, orthogonal axes, not one combined "how good is this pull" roll:
+
+* **Rarity stays a pure odds mechanic.** It decides *which template* comes out of the pack — Common through Legendary, weighted so every pack guarantees at least one Uncommon+ in its last slot (implemented in `server/src/packsRepo.ts`'s `NORMAL_ODDS`/`LAST_SLOT_ODDS`). This is the "how hard is this design to get" axis, and it's the one that stays odds-only — no purchasable way to skip it (Section 29 still holds).
+* **Foil is a separate, independent cosmetic roll** (Section 14's "editions... can differ in... foiling"), applied to *any* pulled template regardless of its rarity — a Common can be a foil Common. This is deliberately closer to a Pokémon "shiny" than a value multiplier stacked on rarity: it's a second, independent thing to get excited about on a flip, not a bigger jackpot on the same one. Implemented as a flat 8%-per-card roll, independent of the rarity roll.
+* **First Edition and Genesis are deliberately *not* random pack outcomes.** First Edition (Section 14) is a specific print-run flag, not a per-pack coin flip — it should be tied to a time-boxed window (e.g. a launch period), consistent with how physical TCGs use the term. Genesis (Section 16) needs a hard, permanently-capped supply — if it were ever a nonzero-odds pack outcome, "permanently capped" would erode a little more with every pack opened industry-wide, so it's reserved for event/achievement grants outside the pack RNG path entirely. Mythic is held to the same standard as Genesis for the same reason. None of the three exist as pack outcomes today; `packsRepo.ts` enforces the Mythic/Genesis exclusion in code (`PACK_ELIGIBLE_RARITIES`), not just in this doc.
+
+Both the rarity weights and the foil rate are a first real design pass, not numbers backed by playtesting or live telemetry yet — see `server/src/packsRepo.ts` for the exact figures and reasoning. Revisit once there's real pack-opening data to tune against.
+
 ---
 
 # 18. Duplicate Protection
@@ -514,6 +524,8 @@ Coins are spent on:
 * Events
 
 Coins are initially off-chain and non-transferable.
+
+Packs can also be purchased directly with real money or stablecoin, as a separate path alongside earning Coins — the industry-standard cash-shop lever (Hearthstone, Pokémon TCG Live, MTG Arena all do this). This deliberately never routes through the external token: pack pricing stays stable in real terms and isn't exposed to token price volatility. This is the game's accepted "pay for more shots at rares" lever — not stat-boosted cards, which stay unpurchasable at any price (Section 29's rule).
 
 ---
 
@@ -630,6 +642,12 @@ No:
 Instead:
 
 > Stake tokens → earn cosmetic/progression/collector benefits.
+
+## Funding Rule
+
+Token rewards paid to stakers, and any buyback/burn activity, should be funded from real protocol revenue (a share of real-money pack sales and marketplace fees — Section 21's cash-shop path and Section 25's marketplace fee sink) — not from new token emissions.
+
+This is a deliberate reaction to what happened to Axie Infinity's SLP: paying players in a token emitted by playing/staking only holds its value while new-buyer inflow keeps outpacing emission, which is structurally a Ponzi shape once growth slows — it isn't a hypothetical, it's the thing that already happened to the most prominent play-to-earn token. Backing rewards with a share of real revenue instead means the payout is bounded by actual cash flow, not printable supply, so it doesn't carry the same collapse mode.
 
 ---
 

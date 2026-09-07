@@ -3,7 +3,7 @@ import { validateDeck } from "@cryptoclash/engine";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
-import { getCollectionCounts, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
+import { getCollectionSummary, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
 import { getBalance, grantWelcomeBonus } from "./coinsRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
@@ -93,7 +93,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         sendJson(res, 401, { error: "Not authenticated." });
         return true;
       }
-      sendJson(res, 200, { owned: await getCollectionCounts(pool, accountId) });
+      sendJson(res, 200, await getCollectionSummary(pool, accountId));
       return true;
     }
 

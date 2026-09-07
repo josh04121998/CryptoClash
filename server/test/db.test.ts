@@ -2,7 +2,7 @@ import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
-import { getCollectionCounts, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
+import { getCollectionCounts, getCollectionSummary, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
 import {
   awardMatchResult,
   getBalance,
@@ -200,14 +200,43 @@ d("accounts + decks (integration, real Postgres)", () => {
       const second = rollPackCards("standard", 42);
       expect(first).toEqual(second);
       expect(first).toHaveLength(PACK_DEFINITIONS.standard.cardCount);
-      for (const id of first) expect(CARD_POOL[id]).toBeDefined();
+      for (const card of first) {
+        expect(CARD_POOL[card.templateId]).toBeDefined();
+        expect(typeof card.isFoil).toBe("boolean");
+      }
     });
 
     it("rejects an unknown pack type", () => {
       expect(() => rollPackCards("legendary-vault", 1)).toThrow(UnknownPackTypeError);
     });
 
-    it("opens a pack: debits Coins, grants card instances, and logs the roll", async () => {
+    it("never rolls Mythic or Genesis — those are event/achievement-only, not pack RNG", () => {
+      // A sweep of seeds rather than one lucky/unlucky roll — the guard is a hard exclusion
+      // (PACK_ELIGIBLE_RARITIES in packsRepo.ts), not just an unlikely outcome to not hit.
+      for (let seed = 0; seed < 500; seed++) {
+        for (const card of rollPackCards("standard", seed)) {
+          const rarity = CARD_POOL[card.templateId].rarity;
+          expect(rarity).not.toBe("Mythic");
+          expect(rarity).not.toBe("Genesis");
+        }
+      }
+    });
+
+    it("rolls foils at a real, nonzero-but-minority rate across many packs", () => {
+      let foilCount = 0;
+      let totalCount = 0;
+      for (let seed = 0; seed < 500; seed++) {
+        for (const card of rollPackCards("standard", seed)) {
+          totalCount++;
+          if (card.isFoil) foilCount++;
+        }
+      }
+      const rate = foilCount / totalCount;
+      expect(rate).toBeGreaterThan(0);
+      expect(rate).toBeLessThan(0.2);
+    });
+
+    it("opens a pack: debits Coins, grants card instances (foils included), and logs the roll", async () => {
       const account = await findOrCreateAccount(pool, "0xpackbuyer");
       await grantWelcomeBonus(pool, account.id);
       const before = await getBalance(pool, account.id);
@@ -219,13 +248,19 @@ d("accounts + decks (integration, real Postgres)", () => {
 
       const owned = await getCollectionCounts(pool, account.id);
       const rolledCounts = new Map<string, number>();
-      for (const id of result.cards) rolledCounts.set(id, (rolledCounts.get(id) ?? 0) + 1);
+      for (const card of result.cards) rolledCounts.set(card.templateId, (rolledCounts.get(card.templateId) ?? 0) + 1);
       for (const [id, count] of rolledCounts) {
         // >= not ===, since a Common could already be part of the starting collection.
         expect(owned[id]).toBeGreaterThanOrEqual(count);
       }
 
-      const logged = await pool.query<{ cards: string[]; coins_spent: number }>(
+      const foilsPulled = result.cards.filter((c) => c.isFoil);
+      if (foilsPulled.length > 0) {
+        const { foils: foilOwned } = await getCollectionSummary(pool, account.id);
+        for (const card of foilsPulled) expect(foilOwned[card.templateId]).toBeGreaterThanOrEqual(1);
+      }
+
+      const logged = await pool.query<{ cards: { templateId: string; isFoil: boolean }[]; coins_spent: number }>(
         "select cards, coins_spent from pack_openings where account_id = $1",
         [account.id],
       );
@@ -242,17 +277,23 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(await getCollectionCounts(pool, account.id)).toEqual({});
     });
 
-    it("grantCardInstances adds duplicates as separate owned instances rather than topping up", async () => {
+    it("grantCardInstances adds duplicates as separate owned instances rather than topping up, preserving is_foil", async () => {
       const account = await findOrCreateAccount(pool, "0xduplicator");
       const client = await pool.connect();
       try {
-        await grantCardInstances(client, account.id, ["moon_dog", "moon_dog", "moon_dog", "moon_dog"]);
+        await grantCardInstances(client, account.id, [
+          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: true },
+          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: true },
+        ]);
       } finally {
         client.release();
       }
       // Four instances even though MAX_COPIES_PER_CARD is 3 — duplicates beyond deck-legal
       // copies are still real collection value (spec.md Section 18), not silently dropped.
       expect((await getCollectionCounts(pool, account.id))["moon_dog"]).toBe(4);
+      expect((await getCollectionSummary(pool, account.id)).foils["moon_dog"]).toBe(2);
     });
   });
 });

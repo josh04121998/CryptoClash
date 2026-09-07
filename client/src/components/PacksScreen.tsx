@@ -10,6 +10,11 @@ interface PackDefinition {
   cardCount: number;
 }
 
+interface PackCard {
+  templateId: string;
+  isFoil: boolean;
+}
+
 export interface PacksScreenProps {
   token: string;
   balance: number | null;
@@ -23,7 +28,7 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
   const [packs, setPacks] = useState<PackDefinition[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  const [revealedCards, setRevealedCards] = useState<string[] | null>(null);
+  const [revealedCards, setRevealedCards] = useState<PackCard[] | null>(null);
   const [revealedCount, setRevealedCount] = useState(0);
 
   useEffect(() => {
@@ -36,7 +41,7 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
     setError(null);
     setOpening(true);
     try {
-      const result = await apiFetch<{ cards: string[]; balance: number }>("/api/packs/open", {
+      const result = await apiFetch<{ cards: PackCard[]; balance: number }>("/api/packs/open", {
         method: "POST",
         token,
         body: JSON.stringify({ packType }),
@@ -97,11 +102,12 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
         {revealedCards && (
           <>
             <div className="pack-reveal">
-              {revealedCards.map((id, i) => (
-                <div key={`${id}-${i}`} className="pack-reveal__slot">
+              {revealedCards.map((card, i) => (
+                <div key={`${card.templateId}-${i}`} className="pack-reveal__slot">
                   {i < revealedCount ? (
                     <div className="pack-reveal__card">
-                      <CardFace template={CARD_POOL[id]} size="hand" />
+                      <CardFace template={CARD_POOL[card.templateId]} size="hand" foil={card.isFoil} />
+                      {card.isFoil && <span className="pack-reveal__foil-tag">✨ Foil</span>}
                     </div>
                   ) : (
                     <div className="pack-reveal__back" />

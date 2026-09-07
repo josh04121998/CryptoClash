@@ -67,6 +67,8 @@ button {
 .app-bar__actions {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
 }
 
@@ -263,7 +265,7 @@ button {
   text-align: center;
   gap: 0.15rem;
   background: linear-gradient(160deg, var(--panel-alt), var(--panel));
-  border: 2px solid var(--border);
+  border: 2px solid var(--faction-color, var(--border));
   border-radius: 10px;
   padding: 0.4rem 0.35rem 0.5rem;
   color: var(--text);
@@ -293,6 +295,28 @@ button {
 
 .card-face--unaffordable {
   opacity: 0.5;
+}
+
+/* Cosmetic-only shimmer (spec.md Section 14) — never reflects gameplay stats. */
+.card-face--foil {
+  border-color: transparent;
+  background:
+    linear-gradient(160deg, var(--panel-alt), var(--panel)) padding-box,
+    linear-gradient(120deg, #f0f, #7df9ff, #ffe97d, #f0f) border-box;
+  background-size:
+    100% 100%,
+    300% 300%;
+  animation: foil-shimmer 3s linear infinite;
+  box-shadow: 0 0 8px 1px rgb(255 255 255 / 0.3);
+}
+
+@keyframes foil-shimmer {
+  0% {
+    background-position: 0 0, 0% 50%;
+  }
+  100% {
+    background-position: 0 0, 300% 50%;
+  }
 }
 
 .card-face:disabled {
@@ -657,7 +681,18 @@ button {
 }
 
 .pack-reveal__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
   animation: pack-reveal-flip 0.35s ease-out;
+}
+
+.pack-reveal__foil-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ffe97d;
+  text-align: center;
 }
 
 @keyframes pack-reveal-flip {
@@ -693,6 +728,12 @@ button {
 .collection__summary-total {
   font-weight: 700;
   font-size: 1.05rem;
+}
+
+.collection__summary-foils {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #ffe97d;
 }
 
 .collection__summary-rarities {
@@ -746,6 +787,11 @@ button {
 .collection__count {
   font-size: 0.7rem;
   color: var(--text-dim);
+}
+
+.collection__foil-count {
+  font-size: 0.65rem;
+  color: #ffe97d;
 }
 
 /* Connection status */
@@ -838,6 +884,27 @@ button {
 /* Mobile */
 
 @media (max-width: 640px) {
+  .deck-builder {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .deck-builder__pool {
+    overflow-y: visible;
+    flex: none;
+  }
+
+  .deck-builder__sidebar {
+    width: 100%;
+    flex-shrink: 0;
+    overflow-y: visible;
+  }
+
+  .deck-builder__list {
+    flex: none;
+    max-height: 220px;
+  }
+
   .board-slot,
   .card-face--board {
     width: 62px;

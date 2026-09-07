@@ -22,27 +22,34 @@ type FactionFilter = Faction | "All";
 type RarityFilter = Rarity | "All";
 
 /**
- * The "digital binder" view (spec.md Section 19). Editions/foils/serials
- * (Section 19's "First Editions", "Foils", "Serialised cards") aren't shown
- * as separate filters yet — nothing populates card_instances with anything
- * but the standard edition today (see STATUS.md), so those fields exist in
- * the schema but have no real data behind them yet. This screen shows what's
- * actually real: owned vs. missing, by faction and rarity.
+ * The "digital binder" view (spec.md Section 19). First Editions and
+ * Serialised cards (two of Section 19's other listed filters) still aren't
+ * shown — nothing grants a non-standard `edition_type` or a serial number yet
+ * (see STATUS.md), so those fields exist in the schema but have no real data
+ * behind them. Foils are now real (packs roll them — see packsRepo.ts), so
+ * this screen surfaces them: a summary count and a per-card badge/filter.
  */
 export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
   const [owned, setOwned] = useState<Record<string, number>>({});
+  const [foils, setFoils] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>("All");
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("All");
   const [ownedOnly, setOwnedOnly] = useState(false);
+  const [foilsOnly, setFoilsOnly] = useState(false);
 
   useEffect(() => {
-    apiFetch<{ owned: Record<string, number> }>("/api/collection", { token })
-      .then((res) => setOwned(res.owned))
+    apiFetch<{ owned: Record<string, number>; foils: Record<string, number> }>("/api/collection", { token })
+      .then((res) => {
+        setOwned(res.owned);
+        setFoils(res.foils);
+      })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
   }, [token]);
+
+  const totalFoils = useMemo(() => Object.values(foils).reduce((sum, n) => sum + n, 0), [foils]);
 
   const rarityStats = useMemo(
     () =>
@@ -61,9 +68,10 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
         if (factionFilter !== "All" && t.faction !== factionFilter) return false;
         if (rarityFilter !== "All" && t.rarity !== rarityFilter) return false;
         if (ownedOnly && (owned[t.id] ?? 0) === 0) return false;
+        if (foilsOnly && (foils[t.id] ?? 0) === 0) return false;
         return true;
       }),
-    [factionFilter, rarityFilter, ownedOnly, owned],
+    [factionFilter, rarityFilter, ownedOnly, foilsOnly, owned, foils],
   );
 
   return (
@@ -88,6 +96,7 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
               <span className="collection__summary-total">
                 {totalOwned} / {ALL_CARDS.length} cards owned
               </span>
+              {totalFoils > 0 && <span className="collection__summary-foils">✨ {totalFoils} foils</span>}
               <div className="collection__summary-rarities">
                 {rarityStats.map((s) => (
                   <span key={s.rarity} className="collection__summary-pill" style={{ color: rarityColor(s.rarity) }}>
@@ -118,15 +127,21 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
                 <input type="checkbox" checked={ownedOnly} onChange={(e) => setOwnedOnly(e.target.checked)} />
                 Owned only
               </label>
+              <label className="collection__toggle">
+                <input type="checkbox" checked={foilsOnly} onChange={(e) => setFoilsOnly(e.target.checked)} />
+                Foils only
+              </label>
             </div>
 
             <div className="collection__grid">
               {visibleCards.map((template) => {
                 const count = owned[template.id] ?? 0;
+                const foilCount = foils[template.id] ?? 0;
                 return (
                   <div key={template.id} className="collection__card">
-                    <CardFace template={template} size="hand" dimmed={count === 0} />
+                    <CardFace template={template} size="hand" dimmed={count === 0} foil={foilCount > 0} />
                     <span className="collection__count">{count === 0 ? "Not owned" : `${count} owned`}</span>
+                    {foilCount > 0 && <span className="collection__foil-count">✨ {foilCount} foil</span>}
                   </div>
                 );
               })}
