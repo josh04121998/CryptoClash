@@ -1,5 +1,7 @@
 import { CardTemplate } from "@cryptoclash/engine";
+import { useEffect, useRef, useState } from "react";
 import { factionColor } from "../factionColor.js";
+import { KEYWORD_TOOLTIPS } from "../keywordInfo.js";
 import { rarityColor } from "../rarityColor.js";
 
 export interface CardFaceProps {
@@ -32,6 +34,22 @@ export function CardFace({
   const damaged = maxHealth !== undefined && health !== undefined && health < maxHealth;
   const isCreature = template.type === "Creature";
 
+  // "just hit" is a one-shot trigger, distinct from `damaged` above: it fires
+  // only on the render where health *drops* from what it was last render,
+  // not on every render while the creature happens to be below max health.
+  const [justHit, setJustHit] = useState(false);
+  const prevHealthRef = useRef(health);
+  useEffect(() => {
+    const prev = prevHealthRef.current;
+    if (prev !== undefined && health !== undefined && health < prev) {
+      setJustHit(true);
+      const timer = setTimeout(() => setJustHit(false), 450);
+      prevHealthRef.current = health;
+      return () => clearTimeout(timer);
+    }
+    prevHealthRef.current = health;
+  }, [health]);
+
   return (
     <button
       type="button"
@@ -41,6 +59,7 @@ export function CardFace({
         selected ? "card-face--selected" : "",
         dimmed ? "card-face--dimmed" : "",
         !affordable ? "card-face--unaffordable" : "",
+        justHit ? "card-face--hit" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -54,7 +73,14 @@ export function CardFace({
       )}
       <span className="card-face__name">{template.name}</span>
       {keywords && keywords.length > 0 && (
-        <span className="card-face__keywords">{keywords.join(" · ")}</span>
+        <span className="card-face__keywords">
+          {keywords.map((kw, i) => (
+            <span key={kw} className="card-face__keyword" title={KEYWORD_TOOLTIPS[kw]}>
+              {kw}
+              {i < keywords.length - 1 ? " · " : ""}
+            </span>
+          ))}
+        </span>
       )}
       <span className="card-face__text">{template.text}</span>
       {isCreature && (
