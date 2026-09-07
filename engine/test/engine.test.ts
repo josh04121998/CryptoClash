@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE_DECK } from "../src/cards.js";
+import { takeBotTurn } from "../src/bot.js";
+import { CARD_POOL, SAMPLE_DECK } from "../src/cards.js";
 import { applyIntent, createMatch } from "../src/engine.js";
+import { createBoardCreature } from "../src/effects.js";
 import { triggerMarketEvent } from "../src/marketEvents.js";
 import { getEffectiveAttack } from "../src/stats.js";
 import { MatchState, PlayerId } from "../src/types.js";
+import { getAdjacentSlots } from "../src/util.js";
 
 describe("determinism", () => {
   it("produces identical opening state for the same seed", () => {
@@ -513,5 +516,75 @@ describe("Items — buffTarget and grantKeywordTarget", () => {
     expect(() =>
       applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "player", playerId: "B" } }),
     ).not.toThrow();
+  });
+});
+
+/**
+ * Test-only helper: drop a fully-formed creature straight onto a board slot
+ * (bypassing playCard) so combat scenarios can be set up precisely, already
+ * past summoning sickness (as if it had been played on an earlier turn).
+ */
+function placeCreature(state: MatchState, playerId: PlayerId, slot: number, templateId: string) {
+  const creature = createBoardCreature(state, templateId);
+  creature.summonedOnTurn = state.turnNumber - 1;
+  state.players[playerId].board[slot] = creature;
+  return creature;
+}
+
+describe("bot AI", () => {
+  it("trades into a clean kill instead of always going face when no lethal is available", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 11);
+    state.players.A.hand = []; // isolate the attack decision from card plays
+
+    // Loyal Hound: 5/5, easily kills Pup Scout (1/2) without taking lethal damage back (1 dmg).
+    placeCreature(state, "A", 0, "loyal_hound");
+    placeCreature(state, "B", 0, "pup_scout");
+
+    expect(state.players.B.hp).toBe(30); // nowhere near lethal for a single 5-attack creature
+
+    takeBotTurn(state, "A");
+
+    // The old dumb bot would've ignored the free kill and gone face every time.
+    expect(state.players.B.board[0]).toBeNull(); // Pup Scout died in the trade
+    expect(state.players.A.board[0]).not.toBeNull();
+    expect(state.players.A.board[0]?.health).toBe(4); // Loyal Hound took Pup Scout's 1 damage
+    expect(state.players.B.hp).toBe(30); // face was untouched — the attack went into the trade instead
+  });
+
+  it("goes face for lethal instead of trading into a clean kill when it can just win", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 13);
+    state.players.A.hand = [];
+    state.players.B.hp = 4; // Loyal Hound's 5 attack alone is lethal
+
+    placeCreature(state, "A", 0, "loyal_hound");
+    // A tempting clean-kill target is still on offer — the bot should ignore it and just win.
+    placeCreature(state, "B", 4, "pup_scout");
+
+    takeBotTurn(state, "A");
+
+    expect(state.winner).toBe("A");
+    expect(state.players.B.hp).toBeLessThanOrEqual(0);
+    expect(state.players.B.board[4]).not.toBeNull(); // the trade target was left alone
+  });
+
+  it("plays a creature into a slot that actually triggers an existing aura, not just the first empty one", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 17);
+    state.players.A.hand = [];
+
+    // Moon Dog (Doggos) sits in slot 2 with its adjacentSameFaction +1 Attack aura.
+    placeCreature(state, "A", 2, "moon_dog");
+    expect(CARD_POOL.moon_dog.aura?.filter).toBe("adjacentSameFaction");
+
+    // Give the bot a same-faction creature to play — first empty slot (0) would NOT
+    // be adjacent to Moon Dog, but slot 1 or 3 would trigger the aura.
+    state.players.A.hand.push("fast_fang");
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+
+    takeBotTurn(state, "A");
+
+    expect(state.players.A.board[0]).toBeNull(); // first-empty was skipped in favor of an aura slot
+    const landedSlot = state.players.A.board.findIndex((c) => c?.templateId === "fast_fang");
+    expect([1, 3]).toContain(landedSlot);
+    expect(getAdjacentSlots(landedSlot)).toContain(2);
   });
 });
