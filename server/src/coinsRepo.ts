@@ -55,3 +55,44 @@ export async function creditCoins(pool: Pool, accountId: string, amount: number,
 export async function grantWelcomeBonus(pool: Pool, accountId: string): Promise<void> {
   await creditCoins(pool, accountId, WELCOME_BONUS_COINS, "welcome_bonus");
 }
+
+export type MatchOutcome = "win" | "loss" | "draw";
+
+/**
+ * Placeholder match-reward economy — spec.md Section 21 lists "playing,
+ * winning" as a Coins source but gives no numbers (same "not tuned economy
+ * design" caveat as WELCOME_BONUS_COINS above). A win pays more than a loss
+ * so the incentive is real, but a loss still pays something so a full match
+ * played to completion has *some* value beyond just winning. A Draw sits
+ * between the two — the player neither won nor lost, so neither rate fits;
+ * this is a first-pass number, not a modeled "how rare are draws" decision.
+ *
+ * Only Play Online awards this (see matchRoom.ts) — Play vs AI runs entirely
+ * client-side with no server validation of the outcome, so it's deliberately
+ * excluded rather than trusting a client-reported win.
+ */
+export const MATCH_WIN_COINS = 100;
+export const MATCH_LOSS_COINS = 25;
+export const MATCH_DRAW_COINS = 50;
+
+function matchRewardAmount(outcome: MatchOutcome): number {
+  switch (outcome) {
+    case "win":
+      return MATCH_WIN_COINS;
+    case "loss":
+      return MATCH_LOSS_COINS;
+    case "draw":
+      return MATCH_DRAW_COINS;
+  }
+}
+
+/** Called once per Play Online match, per participant with a real (wallet-linked) session — see matchRoom.ts. */
+export async function awardMatchResult(
+  pool: Pool,
+  accountId: string,
+  outcome: MatchOutcome,
+): Promise<{ amount: number; balance: number }> {
+  const amount = matchRewardAmount(outcome);
+  const balance = await creditCoins(pool, accountId, amount, `match_${outcome}`);
+  return { amount, balance };
+}

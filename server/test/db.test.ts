@@ -3,7 +3,15 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
 import { getCollectionCounts, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
-import { getBalance, grantWelcomeBonus, WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
+import {
+  awardMatchResult,
+  getBalance,
+  grantWelcomeBonus,
+  MATCH_DRAW_COINS,
+  MATCH_LOSS_COINS,
+  MATCH_WIN_COINS,
+  WELCOME_BONUS_COINS,
+} from "../src/coinsRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, rollPackCards, UnknownPackTypeError } from "../src/packsRepo.js";
@@ -155,6 +163,33 @@ d("accounts + decks (integration, real Postgres)", () => {
       const b = await findOrCreateAccount(pool, "0xcoinsb");
       await grantWelcomeBonus(pool, a.id);
       expect(await getBalance(pool, a.id)).toBe(WELCOME_BONUS_COINS);
+      expect(await getBalance(pool, b.id)).toBe(0);
+    });
+
+    it("awardMatchResult pays a win more than a loss, and tracks balance", async () => {
+      const account = await findOrCreateAccount(pool, "0xmatchplayer");
+
+      const winResult = await awardMatchResult(pool, account.id, "win");
+      expect(winResult.amount).toBe(MATCH_WIN_COINS);
+      expect(winResult.balance).toBe(MATCH_WIN_COINS);
+      expect(await getBalance(pool, account.id)).toBe(MATCH_WIN_COINS);
+
+      const lossResult = await awardMatchResult(pool, account.id, "loss");
+      expect(lossResult.amount).toBe(MATCH_LOSS_COINS);
+      expect(lossResult.balance).toBe(MATCH_WIN_COINS + MATCH_LOSS_COINS);
+
+      const drawResult = await awardMatchResult(pool, account.id, "draw");
+      expect(drawResult.amount).toBe(MATCH_DRAW_COINS);
+      expect(drawResult.balance).toBe(MATCH_WIN_COINS + MATCH_LOSS_COINS + MATCH_DRAW_COINS);
+
+      expect(MATCH_WIN_COINS).toBeGreaterThan(MATCH_LOSS_COINS);
+    });
+
+    it("scopes match-reward balance per-account", async () => {
+      const a = await findOrCreateAccount(pool, "0xmatcha");
+      const b = await findOrCreateAccount(pool, "0xmatchb");
+      await awardMatchResult(pool, a.id, "win");
+      expect(await getBalance(pool, a.id)).toBe(MATCH_WIN_COINS);
       expect(await getBalance(pool, b.id)).toBe(0);
     });
   });

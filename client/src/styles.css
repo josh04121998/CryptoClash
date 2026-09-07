@@ -85,6 +85,13 @@ button {
   font-size: 0.85rem;
 }
 
+.match-reward {
+  align-self: center;
+  color: var(--energy);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .table {
   flex: 1;
   display: flex;

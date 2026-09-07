@@ -35,7 +35,7 @@ export default function App() {
   }, [wallet.token, refreshCoins]);
 
   if (mode === "local") return <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
-  if (mode === "online") return <OnlineMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
+  if (mode === "online") return <OnlineMatch deckCards={deckCards} token={wallet.token} onExit={() => setMode("menu")} />;
 
   if (mode === "pick-local" || mode === "pick-online") {
     return (
