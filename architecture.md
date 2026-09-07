@@ -181,7 +181,7 @@ Maps directly to spec.md Section 34.
 * Match server + WebSocket layer + matchmaking — **done, skill-based ranking still outstanding; see STATUS.md**
 * React web client: tutorial, casual, ranked queues; board rendering; pack-opening screen — **vs-AI and online play modes done; ranked queues, tutorial flow, and pack-opening not started**
 * Postgres schema: accounts, card templates/editions/instances, decks, Coins ledger, match history — **accounts, decks, editions, instances, and the Coins ledger all done (deliberately no DB `card_templates` table — see Section 6's deviation note; match history still not started); see STATUS.md**
-* Deck builder + collection screen (Section 19) — **deck builder ownership-gated against real `card_instances` rows, and the starting grant is now genuinely scarce (Commons only) since packs are live; collection screen itself (the "digital binder" view) still not started**
+* Deck builder + collection screen (Section 19) — **both done: deck builder ownership-gated against real `card_instances` rows with a genuinely scarce starting grant (Commons only) now that packs are live, and a collection screen (owned/missing by faction/rarity, filterable) — First Edition/Foil/Serial filters not yet exposed since nothing populates those fields**
 * Pack service + crafting service — **pack service done (server + a reveal-animation client screen — see Section 10); crafting still not started**
 
 ### Explicitly deferred (do not build yet)
