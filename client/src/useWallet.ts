@@ -1,3 +1,4 @@
+import { getAddress } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { SiweMessage } from "siwe";
 import { apiFetch } from "./api.js";
@@ -72,8 +73,11 @@ export function useWallet() {
     setStatus("connecting");
     try {
       const accounts = (await window.ethereum.request({ method: "eth_requestAccounts" })) as string[];
-      const address = accounts[0];
-      if (!address) throw new Error("No account returned by the wallet.");
+      if (!accounts[0]) throw new Error("No account returned by the wallet.");
+      // SIWE messages require an EIP-55 checksummed address (siwe's own validation throws
+      // "invalid EIP-55 address" otherwise) — not every wallet returns one already checksummed
+      // (some return all-lowercase), so normalize with ethers rather than trusting the wallet's casing.
+      const address = getAddress(accounts[0]);
 
       const { nonce } = await apiFetch<{ nonce: string }>("/api/auth/nonce");
       const siwe = new SiweMessage({
