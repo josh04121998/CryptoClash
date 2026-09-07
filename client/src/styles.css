@@ -794,6 +794,88 @@ button {
   color: #ffe97d;
 }
 
+/* Crafting */
+
+.crafting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.crafting__intro {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  max-width: 60ch;
+}
+
+.crafting__error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.crafting__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 0.75rem;
+}
+
+.crafting__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 110px;
+}
+
+.crafting__rarity-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.crafting__owned {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.crafting__disenchant-row {
+  display: flex;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.crafting__disenchant-row input {
+  width: 2.4rem;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.75rem;
+  padding: 0.2rem;
+}
+
+.crafting__disenchant-row button,
+.crafting__card > button {
+  flex: 1;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.3rem;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.crafting__disenchant-row button:disabled,
+.crafting__card > button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Connection status */
 
 .connect-status {

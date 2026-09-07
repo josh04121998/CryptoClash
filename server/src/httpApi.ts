@@ -5,6 +5,15 @@ import { findOrCreateAccount } from "./accounts.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
 import { getCollectionSummary, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
 import { getBalance, grantWelcomeBonus } from "./coinsRepo.js";
+import {
+  craftCard,
+  disenchantCards,
+  getCraftRates,
+  getDustBalance,
+  InsufficientCopiesError,
+  InsufficientDustError,
+  InvalidTemplateError,
+} from "./craftingRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 
@@ -128,6 +137,74 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           sendJson(res, 402, { error: e.message });
         } else if (e instanceof UnknownPackTypeError) {
           sendJson(res, 400, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/craft/rates" && req.method === "GET") {
+      sendJson(res, 200, { rates: getCraftRates() });
+      return true;
+    }
+
+    if (url.pathname === "/api/dust" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { balance: await getDustBalance(pool, accountId) });
+      return true;
+    }
+
+    if (url.pathname === "/api/craft/disenchant" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { templateId?: string; count?: number };
+      const { templateId, count } = body;
+      if (!templateId || !Number.isInteger(count) || count! < 1) {
+        sendJson(res, 400, { error: "templateId is required and count must be a positive integer." });
+        return true;
+      }
+      try {
+        const result = await disenchantCards(pool, accountId, templateId, count!);
+        sendJson(res, 200, result);
+      } catch (e) {
+        if (e instanceof InvalidTemplateError) {
+          sendJson(res, 400, { error: e.message });
+        } else if (e instanceof InsufficientCopiesError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/craft/craft" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { templateId?: string };
+      if (!body.templateId) {
+        sendJson(res, 400, { error: "templateId is required." });
+        return true;
+      }
+      try {
+        const result = await craftCard(pool, accountId, body.templateId);
+        sendJson(res, 200, result);
+      } catch (e) {
+        if (e instanceof InvalidTemplateError) {
+          sendJson(res, 400, { error: e.message });
+        } else if (e instanceof InsufficientDustError) {
+          sendJson(res, 402, { error: e.message });
         } else {
           throw e;
         }

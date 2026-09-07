@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
 import { WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
+import { grantCardInstances } from "../src/collectionRepo.js";
 import { PACK_DEFINITIONS } from "../src/packsRepo.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -134,8 +135,8 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const account = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
     const accountId = account.rows[0].id;
 
-    // Sell off two of this account's three owned Pup Scouts, as duplicate-protection/crafting
-    // will eventually let a player do (spec.md Section 18) — leaves only 1 owned.
+    // Sell off two of this account's three owned Pup Scouts, the same effect crafting's
+    // disenchant now really does (spec.md Section 18, see the crafting tests below) — leaves only 1 owned.
     const instances = await pool.query<{ id: string }>(
       `select ci.id from card_instances ci
        join card_editions ce on ce.id = ci.edition_id
@@ -265,5 +266,122 @@ d("/api/* over real HTTP, against real Postgres", () => {
   it("rejects /api/packs/open with no Authorization header", async () => {
     const res = await fetch(`${baseUrl}/api/packs/open`, { method: "POST", body: JSON.stringify({ packType: "standard" }) });
     expect(res.status).toBe(401);
+  });
+
+  describe("crafting over HTTP", () => {
+    it("serves craft rates publicly, without auth", async () => {
+      const res = await fetch(`${baseUrl}/api/craft/rates`);
+      expect(res.status).toBe(200);
+      const { rates } = (await res.json()) as { rates: { rarity: string; disenchantValue: number; craftCost: number }[] };
+      const rare = rates.find((r) => r.rarity === "Rare");
+      expect(rare).toEqual({ rarity: "Rare", disenchantValue: 20, craftCost: 100 });
+    });
+
+    async function accountIdFor(address: string): Promise<string> {
+      const res = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
+      return res.rows[0].id;
+    }
+
+    it("disenchants owned copies into Dust, then crafts a different card with it", async () => {
+      const { token, address } = await signIn();
+      const accountId = await accountIdFor(address);
+      const client = await pool.connect();
+      try {
+        // 5 Rares at 20 Dust each = 100 Dust, exactly one Rare craft's cost.
+        await grantCardInstances(
+          client,
+          accountId,
+          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false })),
+        );
+      } finally {
+        client.release();
+      }
+      const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const disenchantRes = await fetch(`${baseUrl}/api/craft/disenchant`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "moon_dog", count: 5 }),
+      });
+      expect(disenchantRes.status).toBe(200);
+      const disenchanted = (await disenchantRes.json()) as { dustEarned: number; balance: number };
+      expect(disenchanted.dustEarned).toBe(100);
+
+      const dustRes = await fetch(`${baseUrl}/api/dust`, { headers: auth });
+      expect(((await dustRes.json()) as { balance: number }).balance).toBe(100);
+
+      const craftRes = await fetch(`${baseUrl}/api/craft/craft`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "guard_dog" }), // also Rare, cost 100
+      });
+      expect(craftRes.status).toBe(200);
+      expect(((await craftRes.json()) as { balance: number }).balance).toBe(0);
+
+      const collectionRes = await fetch(`${baseUrl}/api/collection`, { headers: auth });
+      const { owned } = (await collectionRes.json()) as { owned: Record<string, number> };
+      expect(owned["guard_dog"]).toBe(1);
+    });
+
+    it("rejects disenchanting more than owned with 409, and crafting without enough Dust with 402", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const disenchantRes = await fetch(`${baseUrl}/api/craft/disenchant`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "moon_dog", count: 1 }),
+      });
+      expect(disenchantRes.status).toBe(409);
+
+      const craftRes = await fetch(`${baseUrl}/api/craft/craft`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "moon_dog" }),
+      });
+      expect(craftRes.status).toBe(402);
+    });
+
+    it("rejects crafting/disenchanting a Common (the starting-collection farm guard) with 400", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const craftRes = await fetch(`${baseUrl}/api/craft/craft`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "pup_scout" }),
+      });
+      expect(craftRes.status).toBe(400);
+    });
+
+    it("rejects a negative or fractional disenchant count with 400, not a 500", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const negativeRes = await fetch(`${baseUrl}/api/craft/disenchant`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "moon_dog", count: -1 }),
+      });
+      expect(negativeRes.status).toBe(400);
+
+      const fractionalRes = await fetch(`${baseUrl}/api/craft/disenchant`, {
+        method: "POST",
+        headers: auth,
+        body: JSON.stringify({ templateId: "moon_dog", count: 2.5 }),
+      });
+      expect(fractionalRes.status).toBe(400);
+    });
+
+    it("rejects crafting endpoints with no Authorization header", async () => {
+      const dustRes = await fetch(`${baseUrl}/api/dust`);
+      expect(dustRes.status).toBe(401);
+
+      const disenchantRes = await fetch(`${baseUrl}/api/craft/disenchant`, {
+        method: "POST",
+        body: JSON.stringify({ templateId: "moon_dog", count: 1 }),
+      });
+      expect(disenchantRes.status).toBe(401);
+    });
   });
 });

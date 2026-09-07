@@ -1,4 +1,7 @@
-import type { Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
+import { applyCoinDeltaOnClient } from "./ledger.js";
+
+export { applyCoinDeltaOnClient };
 
 /**
  * Placeholder economy number — enough for 3 standard packs (see packsRepo.ts)
@@ -34,16 +37,6 @@ async function applyCoinDelta(pool: Pool, accountId: string, amount: number, rea
   } finally {
     client.release();
   }
-}
-
-/** Same delta logic as applyCoinDelta, but against a caller-owned transaction. */
-export async function applyCoinDeltaOnClient(client: PoolClient, accountId: string, amount: number, reason: string): Promise<number> {
-  const result = await client.query<{ coins_balance: number }>(
-    "update accounts set coins_balance = coins_balance + $1 where id = $2 returning coins_balance",
-    [amount, accountId],
-  );
-  await client.query("insert into coin_transactions (account_id, amount, reason) values ($1, $2, $3)", [accountId, amount, reason]);
-  return result.rows[0].coins_balance;
 }
 
 export async function creditCoins(pool: Pool, accountId: string, amount: number, reason: string): Promise<number> {

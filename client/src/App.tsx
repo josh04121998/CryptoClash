@@ -2,6 +2,7 @@ import { SAMPLE_DECK } from "@cryptoclash/engine";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
 import { CollectionScreen } from "./components/CollectionScreen.js";
+import { CraftingScreen } from "./components/CraftingScreen.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
@@ -10,7 +11,17 @@ import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
 
-type Mode = "menu" | "pick-local" | "pick-online" | "local" | "online" | "my-decks" | "deck-builder" | "packs" | "collection";
+type Mode =
+  | "menu"
+  | "pick-local"
+  | "pick-online"
+  | "local"
+  | "online"
+  | "my-decks"
+  | "deck-builder"
+  | "packs"
+  | "collection"
+  | "crafting";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -66,6 +77,10 @@ export default function App() {
     return <CollectionScreen token={wallet.token} onBack={() => setMode("menu")} />;
   }
 
+  if (mode === "crafting" && wallet.token) {
+    return <CraftingScreen token={wallet.token} onBack={() => setMode("menu")} />;
+  }
+
   if (mode === "my-decks" && wallet.token) {
     return (
       <MyDecksScreen
@@ -110,6 +125,9 @@ export default function App() {
               </button>
               <button type="button" onClick={() => setMode("collection")}>
                 Collection
+              </button>
+              <button type="button" onClick={() => setMode("crafting")}>
+                Crafting
               </button>
               <button type="button" onClick={() => setMode("my-decks")}>
                 My Decks

@@ -466,6 +466,17 @@ Crafting allows players to work toward cards they actually want.
 
 This prevents free players from feeling trapped by bad luck.
 
+## Implemented 2026-09-07
+
+The crafting resource is called **Dust** — a fully separate ledger from Coins (its own balance + audit log, `server/src/craftingRepo.ts`), never interchangeable with it. Commons and Genesis/Mythic are deliberately excluded from crafting entirely, on both the disenchant and craft side:
+
+* **Commons** are excluded because the starting-collection grant (`grantStartingCollection`) re-tops every account up to a full set of Commons on *every* sign-in — allowing Common disenchant would let a player farm Dust for free (disenchant → sign out → sign back in → re-granted → disenchant again).
+* **Genesis/Mythic** are excluded for the same reason packs exclude them (Section 17) — letting Dust craft a Genesis card would be another way around its permanently-capped supply (Section 16).
+
+Dust values are anchored to Hearthstone's long-tested disenchant/craft economy (the closest real precedent for exactly this problem) — Uncommon 10/70, Rare 20/100, Epic 100/400, Legendary 400/1600 (disenchant value / craft cost). The ~4-7x craft:disenchant ratio is deliberate: without it, disenchanting an unwanted card and immediately re-crafting that same card back would be free, making "duplicates have value" trivially gameable. A player's foil copies of a card are protected by default when bulk-disenchanting duplicates (non-foil copies are consumed first) — crafted cards themselves are never foil, since foil stays a pack-exclusive surprise (Section 17). First design pass, not tuned against real play data, same caveat as Section 17's pack odds.
+
+Section 21's "Coins are spent on: ... Crafting" is not implemented as written — Coins do not buy Dust or craft cards directly in this version. The shipped loop is duplicates-only (disenchant → Dust → craft), matching architecture.md Section 10's more detailed design. A Coins-funded crafting path is a possible future addition, not a decision made here.
+
 ---
 
 # 19. Collection

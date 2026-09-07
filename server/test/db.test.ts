@@ -14,6 +14,14 @@ import {
 } from "../src/coinsRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
+import {
+  craftCard,
+  disenchantCards,
+  getDustBalance,
+  InsufficientCopiesError,
+  InsufficientDustError,
+  InvalidTemplateError,
+} from "../src/craftingRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, rollPackCards, UnknownPackTypeError } from "../src/packsRepo.js";
 
 // These hit a real Postgres — set DATABASE_URL (see server/README.md) to run them.
@@ -294,6 +302,91 @@ d("accounts + decks (integration, real Postgres)", () => {
       // copies are still real collection value (spec.md Section 18), not silently dropped.
       expect((await getCollectionCounts(pool, account.id))["moon_dog"]).toBe(4);
       expect((await getCollectionSummary(pool, account.id)).foils["moon_dog"]).toBe(2);
+    });
+  });
+
+  describe("crafting (disenchant + craft)", () => {
+    it("disenchants owned Rares into Dust and removes them from the collection", async () => {
+      const account = await findOrCreateAccount(pool, "0xdisenchanter");
+      const client = await pool.connect();
+      try {
+        await grantCardInstances(client, account.id, [
+          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: false },
+        ]);
+      } finally {
+        client.release();
+      }
+
+      const result = await disenchantCards(pool, account.id, "moon_dog", 2);
+      expect(result.dustEarned).toBe(40); // Rare = 20 Dust each
+      expect(result.balance).toBe(40);
+      expect(await getDustBalance(pool, account.id)).toBe(40);
+      expect((await getCollectionCounts(pool, account.id))["moon_dog"] ?? 0).toBe(0);
+    });
+
+    it("prefers disenchanting non-foil copies first, protecting a foil pull by default", async () => {
+      const account = await findOrCreateAccount(pool, "0xfoilprotector");
+      const client = await pool.connect();
+      try {
+        await grantCardInstances(client, account.id, [
+          { templateId: "moon_dog", isFoil: true },
+          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: false },
+        ]);
+      } finally {
+        client.release();
+      }
+
+      await disenchantCards(pool, account.id, "moon_dog", 2);
+      const { owned, foils } = await getCollectionSummary(pool, account.id);
+      expect(owned["moon_dog"]).toBe(1);
+      expect(foils["moon_dog"]).toBe(1); // the foil copy survives — the two non-foils were disenchanted first
+    });
+
+    it("rejects disenchanting more copies than owned, without charging or granting Dust", async () => {
+      const account = await findOrCreateAccount(pool, "0xshort");
+      await expect(disenchantCards(pool, account.id, "moon_dog", 1)).rejects.toThrow(InsufficientCopiesError);
+      expect(await getDustBalance(pool, account.id)).toBe(0);
+    });
+
+    it("rejects disenchanting/crafting Common (starting-collection farm guard) and unknown/token templates", async () => {
+      const account = await findOrCreateAccount(pool, "0xguardrail");
+      // Common — excluded so disenchant->resign-in->re-grant can't farm infinite Dust.
+      await expect(disenchantCards(pool, account.id, "pup_scout", 1)).rejects.toThrow(InvalidTemplateError);
+      await expect(craftCard(pool, account.id, "pup_scout")).rejects.toThrow(InvalidTemplateError);
+      // Token — never a real collectible.
+      await expect(craftCard(pool, account.id, "puppy")).rejects.toThrow(InvalidTemplateError);
+      // Unknown id.
+      await expect(craftCard(pool, account.id, "not_a_real_card")).rejects.toThrow(InvalidTemplateError);
+    });
+
+    it("crafts a card by spending Dust, granting a non-foil standard instance", async () => {
+      const account = await findOrCreateAccount(pool, "0xcrafter");
+      const client = await pool.connect();
+      try {
+        // Disenchant enough Rares to afford one Rare craft (100 Dust) from 5 x 20 = 100.
+        await grantCardInstances(
+          client,
+          account.id,
+          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false })),
+        );
+      } finally {
+        client.release();
+      }
+      await disenchantCards(pool, account.id, "moon_dog", 5);
+      expect(await getDustBalance(pool, account.id)).toBe(100);
+
+      const result = await craftCard(pool, account.id, "guard_dog"); // also Rare, cost 100
+      expect(result.balance).toBe(0);
+      expect((await getCollectionCounts(pool, account.id))["guard_dog"]).toBe(1);
+      expect((await getCollectionSummary(pool, account.id)).foils["guard_dog"] ?? 0).toBe(0); // crafted cards are never foil
+    });
+
+    it("rejects crafting without enough Dust, without granting a card", async () => {
+      const account = await findOrCreateAccount(pool, "0xpoor");
+      await expect(craftCard(pool, account.id, "moon_dog")).rejects.toThrow(InsufficientDustError);
+      expect((await getCollectionCounts(pool, account.id))["moon_dog"] ?? 0).toBe(0);
     });
   });
 });
