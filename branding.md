@@ -12,6 +12,8 @@ The palette and typography choices (Section 2/3) land somewhere between a Bloomb
 
 **Explicit non-goals:** literal Hearthstone-style painted fantasy art, photorealism, generic "crypto bro" clip-art (rocket emojis, laser eyes, cartoon coins) — the brand should read as *designed*, not as a template. See `STATUS.md` Section 0 for the same "complete and well-balanced, not AAA" bar applied to the game itself.
 
+**Open question, raised 2026-09-08:** the user is reconsidering whether "Crypto Clash" is the right name for the game — a separate, bigger conversation from the visual identity work in this doc, not yet resolved. Consequence for asset work in the meantime: **don't bake the "CRYPTO CLASH" wordmark into anything hard to redo** (a character avatar, a mascot pose) — keep name-bearing text on separate, easily-swapped layers/overlays (see the banner mockup technique in Section 8) until the name is settled.
+
 ---
 
 ## 2. Color Palette
@@ -71,12 +73,11 @@ Recurring elements already shipped in the product (`LandingPage.tsx`, `TickerTap
 
 ## 5. Mascot & Character Direction
 
-**Decided (2026-09-08):** a Doggos-flagship mascot — a golden dog character in trading-floor attire (white dress shirt, loosened terminal-green tie, white sneakers), rendered in the brand's bold-outline neon-on-black vector style. Reasoning:
-- `STATUS.md`'s token direction already anchors the community/meme layer to the Doggos faction specifically ("dogs being the proven meme-coin lineage") — this mascot rides that same, already-decided lineage rather than introducing a new one.
-- One consistent flagship character is stronger for PFP/community-building than rotating between 6 faction mascots — Crypto Twitter PFP culture rewards a single recognizable character.
-- It still leaves room for the other 5 factions to get their own character art later (card art, Section 7) without needing a mascot each right now.
+**First attempt, rejected (2026-09-08):** a Doggos-flagship mascot — a golden dog character in trading-floor attire. Reasoned from `STATUS.md`'s token direction (Doggos already anchor the meme/community layer) and generated as a full pack (PFP, 2 banners, 4 stickers) — but the user didn't vibe with it on review. Their reference points instead: CryptoPunks, Bored Ape Yacht Club, Milady, Ponke, and specifically a "slick Wall Street trader" avatar style currently landing well on Robinhood (e.g. accounts like Al Dunlop). Takeaway: this brand's character identity wants a **human retro-finance caricature**, not an animal mascot — closer to the trading-floor-bullpen half of the brand concept (Section 1) than the meme-animal half. The dog direction is fully retired, including for stickers — not kept as a fallback.
 
-This is now *the* face of Crypto Clash on social — see Section 8 for the actual generated assets. Model consistency notes for future generations: **floppy drooping ears** (one early sticker generated pointy ears and had to be redone — say "floppy, drooping ears, not pointy" explicitly in prompts), white dress shirt + loosened terminal-green (`#00e28a`) tie, golden/orange fur (not the site's `--accent` gold `#f2b705` — the fur reads better a shade warmer/oranger, closer to `#f5a623`, the Doggos faction color), white sneakers.
+**Decided (2026-09-08): a retro hedge-fund-manager character** — a slick 1980s Wall Street trader caricature (swept-back hair, pinstripe suit in brand gold/green, a vintage brick cell phone as his signature prop) rendered in the same bold-outline flat-vector style. Three takes were generated and compared: a moodier/sinister pompadour version, a chubbier cartoonish/collectible-charm version closer to a BAYC feel, and the chosen **sleek/heroic version** — flowing hair and scarf, cleanest color-coordination with the brand palette, and (practically) the one whose dark suit blends into a black banner background instead of sitting on top of it like a sticker. Neither unchosen version was kept as a file — regenerate from this doc's description if either is worth revisiting.
+
+This is now *the* face of the brand on social — see Section 8 for the actual generated assets. Model consistency notes for future generations: swept-back dark hair with a flowing scarf/tie catching the wind, pinstripe suit color-blocked in brand gold (`#f2b705`) and terminal green (`#00e28a`), a vintage brick cell phone held to the ear, confident/smirking expression, near-black background with art-deco skyscrapers.
 
 ---
 
@@ -91,7 +92,7 @@ Confident, a little dry, in on the joke without being cringe — crypto-native s
 Rough order, per the user's direction (2026-09-08):
 
 1. ~~This doc~~ — done.
-2. ~~Social assets~~ — done, see Section 8: mascot PFP, 2 banners, 4 stickers.
+2. **Social assets** — PFP + banner done (see Section 8), on the second attempt (first was a rejected animal-mascot direction, see Section 5). **Stickers not yet regenerated for the new character** — ran low on Pixa credits (26 left after the trader exploration/banner) mid-session; the old dog-based stickers were retired along with the rest of that direction rather than kept mismatched. Next up when there's more credit budget: 3-4 retro-trading-themed sticker poses/expressions for the hedge-fund-manager character.
 3. **Website assets** — a real hero illustration for the landing page (currently CSS/SVG-only), possibly faction icons. Not started.
 4. **Card art** — illustrated art for the 60 card templates. Last, and the biggest lift — not started.
 
@@ -99,20 +100,19 @@ Rough order, per the user's direction (2026-09-08):
 
 ## 8. Generated Assets
 
-Everything here lives in `branding/assets/` as both `.svg` (the real vector source — Recraft's actual output, despite the download URLs being `.jpg`-named; use these for anything that needs to scale, like a large banner print) and `.png` (a rendered preview at the source resolution, ~1024px, for quick viewing/upload where an SVG isn't accepted). Generated with `recraft-v4-pro-vector`'s cheaper sibling `recraft-v4-vector` (18 credits/image via the Pixa MCP tools) — model choice matters for regenerating in the same style later.
+Everything here lives in `branding/assets/` as both `.svg` (the real vector source — Recraft's actual output, despite the download URLs being `.jpg`-named; use these for anything that needs to scale, like a large banner print) and `.png` (a rendered preview at the source resolution, for quick viewing/upload where an SVG isn't accepted). Generated with `recraft-v4-vector` (18 credits/image via the Pixa MCP tools) — model choice matters for regenerating in the same style later.
 
 | File | Use | Notes |
 |---|---|---|
-| `pfp.svg` / `.png` | Profile picture | Self-contained circular badge composition — crop-ready as-is. |
-| `banner-hero.svg` / `.png` | **Primary** X/social banner (1536×768, ~2:1) | Dramatic hero shot, rain-slicked street, phone to ear. Empty space on the left third for a logo/text overlay. |
-| `banner-stride.svg` / `.png` | Alternate banner (1536×768, ~2:1) | Mid-stride, sunglasses, watch — more playful/swagger energy. Kept as a second option, not the primary. |
-| `sticker-thumbsup.svg` / `.png` | Sticker | Enthusiastic thumbs-up. |
-| `sticker-wave.svg` / `.png` | Sticker | Friendly wave, tongue out — good for a "GM" greeting. |
-| `sticker-shocked.svg` / `.png` | Sticker | Panicked, gripping his tie — good for a "market crash" reaction. |
-| `sticker-sunglasses.svg` / `.png` | Sticker | Confident, arms crossed. Regenerated once already to fix ear consistency (see Section 5) — this is the corrected version. |
+| `pfp.svg` / `.png` | Profile picture | Self-contained circular badge composition — crop-ready as-is. The retro hedge-fund-manager character, sleek/heroic take. |
+| `banner.svg` / `.png` | X/social banner (1536×768, ~2:1) | Full-body hero pose on a glowing floor grid, art-deco skyline, open space on the left third for a logo/text overlay. |
 
-All 7 assets are die-cut/badge-composed already (white sticker border or circular crop baked in by the model) — no further background removal needed for the stickers or PFP. The banners are full-bleed rectangular compositions, not die-cut.
+**Previewing a banner with a wordmark overlay without spending generation credits:** rather than baking text into the AI-generated image, composite it — a plain HTML page with the image positioned/masked behind CSS text is enough, screenshotted with Playwright (`chromium.launch()` → `page.goto('file:///...')` → `page.screenshot()`). This is how the C-vs-B comparison was actually decided this session (which suit color blended better against the banner's black background) — reuse this technique for any "how would X look in context" check before spending more credits on a full regeneration.
+
+**Retired:** the first-attempt Doggos-mascot pack (1 PFP, 2 banners, 4 stickers) — see Section 5 for why. Not kept as files; the character description there is enough to regenerate if the dog direction is ever revisited.
+
+**Not yet generated:** stickers for the new character (ran low on credits this session — 8 left as of this writing). Description in Section 5 has enough detail to pick this back up.
 
 ---
 
-*Last updated: 2026-09-08. Social pack generated and committed — see `STATUS.md` for the session writeup.*
+*Last updated: 2026-09-08. PFP + banner generated and committed for the retro-trader direction (second attempt, after the Doggos-mascot pack was rejected) — see `STATUS.md` for the session writeup.*
