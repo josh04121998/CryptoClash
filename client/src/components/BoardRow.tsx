@@ -6,6 +6,10 @@ export interface BoardRowProps {
   playerId: PlayerId;
   selectedSlot?: number;
   targetable?: boolean;
+  /** Keys from useAttackAnimations, `${playerId}-${slot}` — which creatures just attacked. */
+  attackingSlots?: Set<string>;
+  /** Which physical direction "toward the enemy" is for this row — MatchView renders the opponent's row above mine, so this differs per call site. */
+  attackDirection?: "up" | "down";
   onSlotClick: (slot: number) => void;
 }
 
@@ -13,7 +17,7 @@ function allKeywords(creature: BoardCreature): string[] {
   return Array.from(new Set([...creature.keywords, ...creature.tempKeywords]));
 }
 
-export function BoardRow({ state, playerId, selectedSlot, targetable = false, onSlotClick }: BoardRowProps) {
+export function BoardRow({ state, playerId, selectedSlot, targetable = false, attackingSlots, attackDirection, onSlotClick }: BoardRowProps) {
   const board = state.players[playerId].board;
 
   return (
@@ -41,6 +45,7 @@ export function BoardRow({ state, playerId, selectedSlot, targetable = false, on
               keywords={allKeywords(creature)}
               selected={selectedSlot === slot}
               dimmed={creature.hasAttackedThisTurn}
+              attackDirection={attackingSlots?.has(`${playerId}-${slot}`) ? attackDirection : undefined}
               onClick={() => onSlotClick(slot)}
             />
             {targetable && <div className="board-slot__target-ring" />}

@@ -28,6 +28,14 @@ import {
  * ref-diff pattern again) to trigger a brief full-table screen flash,
  * matching the sound with a visual beat for what's meant to be a dramatic,
  * game-swinging moment (batlleSpec.md Sections 16-18).
+ *
+ * The effect deliberately depends on primitives read off `state`
+ * (`log.length`/`winner`/`activePlayer`), not `state` itself — `useMatch.ts`
+ * (Play vs AI) mutates its MatchState in place and re-renders via an
+ * unrelated version counter, so the object reference never changes; an
+ * effect keyed on the whole object would only ever run once, on mount.
+ * `useOnlineMatch.ts` does hand back a fresh object every server message, so
+ * this works for both, but only the primitive-keyed form is safe for both.
  */
 export function useMatchSounds(state: MatchState, myPlayerId: PlayerId) {
   const prevLogLengthRef = useRef(0);
@@ -65,7 +73,8 @@ export function useMatchSounds(state: MatchState, myPlayerId: PlayerId) {
       playYourTurnSound();
     }
     prevActivePlayerRef.current = state.activePlayer;
-  }, [state, myPlayerId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.log.length, state.winner, state.activePlayer, myPlayerId]);
 
   return { marketEventFlash };
 }

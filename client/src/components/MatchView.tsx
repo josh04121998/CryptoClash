@@ -1,10 +1,12 @@
 import { CARD_POOL, Intent, MatchState, PlayerId, targetsFriendlyCreature } from "@cryptoclash/engine";
 import { useEffect, useRef, useState } from "react";
 import { playClickSound, playErrorSound, playEndTurnSound, playSelectSound } from "../sound.js";
+import { useAttackAnimations } from "../useAttackAnimations.js";
 import { useMatchSounds } from "../useMatchSounds.js";
 import { BoardRow } from "./BoardRow.js";
 import { HandRow } from "./HandRow.js";
 import { LogPanel } from "./LogPanel.js";
+import { MatchResultOverlay } from "./MatchResultOverlay.js";
 import { PlayerHeader } from "./PlayerHeader.js";
 import { VolatilityMeter } from "./VolatilityMeter.js";
 
@@ -51,6 +53,8 @@ export function MatchView({
   const [selection, setSelection] = useState<Selection>({ type: "none" });
 
   const { marketEventFlash } = useMatchSounds(state, myPlayerId);
+  const attackingSlots = useAttackAnimations(state);
+  const [resultDismissed, setResultDismissed] = useState(false);
   const prevErrorRef = useRef(lastError);
   useEffect(() => {
     if (lastError && lastError !== prevErrorRef.current) playErrorSound();
@@ -200,7 +204,14 @@ export function MatchView({
           targetable={enemyTargetable}
           onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
         />
-        <BoardRow state={state} playerId={opponentId} targetable={enemyTargetable} onSlotClick={onEnemySlotClick} />
+        <BoardRow
+          state={state}
+          playerId={opponentId}
+          targetable={enemyTargetable}
+          attackingSlots={attackingSlots}
+          attackDirection="down"
+          onSlotClick={onEnemySlotClick}
+        />
 
         <VolatilityMeter volatility={state.volatility} />
 
@@ -221,6 +232,8 @@ export function MatchView({
           playerId={myPlayerId}
           selectedSlot={selection.type === "attacker" ? selection.slot : undefined}
           targetable={ownBoardTargetable}
+          attackingSlots={attackingSlots}
+          attackDirection="up"
           onSlotClick={onOwnSlotClick}
         />
         <PlayerHeader name={myLabel} player={me} isActive={state.activePlayer === myPlayerId} />
@@ -241,6 +254,10 @@ export function MatchView({
       </main>
 
       <LogPanel log={state.log} open={logOpen} onClose={onCloseLog} />
+
+      {state.winner && !resultDismissed && (
+        <MatchResultOverlay winner={state.winner} myPlayerId={myPlayerId} onDismiss={() => setResultDismissed(true)} />
+      )}
     </>
   );
 }

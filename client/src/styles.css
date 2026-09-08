@@ -1404,8 +1404,54 @@ button {
   }
 }
 
+/* Attack lunge — the attacking creature briefly pops toward the enemy row and back. Direction is physical-screen-relative (BoardRow decides "up" or "down" per side, MatchView.tsx), not player-relative, so it always reads as "moving toward the opponent" regardless of whose creature it is. */
+
+@keyframes lunge-up {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-16px) scale(1.06);
+  }
+}
+
+@keyframes lunge-down {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(16px) scale(1.06);
+  }
+}
+
+.card-face--lunge-up {
+  animation: lunge-up 0.35s ease-out;
+  z-index: 3;
+}
+
+.card-face--lunge-down {
+  animation: lunge-down 0.35s ease-out;
+  z-index: 3;
+}
+
 .card-face--hit {
   animation: hit-shake 0.4s ease;
+}
+
+/* A creature-vs-creature trade deals damage both ways in one resolution (combat.ts), so the
+   attacker can be simultaneously "just hit" and "just attacked" — the `animation` shorthand
+   doesn't merge across separately-applied classes (last one in the cascade wins outright), so
+   without this compound rule the lunge would silently disappear exactly in the most dramatic
+   case. Compound selectors outrank either single-class rule on specificity alone, so placement
+   here doesn't depend on source order. */
+.card-face--hit.card-face--lunge-up {
+  animation: hit-shake 0.4s ease, lunge-up 0.35s ease-out;
+}
+
+.card-face--hit.card-face--lunge-down {
+  animation: hit-shake 0.4s ease, lunge-down 0.35s ease-out;
 }
 
 .card-face--hit::after {
@@ -1495,6 +1541,103 @@ button {
 
 .table--market-event-flash {
   animation: market-event-flash 0.5s ease-out;
+}
+
+/* Match result overlay — a "ticker tape parade" on a win (real Wall Street victory tradition,
+   thin falling strips rather than round confetti dots, ties into branding.md's identity). No
+   strips on a loss — celebrating that would read as mocking the player. */
+
+.match-result__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 5, 4, 0.7);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+@keyframes ticker-strip-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(540deg);
+    opacity: 1;
+  }
+}
+
+.match-result__strip {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 26px;
+  border-radius: 2px;
+  animation-name: ticker-strip-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  opacity: 0;
+}
+
+.match-result__card {
+  position: relative;
+  z-index: 1;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--panel);
+  border: 2px solid var(--border-bright);
+  border-radius: 14px;
+  padding: 2.5rem 3.5rem;
+  box-shadow: 0 0 60px -10px var(--glow-green);
+}
+
+.match-result__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3rem;
+  letter-spacing: 0.05em;
+}
+
+.match-result__card--win .match-result__title {
+  color: var(--accent-2);
+  text-shadow: 0 0 30px var(--glow-green);
+}
+
+.match-result__card--loss .match-result__title {
+  color: var(--hp);
+  text-shadow: 0 0 30px rgba(255, 71, 87, 0.35);
+}
+
+.match-result__card--draw .match-result__title {
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--glow-gold);
+}
+
+.match-result__card button {
+  background: linear-gradient(135deg, var(--accent-2), #00a868);
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.6rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #04140d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-result__strip {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* Interaction polish (hover/lift, smoother transitions, turn affordance) */

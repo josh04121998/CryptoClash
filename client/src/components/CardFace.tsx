@@ -16,6 +16,8 @@ export interface CardFaceProps {
   /** Cosmetic-only shimmer (spec.md Section 14) — never affects gameplay stats or legality. */
   foil?: boolean;
   size?: "hand" | "board";
+  /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
+  attackDirection?: "up" | "down";
   onClick?: () => void;
 }
 
@@ -30,6 +32,7 @@ export function CardFace({
   dimmed = false,
   foil = false,
   size = "board",
+  attackDirection,
   onClick,
 }: CardFaceProps) {
   const showAttack = attack ?? template.attack;
@@ -74,6 +77,7 @@ export function CardFace({
         !affordable ? "card-face--unaffordable" : "",
         justHit ? "card-face--hit" : "",
         foil ? "card-face--foil" : "",
+        attackDirection ? `card-face--lunge-${attackDirection}` : "",
       ]
         .filter(Boolean)
         .join(" ")}
