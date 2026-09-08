@@ -22,6 +22,8 @@ export interface EffectContext {
   sourceSlot?: number;
   /** Player-chosen target, required when an effect's selector is "chosen". */
   chosenTarget?: TargetRef;
+  /** Secret-only — the creature that caused this Secret to fire (see TargetSelector's "triggerSource"). */
+  triggerSource?: TargetRef;
 }
 
 function resolveTargets(selector: TargetSelector, ctx: EffectContext): TargetRef[] {
@@ -30,6 +32,9 @@ function resolveTargets(selector: TargetSelector, ctx: EffectContext): TargetRef
   }
   if (selector.kind === "selfPlayer") {
     return [{ type: "player", playerId: ctx.controller }];
+  }
+  if (selector.kind === "triggerSource") {
+    return ctx.triggerSource ? [ctx.triggerSource] : [];
   }
   // "chosen" — validated as present (and targetable) by the caller before effects run.
   return ctx.chosenTarget ? [ctx.chosenTarget] : [];
@@ -51,6 +56,7 @@ function createBoardCreature(state: MatchState, templateId: string): BoardCreatu
     buffHealth: 0,
     tempAttackBonus: 0,
     stealthed: template.keywords?.includes("Stealth") ?? false,
+    silenced: false,
   };
 }
 
@@ -204,6 +210,58 @@ export function resolveEffects(state: MatchState, effects: EffectDef[], trigger:
         }
         break;
       }
+      case "silence": {
+        for (const target of resolveTargets(action.target, ctx)) {
+          if (target.type !== "creature") continue;
+          const creature = state.players[target.playerId].board[target.slot];
+          if (!creature) continue;
+          creature.keywords.clear();
+          creature.tempKeywords.clear();
+          creature.silenced = true;
+          pushLog(state, `${CARD_POOL[creature.templateId].name} (${target.playerId}, slot ${target.slot + 1}) is silenced.`);
+        }
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Drains `state.pendingDeathrattles` (matchOps.ts's `removeIfDead` queues
+ * onto it), firing each dead creature's `onDeath` effects — looped, not a
+ * single pass, so a Deathrattle that kills a second Deathrattle creature
+ * chains correctly. Called once, at the end of every `applyIntent`
+ * (engine.ts) — every death path (combat, spell/burn damage, a Market
+ * Event) funnels through `removeIfDead`, so this one call site covers all
+ * of them regardless of how the creature died.
+ */
+export function processPendingDeathrattles(state: MatchState) {
+  while (state.pendingDeathrattles.length > 0) {
+    const { controller, templateId, silenced } = state.pendingDeathrattles.shift()!;
+    if (silenced) continue;
+    const template = CARD_POOL[templateId];
+    if (template.effects) {
+      resolveEffects(state, template.effects, "onDeath", { controller });
+    }
+  }
+}
+
+/**
+ * Checks `reactingPlayerId`'s armed Secrets (card-schema.md Section 8) for
+ * one whose template has an effect on `trigger`, fires the first match,
+ * removes it from the zone, and logs a reveal — a no-op if none match. Only
+ * one secret reacts per event in this pass (not a full chain-reveal system).
+ */
+export function checkAndFireSecret(state: MatchState, reactingPlayerId: PlayerId, trigger: Trigger, triggerSource: TargetRef) {
+  const secrets = state.players[reactingPlayerId].secrets;
+  for (let i = 0; i < secrets.length; i++) {
+    const template = CARD_POOL[secrets[i]];
+    const matching = template.effects?.find((e) => e.trigger === trigger);
+    if (matching) {
+      secrets.splice(i, 1);
+      pushLog(state, `${reactingPlayerId}'s secret is revealed: ${template.name}!`);
+      resolveEffects(state, template.effects!, trigger, { controller: reactingPlayerId, triggerSource });
+      return;
     }
   }
 }

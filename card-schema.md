@@ -25,7 +25,7 @@ interface CardTemplate {
   id: string;              // unique key, also the CARD_POOL lookup key
   name: string;             // display name
   faction: Faction;         // "Doggos" | "Frogs" | "Degens" | "CryptoBros" | "Builders" | "Normies" | "Neutral"
-  type: CardType;           // "Creature" | "Spell" | "Item" (Item not yet implemented — see Section 8)
+  type: CardType;           // "Creature" | "Spell" | "Item" | "Secret" (see Section 8 for Secret)
   cost: number;              // Energy cost
   rarity?: Rarity;           // "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "Mythic" | "Genesis" — omit only for tokens
   attack?: number;           // Creatures only
@@ -83,7 +83,7 @@ An `EffectDef` pairs a **Trigger** with an **EffectAction**:
 
 ```ts
 interface EffectDef {
-  trigger: Trigger;             // "onPlay" | "onTurnStart"
+  trigger: Trigger;             // "onPlay" | "onTurnStart" | "onDeath" | "onEnemyAttack" | "onEnemyPlayCreature"
   action: EffectAction;
   requiresTarget?: boolean;     // true = playing this card requires Intent.target to be supplied
 }
@@ -96,9 +96,31 @@ A `CardTemplate` can carry multiple `effects` (a card doesn't have to fire on th
 | Trigger | Fires when |
 |---|---|
 | `onPlay` | The card (creature or spell) is played from hand |
-| `onTurnStart` | Every startTurn, for each creature belonging to the active player that has this effect |
+| `onTurnStart` | Every startTurn, for each creature belonging to the active player that has this effect (skipped if the creature is `silenced` — see Section 4) |
+| `onDeath` | A creature with this effect dies, by any means (combat, spell/burn damage, a Market Event) — the Deathrattle pattern. See Section 3.7 |
+| `onEnemyAttack` | **Secret-only.** A Secret's controller's opponent declares a legal attack, before damage is dealt. See Section 8 |
+| `onEnemyPlayCreature` | **Secret-only.** A Secret's controller's opponent plays a creature card, after it lands on the board. See Section 8 |
 
-There's no `onAttack`, `onDeath`, or `onDamaged` trigger yet — every card in the current pool only needed the two above. Adding a new trigger means adding a call site in `engine/src/engine.ts` (for `onTurnStart`, see `startTurn`) or `engine/src/combat.ts` (for a hypothetical `onAttack`), plus a case in `effects.ts`'s `resolveEffects` switch.
+The last two only ever fire via `effects.ts`'s `checkAndFireSecret` — they are not reachable through the normal `resolveEffects(..., trigger, ctx)` call sites used for `onPlay`/`onTurnStart`/`onDeath`, and only make sense on a `type: "Secret"` template. Adding a genuinely new trigger means adding a call site (`engine/src/engine.ts`'s `startTurn`/`playCard`, or `engine/src/combat.ts`'s `resolveAttack`), plus a case in `effects.ts`'s `resolveEffects` switch if it needs a new `EffectContext` field (as `onEnemyAttack`/`onEnemyPlayCreature` needed `triggerSource`).
+
+### 3.7 Worked example — Deathrattle (`onDeath`)
+
+```ts
+exit_liquidity: {
+  id: "exit_liquidity",
+  name: "Exit Liquidity",
+  faction: "Degens",
+  type: "Creature",
+  cost: 6,
+  rarity: "Legendary",
+  attack: 7,
+  health: 3,
+  text: "Deathrattle: Deal 3 damage to the enemy player.",
+  effects: [{ trigger: "onDeath", action: { kind: "damage", target: { kind: "enemyPlayer" }, amount: 3 } }],
+},
+```
+
+Mechanically: `matchOps.ts`'s `removeIfDead` is the single choke-point every creature death funnels through (combat, `applyDamageToTarget`, Market Events); it pushes `{ controller, templateId, silenced }` onto `MatchState.pendingDeathrattles` instead of resolving the effect immediately, to avoid a circular import (`matchOps.ts` sits below `effects.ts`). `effects.ts`'s `processPendingDeathrattles` drains that queue in a loop — not a single pass — once per `applyIntent`, so a Deathrattle that kills a second Deathrattle creature chains correctly within the same intent. A `silenced` creature's queued entry is skipped, not resolved (see Section 4).
 
 ### 3.2 EffectAction kinds
 
@@ -117,14 +139,16 @@ There's no `onAttack`, `onDeath`, or `onDamaged` trigger yet — every card in t
 | `gainMaxEnergy` | `{ amount }` | Controller's `maxEnergy` *permanently* increases by `amount` (also bumps current `energy` by the same amount so it's usable immediately), both clamped to `MAX_ENERGY` | Venture Capital |
 | `buffTarget` | `{ target, attack?, health? }` | Like `buffSelf`, but permanently buffs whatever creature `target` resolves to instead of the effect's own source — a no-op if the target resolves to a player | Sharpening Stone, Power Core (Items) |
 | `grantKeywordTarget` | `{ target, keyword }` | Like `grantKeywordFriendlyBoard`, but grants `keyword` (until the target's owner's next `startTurn`) to a single resolved creature instead of the whole board — a no-op if the target resolves to a player. **Only safe with `Rush`/`Guard`** — see Section 4 | Rocket Boots, Bodyguard Badge (Items) |
+| `silence` | `{ target }` | Strips the resolved creature's `keywords` and `tempKeywords` and sets its `silenced` flag, which suppresses all *future* template-driven behavior — `onTurnStart`/`onDeath` effects no longer fire, and it stops contributing to any aura (Section 5). **Does not retroactively undo** stat buffs it already granted (`buffAttack`/`buffHealth`) or damage already dealt — silence only stops what happens *next* | Audit Trail |
 
 ### 3.3 TargetSelector
 
-Three kinds today:
+Four kinds today:
 
 - `{ kind: "enemyPlayer" }` — always resolves to the opposing player. No `Intent.target` needed.
 - `{ kind: "selfPlayer" }` — always resolves to the effect's own controller. No `Intent.target` needed. Used for self-damage (Degens' "pay your own HP" identity — e.g. Margin Call's `damage` action targets `selfPlayer`).
 - `{ kind: "chosen" }` — resolves to whatever `TargetRef` the player supplied on the `playCard` intent. **Any effect using `"chosen"` must set `requiresTarget: true`** on its `EffectDef`, or the engine will happily try to resolve an undefined target (in practice `resolveTargets` returns an empty list and the effect silently does nothing — set the flag). A `"chosen"` target can resolve to either a creature or a player `TargetRef` — nothing in the engine restricts *which* side of the board a player picks; `buffTarget`/`grantKeywordTarget` cards are steered toward a friendly creature purely by client-side UX (`util.ts`'s `targetsFriendlyCreature()`, used by both `MatchView.tsx` and `bot.ts`), not an engine-level rule.
+- `{ kind: "triggerSource" }` — **Secret-only.** Resolves to whichever creature caused the Secret to fire (the attacker for `onEnemyAttack`, the just-played creature for `onEnemyPlayCreature`), passed through `EffectContext.triggerSource` by `checkAndFireSecret`. Meaningless outside a Secret's own effects — no other trigger populates `triggerSource`, so `resolveTargets` returns an empty list for it anywhere else.
 
 There's no `allEnemyCreatures`, `randomEnemyCreature`, `adjacentFriendly`, etc. yet. Market Events implement their own bespoke targeting (e.g. MARKET_CRASH's "strongest creature per side") directly in `marketEvents.ts` rather than through this selector system — that's a reasonable pattern to follow for one-off global effects; a card-level equivalent (e.g. "deal damage to all enemy creatures") would need a new `TargetSelector` kind plus a case in `resolveTargets`.
 
@@ -202,6 +226,15 @@ Note `HODL` here is a keyword purely for player-facing communication (batlleSpec
 
 Practical upshot: **Rush, Guard, and Stealth are real runtime flags** the engine checks; **Burn and HODL are just labels** conventionally paired with a specific effect shape. If you want a new "flavor" of Burn or HODL (say, a creature that HODLs health instead of attack), you don't need to touch the keyword system at all — just write the effect.
 
+### 4.1 Silence
+
+Separate from the `Keyword` enum — `silenced` is a boolean field on `BoardCreature`, not a keyword, because it's a one-way state change applied *to* a creature rather than something granted by a card that owns it. The `silence` `EffectAction` (Section 3.2) is what sets it. Effects:
+
+- Clears both `keywords` and `tempKeywords` immediately — a silenced Guard creature stops being a legal Guard, a silenced Stealth creature becomes targetable.
+- Suppresses all future `onTurnStart` and `onDeath` firing for that instance (`engine.ts`'s `startTurn` and `effects.ts`'s `processPendingDeathrattles` both check the flag).
+- Suppresses aura contribution (`stats.ts`'s `computeAuraBonusAttack` skips a silenced neighbor).
+- **Does not** undo `buffAttack`/`buffHealth` already applied, or damage already taken — silence is forward-only, matching Hearthstone's Silence rather than a "reset to vanilla" effect.
+
 ---
 
 # 5. Auras
@@ -237,7 +270,7 @@ moon_dog: {
 # 6. Adding a New Card — Checklist
 
 1. Add a `CardTemplate` entry to `CARD_POOL` in `engine/src/cards.ts`. Keep the text simple per batlleSpec.md Section 20 — most cards shouldn't need `effects` at all.
-2. If it's deck-legal (not a `token`), add it to `SAMPLE_DECK` and adjust another card's count so the deck stays at exactly 30 (`SAMPLE_DECK` is currently mirrored — both players use it, so composition changes affect both sides equally).
+2. If it's deck-legal (not a `token`), add it to the relevant faction's `*_SAMPLE_DECK` export (`SAMPLE_DECK` for Doggos) and adjust another card's count in that same array so it stays at exactly 30 (`DECK_SIZE`) — each faction's deck is now independent, six separate arrays, not one shared list.
 3. If it introduces a genuinely new `EffectAction` kind or `TargetSelector`, add the type in `types.ts`, the resolution case in `effects.ts`, and cover it with a test in `engine/test/engine.test.ts` — follow the existing pattern of white-box-injecting the card into a hand via the `giveCard` test helper rather than relying on a lucky shuffle.
 4. Run `npm run test --workspace=engine` and `npm run typecheck` (or the package's equivalent) before considering it done — see `engine/README.md`.
 5. If the card is a **Stealth** or **Guard** creature, think through the cross-keyword edge case before shipping it: a creature with *both* keywords would be forced to be the only legal attack target (Guard) while simultaneously being illegal to target (Stealth). No card in the current pool combines them, and `combat.ts` has no special-case: `isTargetable` (Stealth) is checked before the Guard-forcing logic, so attacking that creature directly throws "Stealthed," while attacking the player or anything else throws "Guard creature — it must be attacked first" (since it's still counted as an active Guard slot). The practical result is a soft-lock — no attack against that side can succeed while it's alive. Add a test for whichever resolution you pick if you introduce this combination.
@@ -246,9 +279,43 @@ Nothing about the client needs to change to add a card that fits the existing pa
 
 ---
 
-# 7. Known Gaps
+# 8. Secrets
+
+A `Secret` is a fourth `CardType`, alongside Creature/Spell/Item — Hearthstone's Secret pattern, not Yu-Gi-Oh's Trap Card pattern. The distinction matters: Yu-Gi-Oh traps involve a priority/response window where the opponent can choose to activate a face-down card in reaction to a specific game event, which this engine's turn structure (strict alternating `playCard`/`attack`/`endTurn` intents, no interrupt window) doesn't support without a much bigger redesign. A Secret instead **arms automatically and fires automatically** the first time its trigger condition is met — no player decision at reveal time, which fits the existing intent-resolution model with no new turn-structure concept.
+
+### 8.1 Playing and firing a Secret
+
+```ts
+short_position: {
+  id: "short_position",
+  name: "Short Position",
+  faction: "Degens",
+  type: "Secret",
+  cost: 1,
+  rarity: "Rare",
+  text: "Secret: The next time the enemy plays a creature, deal 2 damage to it.",
+  effects: [{ trigger: "onEnemyPlayCreature", action: { kind: "damage", target: { kind: "triggerSource" }, amount: 2 } }],
+},
+```
+
+- `playCard` (`engine.ts`) special-cases `template.type === "Secret"`: it pays the cost, removes the card from hand, pushes the `templateId` onto `PlayerState.secrets`, logs "sets a secret," and returns early — no `onPlay` effects run, no board slot is used.
+- `effects.ts`'s `checkAndFireSecret(state, reactingPlayerId, trigger, triggerSource)` is called from the two trigger sites that matter: `combat.ts`'s `resolveAttack` (before damage, `trigger: "onEnemyAttack"`, called on the *defender's* secrets) and `engine.ts`'s `playCard` (after a creature lands, `trigger: "onEnemyPlayCreature"`, called on the *enemy of whoever just played*). It scans `secrets` for the first template with a matching-trigger effect, removes it from the array, logs a reveal, and resolves its effect with `triggerSource` set to the creature that caused the fire.
+- Only **one** Secret reacts per event — not a full chain-reveal system. If a player has two Secrets that both match the same trigger, only the first (array order) fires.
+- A Secret whose effect kills the attacker before its attack lands cancels the attack outright: `resolveAttack` re-checks the attacker's board slot after `checkAndFireSecret` runs and bails out (with a log line) if it's now empty, rather than trusting the `attacker` object reference captured earlier in the function.
+
+### 8.2 The hidden-information gap
+
+Secrets are mechanically real and fully deterministic — but **not yet cryptographically hidden** from an opponent who inspects network traffic. The wire protocol (`shared/src/index.ts`'s `serializeState`/`deserializeState`, a generic spread with no per-field allowlist) already sends the complete `MatchState` to both players in a Play Online match, including the opponent's entire hand and deck order — `PlayerState.secrets` is just as exposed as those pre-existing fields, not a new leak. Genuinely hiding a Secret's identity (matching Hearthstone's "you see a face-down card exists but not what it is") would need per-viewer serialization, a separate and larger feature this pass doesn't attempt. Until then, treat Secrets as "real game state a sufficiently nosy client *could* read" — same trust boundary as everything else in this match today. See `STATUS.md`.
+
+There is currently no client-side indicator for an opponent's armed Secret count (a Hearthstone-style "🔒 N" badge on `PlayerHeader.tsx` would be the natural place) — a UI gap, not a rules gap; Secrets already function correctly without it.
+
+---
+
+# 9. Known Gaps
 
 - **Items** (`CardType`'s third value) are implemented via two `EffectAction` kinds — `buffTarget` (permanent) and `grantKeywordTarget` (temporary, Rush/Guard only) — both aimed at a player-chosen friendly creature. No engine-level restriction stops an Item from targeting an *enemy* creature instead (see Section 3.3); only the client UI and bot steer toward "friendly." 5 Neutral Items exist in `CARD_POOL`.
 - **Faction coverage:** all six spec.md Section 6 factions now have real depth and their own `*_SAMPLE_DECK` export in `cards.ts`, collected in `DECKS`/`getDeck()` for lookup by id. See `STATUS.md` Section 2 for the full table.
-- **No deck *builder*** — `DeckPicker.tsx` lets a player pick one of the 6 fixed pre-built decks before a match (wired into both `useMatch.ts` and `useOnlineMatch.ts`/`matchRoom.ts`), but there's no way yet to build a custom list from the full 60-card pool.
+- **No deck *builder*** — `DeckPicker.tsx` lets a player pick one of the 6 fixed pre-built decks before a match (wired into both `useMatch.ts` and `useOnlineMatch.ts`/`matchRoom.ts`), but there's no way yet to build a custom list from the full pool.
 - **No card editions/rarity/collectibility** — that's the entire spec.md Sections 12-20 layer (Gameplay Identity vs. Collectible Identity), which lives one level up from this document and isn't started; see architecture.md Section 6 for how that's meant to attach to a `CardTemplate` once it exists (`card_editions` / `card_instances` tables, template stays the single source of gameplay truth).
+- **Secrets aren't network-hidden** — see Section 8.2.
+- **No full Yu-Gi-Oh-style Trap Card** (a face-down the *opponent* chooses whether/when to activate, with a priority-passing window) — deliberately out of scope for this pass; would need a turn-structure redesign well beyond the current strict-alternating-intent model. Section 8's Secrets are the intentionally smaller, Hearthstone-shaped substitute.

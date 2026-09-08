@@ -2,7 +2,7 @@ import { tickBurns } from "./burn.js";
 import { CARD_POOL } from "./cards.js";
 import { resolveAttack } from "./combat.js";
 import { drawCard } from "./draw.js";
-import { createBoardCreature, resolveEffects } from "./effects.js";
+import { checkAndFireSecret, createBoardCreature, processPendingDeathrattles, resolveEffects } from "./effects.js";
 import { isTargetable, pushLog } from "./matchOps.js";
 import { mulberry32, shuffle } from "./rng.js";
 import { BOARD_SIZE, Intent, MatchState, MAX_ENERGY, MAX_PLAYER_HP, PlayerId, PlayerState } from "./types.js";
@@ -21,6 +21,7 @@ function createPlayer(id: PlayerId, deckList: string[], rng: () => number): Play
     hand: shuffled.slice(0, OPENING_HAND_SIZE),
     board: Array(BOARD_SIZE).fill(null),
     fatigue: 0,
+    secrets: [],
   };
 }
 
@@ -49,7 +50,7 @@ function startTurn(state: MatchState) {
   drawCard(state, playerId);
 
   player.board.forEach((creature, slot) => {
-    if (!creature) return;
+    if (!creature || creature.silenced) return;
     const template = CARD_POOL[creature.templateId];
     if (template.effects) {
       resolveEffects(state, template.effects, "onTurnStart", { controller: playerId, sourceSlot: slot });
@@ -78,6 +79,15 @@ function playCard(state: MatchState, intent: Extract<Intent, { kind: "playCard" 
 
   player.energy -= template.cost;
   player.hand.splice(intent.handIndex, 1);
+
+  if (template.type === "Secret") {
+    // Armed face-down, not resolved now — see card-schema.md Section 8. No onPlay
+    // effects to run; a Secret's effects live on onEnemyAttack/onEnemyPlayCreature instead.
+    player.secrets.push(templateId);
+    pushLog(state, `${intent.playerId} sets a secret.`);
+    return;
+  }
+
   pushLog(state, `${intent.playerId} plays ${template.name}.`);
 
   let sourceSlot: number | undefined;
@@ -91,6 +101,14 @@ function playCard(state: MatchState, intent: Extract<Intent, { kind: "playCard" 
       controller: intent.playerId,
       sourceSlot,
       chosenTarget: intent.target,
+    });
+  }
+
+  if (template.type === "Creature") {
+    checkAndFireSecret(state, enemyOf(intent.playerId), "onEnemyPlayCreature", {
+      type: "creature",
+      playerId: intent.playerId,
+      slot: intent.slot!,
     });
   }
 }
@@ -122,6 +140,7 @@ export function createMatch(deckA: string[], deckB: string[], seed: number): Mat
     volatility: 0,
     activeBurns: [],
     pendingEnergyPenalty: { A: 0, B: 0 },
+    pendingDeathrattles: [],
   };
   startTurn(state);
   return state;
@@ -142,5 +161,6 @@ export function applyIntent(state: MatchState, intent: Intent): MatchState {
       endTurn(state, intent);
       break;
   }
+  processPendingDeathrattles(state);
   return state;
 }

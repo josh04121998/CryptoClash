@@ -439,7 +439,7 @@ describe("Normies — heal effect", () => {
 
     state.players.A.hp = 10;
     applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "rainy_day_fund") });
-    expect(state.players.A.hp).toBe(15);
+    expect(state.players.A.hp).toBe(14); // Restore 4 HP — trimmed from 5 in the balance pass
   });
 });
 
@@ -586,5 +586,128 @@ describe("bot AI", () => {
     const landedSlot = state.players.A.board.findIndex((c) => c?.templateId === "fast_fang");
     expect([1, 3]).toContain(landedSlot);
     expect(getAdjacentSlots(landedSlot)).toContain(2);
+  });
+});
+
+describe("Deathrattle", () => {
+  it("fires on death in combat, dealing damage to the enemy of the dead creature's controller", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 71);
+    placeCreature(state, "A", 0, "exit_liquidity"); // 7/3
+    placeCreature(state, "B", 0, "loyal_hound"); // 5/5 — trades and kills Exit Liquidity
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "creature", playerId: "B", slot: 0 } });
+
+    expect(state.players.A.board[0]).toBeNull(); // Exit Liquidity died to the 5 damage back
+    expect(state.players.B.hp).toBe(bHpBefore - 3); // its Deathrattle hit B (the enemy of controller A)
+  });
+
+  it("drains the whole pending queue when two Deathrattle creatures die in the same trade", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 73);
+    placeCreature(state, "A", 0, "exit_liquidity"); // 7/3, Deathrattle: deal 3 to enemy player
+    placeCreature(state, "B", 0, "alpha_dog"); // 6/7, Deathrattle: summon two 1/1 Puppies
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "creature", playerId: "B", slot: 0 } });
+
+    expect(state.players.A.board[0]).toBeNull(); // Exit Liquidity died (took 6, had 3 HP)
+    expect(state.players.B.board.some((c) => c?.templateId === "alpha_dog")).toBe(false); // Alpha Dog died (took 7, had 7 HP)
+    expect(state.players.B.hp).toBe(bHpBefore - 3); // Exit Liquidity's Deathrattle still fired
+    const puppies = state.players.B.board.filter((c) => c?.templateId === "puppy");
+    expect(puppies.length).toBe(2); // Alpha Dog's Deathrattle also fired, filling its own vacated slot
+  });
+
+  it("does not fire for a creature that was silenced before it died", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 75);
+    placeCreature(state, "A", 0, "exit_liquidity");
+    state.players.A.board[0]!.silenced = true;
+    placeCreature(state, "B", 0, "loyal_hound");
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "creature", playerId: "B", slot: 0 } });
+
+    expect(state.players.A.board[0]).toBeNull();
+    expect(state.players.B.hp).toBe(bHpBefore); // no Deathrattle damage — it was silenced
+  });
+});
+
+describe("Silence", () => {
+  it("Audit Trail strips keywords and kills a creature's aura contribution", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 77);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "moon_dog"), slot: 2 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "fast_fang"), slot: 1 });
+    expect(getEffectiveAttack(state, "A", 1)).toBe(3); // base 2 + Moon Dog's +1 aura
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn, so B can act
+    applyIntent(state, {
+      kind: "playCard",
+      playerId: "B",
+      handIndex: giveCard(state, "B", "audit_trail"),
+      target: { type: "creature", playerId: "A", slot: 2 },
+    });
+
+    expect(state.players.A.board[2]!.silenced).toBe(true);
+    expect(getEffectiveAttack(state, "A", 1)).toBe(2); // aura gone now that Moon Dog is silenced
+  });
+
+  it("stops future onTurnStart triggers but does not undo attack/health already granted", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 79);
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "diamond_hands"), slot: 0 });
+    const baseAttack = getEffectiveAttack(state, "A", 0);
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // -> A, HODL ticks once
+    expect(getEffectiveAttack(state, "A", 0)).toBe(baseAttack + 1);
+
+    applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B, so B can act
+    applyIntent(state, {
+      kind: "playCard",
+      playerId: "B",
+      handIndex: giveCard(state, "B", "audit_trail"),
+      target: { type: "creature", playerId: "A", slot: 0 },
+    });
+    expect(getEffectiveAttack(state, "A", 0)).toBe(baseAttack + 1); // the existing buff is untouched
+
+    applyIntent(state, { kind: "endTurn", playerId: "B" }); // -> A, HODL would tick again if not silenced
+    expect(getEffectiveAttack(state, "A", 0)).toBe(baseAttack + 1); // still +1, not +2 — HODL is silent now
+  });
+});
+
+describe("Secrets", () => {
+  it("Short Position reacts to the next enemy creature played, damages it, then is consumed", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 81);
+    state.players.B.secrets.push("short_position");
+
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "pup_scout"), slot: 0 }); // 1/2
+
+    expect(state.players.A.board[0]).toBeNull(); // 2 damage from the secret killed it
+    expect(state.players.B.secrets.length).toBe(0); // consumed on reveal
+    expect(state.log.some((e) => e.text.includes("secret is revealed"))).toBe(true);
+  });
+
+  it("Stop-Loss Order damages the attacker and cancels a lethal-to-it attack before it lands", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 83);
+    placeCreature(state, "A", 0, "puppy"); // 1/1
+    state.players.B.secrets.push("stop_loss_order");
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "player", playerId: "B" } });
+
+    expect(state.players.A.board[0]).toBeNull(); // the 1/1 died to the secret's 2 damage
+    expect(state.players.B.hp).toBe(bHpBefore); // the attack itself never landed
+    expect(state.log.some((e) => e.text.includes("never lands"))).toBe(true);
+  });
+
+  it("Stop-Loss Order still lets a surviving attacker's damage land", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 85);
+    placeCreature(state, "A", 0, "loyal_hound"); // 5/5
+    state.players.B.secrets.push("stop_loss_order");
+    const bHpBefore = state.players.B.hp;
+
+    applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "player", playerId: "B" } });
+
+    expect(state.players.A.board[0]!.health).toBe(3); // took the secret's 2 damage, survived
+    expect(state.players.B.hp).toBe(bHpBefore - 5); // and its attack still landed
+    expect(state.players.B.secrets.length).toBe(0);
   });
 });

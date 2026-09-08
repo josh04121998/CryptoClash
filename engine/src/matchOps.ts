@@ -16,6 +16,7 @@ export function removeIfDead(state: MatchState, playerId: PlayerId, slot: number
   if (creature && creature.health <= 0) {
     pushLog(state, `${CARD_POOL[creature.templateId].name} (${playerId}, slot ${slot + 1}) dies.`);
     state.players[playerId].board[slot] = null;
+    state.pendingDeathrattles.push({ controller: playerId, templateId: creature.templateId, silenced: creature.silenced });
   }
 }
 

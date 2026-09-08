@@ -142,6 +142,18 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 5,
     text: "Vanilla.",
   },
+  alpha_dog: {
+    id: "alpha_dog",
+    name: "Alpha Dog",
+    faction: "Doggos",
+    type: "Creature",
+    cost: 6,
+    rarity: "Legendary",
+    attack: 6,
+    health: 7,
+    text: "Deathrattle: Summon two 1/1 Puppies.",
+    effects: [{ trigger: "onDeath", action: { kind: "summon", templateId: "puppy", count: 2 } }],
+  },
   shadow_pup: {
     id: "shadow_pup",
     name: "Shadow Pup",
@@ -319,6 +331,21 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Copy two random friendly creatures onto the battlefield.",
     effects: [{ trigger: "onPlay", action: { kind: "copyRandomFriendly", count: 2 } }],
   },
+  primordial_croak: {
+    id: "primordial_croak",
+    name: "Primordial Croak",
+    faction: "Frogs",
+    type: "Creature",
+    cost: 7,
+    rarity: "Legendary",
+    attack: 6,
+    health: 8,
+    text: "Copy a random friendly creature onto the battlefield. Deathrattle: Increase Volatility by 3.",
+    effects: [
+      { trigger: "onPlay", action: { kind: "copyRandomFriendly", count: 1 } },
+      { trigger: "onDeath", action: { kind: "volatility", amount: 3 } },
+    ],
+  },
 
   // --- Builders ("Build the machine.") — combos, spells, efficient cards,
   // technical interactions. Signature mechanic: draw.
@@ -445,6 +472,18 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard. The whole stack, defended.",
   },
+  unicorn_startup: {
+    id: "unicorn_startup",
+    name: "Unicorn Startup",
+    faction: "Builders",
+    type: "Creature",
+    cost: 7,
+    rarity: "Legendary",
+    attack: 7,
+    health: 7,
+    text: "Deathrattle: Draw 2 cards.",
+    effects: [{ trigger: "onDeath", action: { kind: "draw", count: 2 } }],
+  },
 
   // --- Degens ("Risk everything.") — self-damage, sacrifice, explosive
   // turns, high risk/high reward. Signature: pay your own HP for power.
@@ -464,8 +503,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     name: "Margin Call",
     faction: "Degens",
     type: "Spell",
-    cost: 1,
-    rarity: "Common",
+    // Balance pass (session, per real playtesting data): this was a 1-cost "3 to face, 2 to
+    // yourself" — a net +1 damage swing at 1 mana is far more efficient than anything else at
+    // that cost anywhere in the pool. Moved to 2 cost rather than touching the numbers — keeps
+    // the card's identity (and its risk/reward math) intact, just rate-corrects it.
+    cost: 2,
+    rarity: "Uncommon",
     text: "Deal 3 damage to the enemy player. Take 2 damage yourself.",
     effects: [
       { trigger: "onPlay", action: { kind: "damage", target: { kind: "enemyPlayer" }, amount: 3 } },
@@ -550,10 +593,34 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
-    attack: 7,
+    // Balance pass: was 7/6 (13 total stats for a 5-cost, well above the going rate even
+    // accounting for the -3 HP downside) — trimmed to 6/6 rather than gutting the payoff.
+    attack: 6,
     health: 6,
     text: "Deal 3 damage to yourself.",
     effects: [{ trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 3 } }],
+  },
+  exit_liquidity: {
+    id: "exit_liquidity",
+    name: "Exit Liquidity",
+    faction: "Degens",
+    type: "Creature",
+    cost: 6,
+    rarity: "Legendary",
+    attack: 7,
+    health: 3,
+    text: "Deathrattle: Deal 3 damage to the enemy player.",
+    effects: [{ trigger: "onDeath", action: { kind: "damage", target: { kind: "enemyPlayer" }, amount: 3 } }],
+  },
+  short_position: {
+    id: "short_position",
+    name: "Short Position",
+    faction: "Degens",
+    type: "Secret",
+    cost: 1,
+    rarity: "Rare",
+    text: "Secret: The next time the enemy plays a creature, deal 2 damage to it.",
+    effects: [{ trigger: "onEnemyPlayCreature", action: { kind: "damage", target: { kind: "triggerSource" }, amount: 2 } }],
   },
 
   // --- Crypto Bros ("Make money. Make more money.") — energy, resource
@@ -650,6 +717,22 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 7,
     text: "Vanilla.",
   },
+  unicorn_exit: {
+    id: "unicorn_exit",
+    name: "Unicorn Exit",
+    faction: "CryptoBros",
+    type: "Creature",
+    cost: 8,
+    rarity: "Legendary",
+    // Balance pass: the whole point of a ramp faction is cheating something big out ahead of
+    // curve — Crypto Bros ramped Energy but had nothing above 5 cost worth ramping *into*
+    // (compound_interest is just a vanilla 4/7). This is the real payoff: a genuine top-end
+    // body that makes all those Seed Rounds/Whale Wallets worth playing for.
+    attack: 7,
+    health: 9,
+    keywords: ["Guard"],
+    text: "Guard. The ramp was worth it.",
+  },
 
   // --- Normies ("Keep it simple.") — flexible, reliable, defensive,
   // adaptable. Signature: heal (a steady, no-frills toolkit).
@@ -693,8 +776,11 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
-    text: "Restore 5 HP.",
-    effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 5 } }],
+    // Balance pass: Normies' Guard density + healing was winning 71% of simulated games —
+    // the strongest outlier of any faction. Trimmed from 5 to 4 HP; a small, surgical cut
+    // rather than removing the card's role entirely.
+    text: "Restore 4 HP.",
+    effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 4 } }],
   },
   adaptive_trader: {
     id: "adaptive_trader",
@@ -738,8 +824,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
+    // Balance pass: trimmed 5/7 to 5/6 — same reasoning as rainy_day_fund above.
     attack: 5,
-    health: 7,
+    health: 6,
     keywords: ["Guard"],
     text: "Guard. Never panic sells.",
   },
@@ -829,6 +916,37 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       },
     ],
   },
+  audit_trail: {
+    id: "audit_trail",
+    name: "Audit Trail",
+    faction: "Neutral",
+    type: "Spell",
+    cost: 2,
+    rarity: "Uncommon",
+    text: "Silence an enemy creature.",
+    effects: [
+      {
+        trigger: "onPlay",
+        requiresTarget: true,
+        action: { kind: "silence", target: { kind: "chosen" } },
+      },
+    ],
+  },
+  stop_loss_order: {
+    id: "stop_loss_order",
+    name: "Stop-Loss Order",
+    faction: "Neutral",
+    type: "Secret",
+    cost: 1,
+    rarity: "Rare",
+    text: "Secret: The next time the enemy attacks, deal 2 damage to the attacker.",
+    effects: [
+      {
+        trigger: "onEnemyAttack",
+        action: { kind: "damage", target: { kind: "triggerSource" }, amount: 2 },
+      },
+    ],
+  },
 };
 
 /** A legal 30-card deck built entirely from the pool above (mirror-match sample). */
@@ -839,7 +957,7 @@ export const SAMPLE_DECK: string[] = [
   ...Array(2).fill("shield_pup"),
   ...Array(3).fill("guard_dog"),
   ...Array(2).fill("puppy_swarm"),
-  ...Array(2).fill("pack_rush"),
+  ...Array(1).fill("pack_rush"),
   ...Array(2).fill("spark_bolt"),
   ...Array(2).fill("ember_curse"),
   ...Array(2).fill("pump_signal"),
@@ -847,6 +965,7 @@ export const SAMPLE_DECK: string[] = [
   ...Array(2).fill("moon_dog"),
   ...Array(2).fill("diamond_hands"),
   ...Array(1).fill("loyal_hound"),
+  ...Array(1).fill("alpha_dog"),
 ];
 
 /** A legal 30-card Frogs deck, exercising copying/transformation/controlled-randomness. */
@@ -860,16 +979,17 @@ export const FROG_SAMPLE_DECK: string[] = [
   ...Array(3).fill("glitch_toad"),
   ...Array(2).fill("warty_prince"),
   ...Array(3).fill("copycat"),
-  ...Array(2).fill("deep_croak"),
+  ...Array(1).fill("deep_croak"),
   ...Array(3).fill("spark_bolt"),
+  ...Array(1).fill("primordial_croak"),
 ];
 
 /** A legal 30-card Builders deck, exercising the draw/combo signature. */
 export const BUILDER_SAMPLE_DECK: string[] = [
   ...Array(3).fill("junior_dev"),
-  ...Array(3).fill("blueprint"),
+  ...Array(2).fill("blueprint"),
   ...Array(3).fill("scaffold_bot"),
-  ...Array(3).fill("efficient_engineer"),
+  ...Array(2).fill("efficient_engineer"),
   ...Array(3).fill("rapid_prototype"),
   ...Array(3).fill("technical_debt"),
   ...Array(3).fill("modular_frame"),
@@ -877,6 +997,8 @@ export const BUILDER_SAMPLE_DECK: string[] = [
   ...Array(3).fill("crunch_time"),
   ...Array(2).fill("full_stack_titan"),
   ...Array(2).fill("spark_bolt"),
+  ...Array(1).fill("unicorn_startup"),
+  ...Array(1).fill("audit_trail"),
 ];
 
 /** A legal 30-card Degens deck, exercising the pay-your-own-HP signature. */
@@ -886,13 +1008,15 @@ export const DEGEN_SAMPLE_DECK: string[] = [
   ...Array(3).fill("leverage_trade"),
   ...Array(3).fill("rug_pull"),
   ...Array(2).fill("yolo_allin"),
-  ...Array(3).fill("blown_account"),
+  ...Array(2).fill("blown_account"),
   ...Array(3).fill("ember_curse"),
-  ...Array(3).fill("liquidated_ledger"),
+  ...Array(2).fill("liquidated_ledger"),
   ...Array(2).fill("diamond_hands"),
   ...Array(2).fill("moonshot"),
   ...Array(2).fill("sharpening_stone"),
   ...Array(1).fill("bodyguard_badge"),
+  ...Array(1).fill("exit_liquidity"),
+  ...Array(1).fill("short_position"),
 ];
 
 /** A legal 30-card Crypto Bros deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
@@ -906,15 +1030,16 @@ export const CRYPTOBRO_SAMPLE_DECK: string[] = [
   ...Array(3).fill("whale_wallet"),
   ...Array(2).fill("compound_interest"),
   ...Array(3).fill("pump_signal"),
-  ...Array(3).fill("spark_bolt"),
+  ...Array(2).fill("spark_bolt"),
   ...Array(2).fill("power_core"),
+  ...Array(1).fill("unicorn_exit"),
 ];
 
 /** A legal 30-card Normies deck, exercising the heal/defensive signature. */
 export const NORMIE_SAMPLE_DECK: string[] = [
   ...Array(3).fill("steady_hand"),
   ...Array(3).fill("first_aid"),
-  ...Array(3).fill("safe_harbor"),
+  ...Array(2).fill("safe_harbor"),
   ...Array(3).fill("rainy_day_fund"),
   ...Array(3).fill("adaptive_trader"),
   ...Array(3).fill("old_reliable"),
@@ -923,6 +1048,7 @@ export const NORMIE_SAMPLE_DECK: string[] = [
   ...Array(2).fill("cool_down"),
   ...Array(2).fill("reinforced_plating"),
   ...Array(3).fill("rocket_boots"),
+  ...Array(1).fill("stop_loss_order"),
 ];
 
 export interface DeckDefinition {

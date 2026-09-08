@@ -11,7 +11,7 @@ function computeAuraBonusAttack(state: MatchState, playerId: PlayerId, slot: num
   let bonus = 0;
   for (const adjSlot of getAdjacentSlots(slot)) {
     const neighbor = board[adjSlot];
-    if (!neighbor) continue;
+    if (!neighbor || neighbor.silenced) continue; // a silenced neighbor no longer provides its aura
     const neighborTemplate = CARD_POOL[neighbor.templateId];
     if (neighborTemplate.aura?.filter === "adjacentSameFaction" && neighborTemplate.faction === template.faction) {
       bonus += neighborTemplate.aura.attack ?? 0;

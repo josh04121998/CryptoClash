@@ -1,4 +1,5 @@
 import { CARD_POOL } from "./cards.js";
+import { checkAndFireSecret } from "./effects.js";
 import { checkWin, isTargetable, pushLog, removeIfDead } from "./matchOps.js";
 import { getEffectiveAttack } from "./stats.js";
 import { Intent, MatchState } from "./types.js";
@@ -39,6 +40,17 @@ export function resolveAttack(state: MatchState, intent: Extract<Intent, { kind:
     }
   }
 
+  // A legal attack is now locked in — give the defender's armed Secrets (if any) a chance to
+  // react before damage, and let one target the attacker itself (a real Freezing-Trap-style
+  // counter, not just a face-punish). If the secret kills the attacker outright, the attack
+  // never lands — re-check the board rather than trusting the `attacker` reference captured
+  // above, since that object still exists in memory even after its slot is cleared.
+  checkAndFireSecret(state, defenderId, "onEnemyAttack", { type: "creature", playerId: attackerId, slot: intent.attackerSlot });
+  if (attackerPlayer.board[intent.attackerSlot] === null) {
+    pushLog(state, `${CARD_POOL[attacker.templateId].name}'s attack never lands — it didn't survive the secret.`);
+    return;
+  }
+
   const attackDamage = getEffectiveAttack(state, attackerId, intent.attackerSlot);
   attacker.hasAttackedThisTurn = true;
   if (attacker.stealthed) {
@@ -57,7 +69,14 @@ export function resolveAttack(state: MatchState, intent: Extract<Intent, { kind:
   }
 
   const defenderSlot = intent.target.slot;
-  const defender = defenderPlayer.board[defenderSlot]!;
+  const defender = defenderPlayer.board[defenderSlot];
+  if (!defender) {
+    // Defensive, not reachable by any Secret in the current pool (none are AOE) — a future
+    // Secret whose side effect removes the intended target too would land here instead of
+    // crashing on the old non-null assertion.
+    pushLog(state, `${CARD_POOL[attacker.templateId].name}'s attack has no target left to hit.`);
+    return;
+  }
   const defenderDamage = getEffectiveAttack(state, defenderId, defenderSlot);
 
   defender.health -= attackDamage;

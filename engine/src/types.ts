@@ -13,7 +13,7 @@ export type Faction =
   | "Normies"
   | "Neutral";
 
-export type CardType = "Creature" | "Spell" | "Item";
+export type CardType = "Creature" | "Spell" | "Item" | "Secret";
 
 /**
  * Collectible rarity tier (spec.md Section 13) — drives pack odds and scarcity
@@ -28,7 +28,12 @@ export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary" | "My
 /** Launch keyword vocabulary (batlleSpec.md, Section 11). */
 export type Keyword = "Rush" | "Guard" | "Stealth" | "Burn" | "HODL";
 
-export type TargetSelector = { kind: "enemyPlayer" } | { kind: "selfPlayer" } | { kind: "chosen" };
+export type TargetSelector =
+  | { kind: "enemyPlayer" }
+  | { kind: "selfPlayer" }
+  | { kind: "chosen" }
+  /** Secret-only (Section 8, card-schema.md) — resolves to whatever creature caused the Secret to fire: the attacker for onEnemyAttack, the just-played creature for onEnemyPlayCreature. Empty (no-op) outside a Secret's own trigger resolution. */
+  | { kind: "triggerSource" };
 
 export type EffectAction =
   | { kind: "damage"; target: TargetSelector; amount: number }
@@ -52,9 +57,18 @@ export type EffectAction =
   /** Items' "permanent upgrade" flavor — permanently buffs whatever creature `target` resolves to (no-op if it resolves to a player). */
   | { kind: "buffTarget"; target: TargetSelector; attack?: number; health?: number }
   /** Items' "temporary upgrade" flavor — grants `keyword` to whatever creature `target` resolves to until its owner's next startTurn (no-op if it resolves to a player). */
-  | { kind: "grantKeywordTarget"; target: TargetSelector; keyword: Keyword };
+  | { kind: "grantKeywordTarget"; target: TargetSelector; keyword: Keyword }
+  /** Strips `keywords`/`tempKeywords` from `target` and marks it silenced (suppresses its own future onTurnStart/onDeath triggers and any aura it provides) — no-op if it resolves to a player. Deliberately doesn't retroactively undo stat buffs already applied (see card-schema.md) or heal it back to a lower max health, just shuts off what it *does* from here on. */
+  | { kind: "silence"; target: TargetSelector };
 
-export type Trigger = "onPlay" | "onTurnStart";
+/**
+ * `onEnemyAttack`/`onEnemyPlayCreature` are Secret-only (CardType "Secret") —
+ * see Section 8 of card-schema.md. They don't fire via the normal
+ * `resolveEffects(..., trigger, ctx)` call sites the other triggers use;
+ * combat.ts/engine.ts check the reacting player's `secrets` zone for a
+ * matching trigger at the relevant moment instead.
+ */
+export type Trigger = "onPlay" | "onTurnStart" | "onDeath" | "onEnemyAttack" | "onEnemyPlayCreature";
 
 export interface EffectDef {
   trigger: Trigger;
@@ -106,6 +120,8 @@ export interface BoardCreature {
   tempAttackBonus: number;
   /** True while a Stealth creature is untargetable; cleared the moment it attacks (is "revealed"). */
   stealthed: boolean;
+  /** Set by the `silence` EffectAction — suppresses this creature's own onTurnStart/onDeath triggers and any aura it provides, going forward. Doesn't undo stats already gained. */
+  silenced: boolean;
 }
 
 export type Board = (BoardCreature | null)[];
@@ -119,6 +135,16 @@ export interface PlayerState {
   hand: string[];
   board: Board;
   fatigue: number;
+  /**
+   * Armed Secret template ids, in play order (card-schema.md Section 8).
+   * Known, pre-existing gap this doesn't fix: the network protocol
+   * (shared/src/index.ts's serializeState) sends full MatchState to both
+   * players already — hand and deck order are just as fully visible to an
+   * opponent today as this array is. Secrets are mechanically real and
+   * deterministic; they are not yet *cryptographically* hidden over the
+   * wire, same as nothing else in this game is. See STATUS.md.
+   */
+  secrets: string[];
 }
 
 export type TargetRef =
@@ -155,4 +181,16 @@ export interface MatchState {
   activeBurns: BurnStatus[];
   /** Section: LIQUIDATION Market Event — energy owed off a player's next startTurn. */
   pendingEnergyPenalty: Record<PlayerId, number>;
+  /**
+   * Queued by `removeIfDead` (matchOps.ts) whenever a creature dies, from
+   * *any* death path (combat, spell/burn damage, a Market Event) — drained
+   * by `processPendingDeathrattles` (effects.ts) at the end of every
+   * `applyIntent`. Kept as a queue rather than firing inline from
+   * `removeIfDead` to avoid a circular import (matchOps.ts is a dependency
+   * of effects.ts, not the other way around) and so a Deathrattle that kills
+   * a second Deathrattle creature chains correctly (drained in a loop, not a
+   * single pass). Always empty by the time a MatchState is serialized for
+   * the network — one full player action always finishes draining it.
+   */
+  pendingDeathrattles: { controller: PlayerId; templateId: string; silenced: boolean }[];
 }
