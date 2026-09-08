@@ -54,6 +54,11 @@ export function PlayerHeader({ name, player, isActive, targetable = false, onCli
         ⚡ {player.energy}/{player.maxEnergy}
       </span>
       <span className="player-header__deck">Deck: {player.deck.length}</span>
+      {player.secrets.length > 0 && (
+        <span className="player-header__secrets" title={`${player.secrets.length} Secret${player.secrets.length > 1 ? "s" : ""} armed`}>
+          🔒 {player.secrets.length}
+        </span>
+      )}
       {popup && (
         <span key={popup.key} className={`player-header__popup ${popup.heal ? "player-header__popup--heal" : "player-header__popup--damage"}`}>
           {popup.heal ? "+" : "-"}
