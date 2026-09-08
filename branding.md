@@ -79,6 +79,10 @@ Recurring elements already shipped in the product (`LandingPage.tsx`, `TickerTap
 
 This is now *the* face of the brand on social — see Section 8 for the actual generated assets. Model consistency notes for future generations: swept-back dark hair with a flowing scarf/tie catching the wind, pinstripe suit color-blocked in brand gold (`#f2b705`) and terminal green (`#00e28a`), a vintage brick cell phone held to the ear, confident/smirking expression, near-black background with art-deco skyscrapers.
 
+**Render style upgraded to photorealistic (2026-09-08, same session):** the flat-vector illustration above was a good character concept but the user wanted the execution more realistic, and supplied a reference render (via Grok, not Pixa) hitting the mark — same character DNA (the hair curl, the pinstripe suit, the green/gold tie, the brick phone, gold rings) but photoreal, studio-lit against black, GQ-photoshoot energy rather than cartoon-mascot energy. Adopted directly as `pfp.jpg` (Section 8). The original flat-vector PFP is kept as `pfp-flat-vector-archive.svg`/`.png`, not deleted — still potentially useful anywhere a small/scalable flat icon is needed (a favicon, for instance) even though it's no longer the primary social identity.
+
+**Consequence — the banner (`banner.svg`/`.png`, Section 8) now mismatches the PFP's render style** (flat-vector vs. photorealistic) and needs to be redone to match, along with the not-yet-started stickers. **Important for whoever does that regeneration:** don't just re-describe the character in a text prompt — a fresh text-only generation will not reliably reproduce the *same face*. Use `pfp.jpg` as an image-to-image / reference input instead (Flux 2 Pro or Max support this via their `attachments`/`input_image` parameter in the Pixa `generate_media` tool) so the banner and any future stickers are recognizably the *same person*, not just a similar archetype. This needs Pixa credits Flux-tier pricing (12-14/image) — see Section 8 for the current balance.
+
 ---
 
 ## 6. Voice & Tone
@@ -92,7 +96,7 @@ Confident, a little dry, in on the joke without being cringe — crypto-native s
 Rough order, per the user's direction (2026-09-08):
 
 1. ~~This doc~~ — done.
-2. **Social assets** — PFP + banner done (see Section 8), on the second attempt (first was a rejected animal-mascot direction, see Section 5). **Stickers not yet regenerated for the new character** — ran low on Pixa credits (26 left after the trader exploration/banner) mid-session; the old dog-based stickers were retired along with the rest of that direction rather than kept mismatched. Next up when there's more credit budget: 3-4 retro-trading-themed sticker poses/expressions for the hedge-fund-manager character.
+2. **Social assets** — PFP done, in its final photorealistic style (see Section 8), after two prior attempts (a rejected animal-mascot direction, then a flat-vector human trader — see Section 5). **Banner needs redoing to match the photoreal PFP, and stickers still aren't generated at all** — blocked on Pixa credits (8 left, below every model's per-image floor) as of this session. Next up once there's more credit budget: regenerate the banner using `pfp.jpg` as an image-to-image reference (see Section 5's note on why a fresh text prompt won't reproduce the same face), then 3-4 retro-trading-themed sticker poses/expressions, same technique.
 3. **Website assets** — a real hero illustration for the landing page (currently CSS/SVG-only), possibly faction icons. Not started.
 4. **Card art** — illustrated art for the 60 card templates. Last, and the biggest lift — not started.
 
@@ -100,19 +104,22 @@ Rough order, per the user's direction (2026-09-08):
 
 ## 8. Generated Assets
 
-Everything here lives in `branding/assets/` as both `.svg` (the real vector source — Recraft's actual output, despite the download URLs being `.jpg`-named; use these for anything that needs to scale, like a large banner print) and `.png` (a rendered preview at the source resolution, for quick viewing/upload where an SVG isn't accepted). Generated with `recraft-v4-vector` (18 credits/image via the Pixa MCP tools) — model choice matters for regenerating in the same style later.
+Files in `branding/assets/`:
 
 | File | Use | Notes |
 |---|---|---|
-| `pfp.svg` / `.png` | Profile picture | Self-contained circular badge composition — crop-ready as-is. The retro hedge-fund-manager character, sleek/heroic take. |
-| `banner.svg` / `.png` | X/social banner (1536×768, ~2:1) | Full-body hero pose on a glowing floor grid, art-deco skyline, open space on the left third for a logo/text overlay. |
+| **`pfp.jpg`** | **Profile picture — current/primary** | Photorealistic render, user-supplied (generated via Grok, not Pixa) and adopted as the flagship social identity. Studio-lit portrait against pure black, same character as the archived vector version. |
+| `banner.svg` / `.png` | X/social banner (1536×768, ~2:1) — **stale, needs redoing** | Still the old flat-vector illustration style — mismatches `pfp.jpg` now. Full-body hero pose on a glowing floor grid, art-deco skyline, open space on the left third for a logo/text overlay; the composition is still good, only the render style needs to change. Regenerate using `pfp.jpg` as an image-to-image reference (Section 5) once there's credit budget. |
+| `pfp-flat-vector-archive.svg` / `.png` | Archived — not the current PFP | The original flat-vector illustration of the same character concept, `recraft-v4-vector` output. Kept for anywhere a small/scalable flat icon is still useful (a favicon, e.g.), not as a fallback for the social identity. |
 
-**Previewing a banner with a wordmark overlay without spending generation credits:** rather than baking text into the AI-generated image, composite it — a plain HTML page with the image positioned/masked behind CSS text is enough, screenshotted with Playwright (`chromium.launch()` → `page.goto('file:///...')` → `page.screenshot()`). This is how the C-vs-B comparison was actually decided this session (which suit color blended better against the banner's black background) — reuse this technique for any "how would X look in context" check before spending more credits on a full regeneration.
+`.svg` files are the real vector source (Recraft's actual output, despite the download URLs being `.jpg`-named) — use those for anything that needs to scale. `recraft-v4-vector` costs 18 credits/image via the Pixa MCP tools; photorealistic work (the banner redo, future stickers) needs a Flux model instead (12-14 credits/image) with `pfp.jpg` passed as a reference attachment for face consistency, not a fresh text prompt.
+
+**Previewing a banner with a wordmark overlay without spending generation credits:** rather than baking text into the AI-generated image, composite it — a plain HTML page with the image positioned/masked behind CSS text is enough, screenshotted with Playwright (`chromium.launch()` → `page.goto('file:///...')` → `page.screenshot()`). This is how the two flat-vector trader takes were actually compared this session (which suit color blended better against the banner's black background) — reuse this technique for any "how would X look in context" check before spending more credits on a full regeneration.
 
 **Retired:** the first-attempt Doggos-mascot pack (1 PFP, 2 banners, 4 stickers) — see Section 5 for why. Not kept as files; the character description there is enough to regenerate if the dog direction is ever revisited.
 
-**Not yet generated:** stickers for the new character (ran low on credits this session — 8 left as of this writing). Description in Section 5 has enough detail to pick this back up.
+**Blocked on Pixa credits (8 left, below every model's per-image cost):** the banner redo and all stickers for the photorealistic character. Section 5 and this section both have enough detail to pick this back up once there's more budget.
 
 ---
 
-*Last updated: 2026-09-08. PFP + banner generated and committed for the retro-trader direction (second attempt, after the Doggos-mascot pack was rejected) — see `STATUS.md` for the session writeup.*
+*Last updated: 2026-09-08. PFP upgraded to a user-supplied photorealistic render, adopted as the primary social identity — the banner and stickers still need to catch up to this render style. See `STATUS.md` for the session writeup.*
