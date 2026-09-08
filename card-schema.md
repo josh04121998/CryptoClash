@@ -307,7 +307,7 @@ short_position: {
 
 Secrets are mechanically real and fully deterministic — but **not yet cryptographically hidden** from an opponent who inspects network traffic. The wire protocol (`shared/src/index.ts`'s `serializeState`/`deserializeState`, a generic spread with no per-field allowlist) already sends the complete `MatchState` to both players in a Play Online match, including the opponent's entire hand and deck order — `PlayerState.secrets` is just as exposed as those pre-existing fields, not a new leak. Genuinely hiding a Secret's identity (matching Hearthstone's "you see a face-down card exists but not what it is") would need per-viewer serialization, a separate and larger feature this pass doesn't attempt. Until then, treat Secrets as "real game state a sufficiently nosy client *could* read" — same trust boundary as everything else in this match today. See `STATUS.md`.
 
-There is currently no client-side indicator for an opponent's armed Secret count (a Hearthstone-style "🔒 N" badge on `PlayerHeader.tsx` would be the natural place) — a UI gap, not a rules gap; Secrets already function correctly without it.
+A "🔒 N" badge on `PlayerHeader.tsx` now shows an armed Secret count for both players, next to the Deck count — closing what was a UI gap, not a rules gap (Secrets already functioned correctly without it).
 
 ---
 
