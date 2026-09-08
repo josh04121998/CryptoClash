@@ -7,6 +7,7 @@ import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
 import { PacksScreen } from "./components/PacksScreen.js";
+import { QuestsScreen } from "./components/QuestsScreen.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
@@ -21,7 +22,8 @@ type Mode =
   | "deck-builder"
   | "packs"
   | "collection"
-  | "crafting";
+  | "crafting"
+  | "quests";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -65,6 +67,17 @@ export default function App() {
   if (mode === "packs" && wallet.token) {
     return (
       <PacksScreen
+        token={wallet.token}
+        balance={coinsBalance}
+        onBalanceChange={setCoinsBalance}
+        onBack={() => setMode("menu")}
+      />
+    );
+  }
+
+  if (mode === "quests" && wallet.token) {
+    return (
+      <QuestsScreen
         token={wallet.token}
         balance={coinsBalance}
         onBalanceChange={setCoinsBalance}
@@ -120,6 +133,9 @@ export default function App() {
               <span className="app-bar__coins" title="Coins">
                 🪙 {coinsBalance ?? "…"}
               </span>
+              <button type="button" onClick={() => setMode("quests")}>
+                Quests
+              </button>
               <button type="button" onClick={() => setMode("packs")}>
                 Packs
               </button>
@@ -132,8 +148,11 @@ export default function App() {
               <button type="button" onClick={() => setMode("my-decks")}>
                 My Decks
               </button>
-              <button type="button" title={wallet.walletAddress} onClick={wallet.disconnect}>
+              <button type="button" title={`Switch wallet (currently ${wallet.walletAddress})`} onClick={wallet.switchWallet}>
                 {shortAddress(wallet.walletAddress)}
+              </button>
+              <button type="button" title="Disconnect" onClick={wallet.disconnect}>
+                Disconnect
               </button>
             </>
           ) : (

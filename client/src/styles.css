@@ -876,6 +876,89 @@ button {
   cursor: not-allowed;
 }
 
+/* Quests + daily rewards */
+
+.quests-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.quests-screen__daily,
+.quests-screen__quest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+.quests-screen__daily-info,
+.quests-screen__quest-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.quests-screen__daily-title,
+.quests-screen__quest-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.quests-screen__daily-desc,
+.quests-screen__quest-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.quests-screen__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.quests-screen__progress-bar {
+  width: 220px;
+  max-width: 40vw;
+  height: 6px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.quests-screen__progress-fill {
+  height: 100%;
+  background: var(--accent, #7dd3fc);
+  transition: width 0.3s ease;
+}
+
+.quests-screen__daily button,
+.quests-screen__quest button {
+  flex-shrink: 0;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.quests-screen__daily button:disabled,
+.quests-screen__quest button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Connection status */
 
 .connect-status {

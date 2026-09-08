@@ -14,8 +14,10 @@ import {
   InsufficientDustError,
   InvalidTemplateError,
 } from "./craftingRepo.js";
+import { AlreadyClaimedTodayError, claimDaily, getDailyStatus } from "./dailyRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
+import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
 function corsHeaders(): Record<string, string> {
@@ -205,6 +207,65 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           sendJson(res, 400, { error: e.message });
         } else if (e instanceof InsufficientDustError) {
           sendJson(res, 402, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/daily" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, await getDailyStatus(pool, accountId));
+      return true;
+    }
+
+    if (url.pathname === "/api/daily/claim" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      try {
+        sendJson(res, 200, await claimDaily(pool, accountId));
+      } catch (e) {
+        if (e instanceof AlreadyClaimedTodayError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/quests" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { quests: await getTodayQuests(pool, accountId) });
+      return true;
+    }
+
+    const questClaimMatch = url.pathname.match(/^\/api\/quests\/([^/]+)\/claim$/);
+    if (questClaimMatch && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      try {
+        sendJson(res, 200, await claimQuest(pool, accountId, questClaimMatch[1]));
+      } catch (e) {
+        if (e instanceof UnknownQuestError) {
+          sendJson(res, 400, { error: e.message });
+        } else if (e instanceof QuestNotCompleteError || e instanceof QuestAlreadyClaimedError) {
+          sendJson(res, 409, { error: e.message });
         } else {
           throw e;
         }

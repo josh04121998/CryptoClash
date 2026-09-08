@@ -13,6 +13,16 @@ interface StoredSession {
 /** Minimal EIP-1193 injected provider surface — just what connecting + signing needs. */
 interface Eip1193Provider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  /**
+   * Not part of the EIP-1193 base spec, but near-universal in practice
+   * (MetaMask and every other major injected wallet implement it) — needed to
+   * detect the user switching their wallet's active account from outside our
+   * UI (the extension itself), which `eth_requestAccounts` alone can't do
+   * since it only returns whatever's currently active without notifying us
+   * of a later change.
+   */
+  on?(event: "accountsChanged", handler: (accounts: string[]) => void): void;
+  removeListener?(event: "accountsChanged", handler: (accounts: string[]) => void): void;
 }
 
 declare global {
@@ -117,5 +127,52 @@ export function useWallet() {
     setStatus("disconnected");
   }, []);
 
-  return { status, walletAddress, token, error, connect, disconnect };
+  // Detect the active account changing *outside* our UI (switched in the wallet extension
+  // itself while already connected here) — our session token was signed for the old
+  // address via SIWE and isn't valid for the new one, so drop it rather than keep silently
+  // acting as the stale account. Deliberately doesn't auto-re-sign — popping a fresh
+  // signature prompt the instant someone switches accounts for an unrelated reason would be
+  // surprising; asking them to hit Connect Wallet again is a clearer, expected interaction.
+  useEffect(() => {
+    const ethereum = window.ethereum;
+    if (!ethereum?.on) return;
+    function handleAccountsChanged(accounts: string[]) {
+      if (accounts.length === 0) {
+        disconnect();
+        return;
+      }
+      const newAddress = getAddress(accounts[0]);
+      if (walletAddress && newAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        storeSession(null);
+        setToken(null);
+        setWalletAddress(null);
+        setStatus("disconnected");
+        setError("Wallet account changed — click Connect Wallet to sign in with it.");
+      }
+    }
+    ethereum.on("accountsChanged", handleAccountsChanged);
+    return () => ethereum.removeListener?.("accountsChanged", handleAccountsChanged);
+  }, [walletAddress, disconnect]);
+
+  /**
+   * A plain eth_requestAccounts (what `connect` calls) won't show MetaMask's
+   * account picker once the site is already authorized — it just silently
+   * returns whichever account is currently active. `wallet_requestPermissions`
+   * forces that picker back open so the user can actually pick a *different*
+   * wallet/account to sign in as, then falls through to the normal connect
+   * flow (fresh nonce + SIWE signature) for whichever address they land on.
+   */
+  const switchWallet = useCallback(async () => {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+      } catch {
+        // Picker dismissed, or the wallet doesn't support wallet_requestPermissions — either
+        // way, fall through to connect() below, which reuses whatever account is active now.
+      }
+    }
+    await connect();
+  }, [connect]);
+
+  return { status, walletAddress, token, error, connect, disconnect, switchWallet };
 }

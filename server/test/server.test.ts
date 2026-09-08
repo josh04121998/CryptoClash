@@ -8,6 +8,7 @@ import { issueSessionToken } from "../src/auth.js";
 import { getBalance } from "../src/coinsRepo.js";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
+import { getTodayQuests } from "../src/questsRepo.js";
 
 let server: MatchServerHandle;
 let url: string;
@@ -326,6 +327,21 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
     return { accountId: account.id, token };
   }
 
+  /**
+   * recordQuestProgress (matchRoom.ts) is a best-effort side-channel — unlike the Coins award,
+   * it's not chained to the matchReward WS message, so there's no message to await. Poll briefly
+   * instead of assuming it's already landed the instant matchReward arrives.
+   */
+  async function waitForQuestProgress(accountId: string, questId: string, atLeast: number): Promise<number> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const quests = await getTodayQuests(pool, accountId);
+      const progress = quests.find((q) => q.id === questId)?.progress ?? 0;
+      if (progress >= atLeast) return progress;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`quest ${questId} never reached progress ${atLeast} for account ${accountId}`);
+  }
+
   it(
     "credits real Postgres Coins to both wallet-linked accounts, more to the winner than the loser, and reports the true balance",
     async () => {
@@ -345,6 +361,11 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
       if (winner === "Draw") {
         expect(rewardFor(aPlayerId)?.type).toBe("matchReward");
         expect(rewardFor(bPlayerId)?.type).toBe("matchReward");
+
+        // Same match also advances the daily-quest "play" track for both participants —
+        // the other half of the Coins-earn loop (questsRepo.ts). No "win" quest on a Draw.
+        await waitForQuestProgress(accountFor[aPlayerId].accountId, "play_1", 1);
+        await waitForQuestProgress(accountFor[bPlayerId].accountId, "play_1", 1);
       } else {
         const loser = enemyOf(winner);
         const winnerReward = rewardFor(winner);
@@ -356,6 +377,14 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
 
         expect(await getBalance(pool, accountFor[winner].accountId)).toBe(winnerReward.balance);
         expect(await getBalance(pool, accountFor[loser].accountId)).toBe(loserReward.balance);
+
+        // Same match also advances the daily-quest "play" track for both participants, and
+        // "win" for the actual winner only — the other half of the Coins-earn loop (questsRepo.ts).
+        await waitForQuestProgress(accountFor[winner].accountId, "play_1", 1);
+        await waitForQuestProgress(accountFor[loser].accountId, "play_1", 1);
+        await waitForQuestProgress(accountFor[winner].accountId, "win_1", 1);
+        const loserQuests = await getTodayQuests(pool, accountFor[loser].accountId);
+        expect(loserQuests.find((q) => q.id === "win_1")!.progress).toBe(0);
       }
 
       aSocket.close();

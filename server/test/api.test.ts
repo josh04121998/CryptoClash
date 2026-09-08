@@ -384,4 +384,54 @@ d("/api/* over real HTTP, against real Postgres", () => {
       expect(disenchantRes.status).toBe(401);
     });
   });
+
+  describe("daily rewards + quests", () => {
+    it("claims the daily reward once, then rejects a same-day repeat with 409", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}` };
+
+      const statusRes = await fetch(`${baseUrl}/api/daily`, { headers: auth });
+      expect(statusRes.status).toBe(200);
+      expect(((await statusRes.json()) as { claimedToday: boolean }).claimedToday).toBe(false);
+
+      const claimRes = await fetch(`${baseUrl}/api/daily/claim`, { method: "POST", headers: auth });
+      expect(claimRes.status).toBe(200);
+      const claimed = (await claimRes.json()) as { coinsEarned: number; streak: number };
+      expect(claimed.streak).toBe(1);
+      expect(claimed.coinsEarned).toBeGreaterThan(0);
+
+      const repeatRes = await fetch(`${baseUrl}/api/daily/claim`, { method: "POST", headers: auth });
+      expect(repeatRes.status).toBe(409);
+    });
+
+    it("lists today's quests and rejects claiming one that isn't complete yet", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const listRes = await fetch(`${baseUrl}/api/quests`, { headers: auth });
+      expect(listRes.status).toBe(200);
+      const { quests } = (await listRes.json()) as { quests: { id: string; progress: number; claimed: boolean }[] };
+      expect(quests.length).toBeGreaterThan(0);
+      expect(quests.every((q) => q.progress === 0 && !q.claimed)).toBe(true);
+
+      const claimRes = await fetch(`${baseUrl}/api/quests/${quests[0].id}/claim`, { method: "POST", headers: auth });
+      expect(claimRes.status).toBe(409);
+    });
+
+    it("rejects claiming an unknown quest with 400", async () => {
+      const { token } = await signIn();
+      const claimRes = await fetch(`${baseUrl}/api/quests/not_a_real_quest/claim`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(claimRes.status).toBe(400);
+    });
+
+    it("rejects daily/quest endpoints with no Authorization header", async () => {
+      expect((await fetch(`${baseUrl}/api/daily`)).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/daily/claim`, { method: "POST" })).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/quests`)).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/quests/play_1/claim`, { method: "POST" })).status).toBe(401);
+    });
+  });
 });

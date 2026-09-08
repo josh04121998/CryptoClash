@@ -12,8 +12,17 @@ import {
   MATCH_WIN_COINS,
   WELCOME_BONUS_COINS,
 } from "../src/coinsRepo.js";
+import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
+import {
+  claimQuest,
+  QuestAlreadyClaimedError,
+  QuestNotCompleteError,
+  recordQuestProgress,
+  UnknownQuestError,
+  getTodayQuests,
+} from "../src/questsRepo.js";
 import {
   craftCard,
   disenchantCards,
@@ -387,6 +396,109 @@ d("accounts + decks (integration, real Postgres)", () => {
       const account = await findOrCreateAccount(pool, "0xpoor");
       await expect(craftCard(pool, account.id, "moon_dog")).rejects.toThrow(InsufficientDustError);
       expect((await getCollectionCounts(pool, account.id))["moon_dog"] ?? 0).toBe(0);
+    });
+  });
+
+  describe("daily login rewards", () => {
+    it("claims the first-ever daily reward with streak 1", async () => {
+      const account = await findOrCreateAccount(pool, "0xdailyfirst");
+      const status = await getDailyStatus(pool, account.id);
+      expect(status.claimedToday).toBe(false);
+      expect(status.streak).toBe(0);
+      expect(status.nextRewardCoins).toBe(DAILY_REWARDS[0]);
+
+      const result = await claimDaily(pool, account.id);
+      expect(result.streak).toBe(1);
+      expect(result.coinsEarned).toBe(DAILY_REWARDS[0]);
+      expect(result.balance).toBe(DAILY_REWARDS[0]);
+      expect(await getBalance(pool, account.id)).toBe(DAILY_REWARDS[0]);
+
+      const after = await getDailyStatus(pool, account.id);
+      expect(after.claimedToday).toBe(true);
+      expect(after.streak).toBe(1);
+    });
+
+    it("rejects claiming twice in the same UTC day, without double-crediting", async () => {
+      const account = await findOrCreateAccount(pool, "0xdailytwice");
+      await claimDaily(pool, account.id);
+      await expect(claimDaily(pool, account.id)).rejects.toThrow(AlreadyClaimedTodayError);
+      expect(await getBalance(pool, account.id)).toBe(DAILY_REWARDS[0]);
+    });
+
+    it("extends the streak when the previous claim was yesterday, and resets it after a gap", async () => {
+      const account = await findOrCreateAccount(pool, "0xdailystreak");
+      const yesterday = new Date();
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      await pool.query("update accounts set last_daily_claim_day = $1, daily_streak = 3 where id = $2", [
+        yesterday.toISOString().slice(0, 10),
+        account.id,
+      ]);
+      const extended = await claimDaily(pool, account.id);
+      expect(extended.streak).toBe(4);
+      expect(extended.coinsEarned).toBe(DAILY_REWARDS[3]);
+
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setUTCDate(twoDaysAgo.getUTCDate() - 2);
+      await pool.query("update accounts set last_daily_claim_day = $1, daily_streak = 4 where id = $2", [
+        twoDaysAgo.toISOString().slice(0, 10),
+        account.id,
+      ]);
+      const reset = await claimDaily(pool, account.id);
+      expect(reset.streak).toBe(1);
+      expect(reset.coinsEarned).toBe(DAILY_REWARDS[0]);
+    });
+
+    it("cycles the reward table past day 7 rather than capping the streak", async () => {
+      const account = await findOrCreateAccount(pool, "0xdailycycle");
+      const yesterday = new Date();
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      await pool.query("update accounts set last_daily_claim_day = $1, daily_streak = 7 where id = $2", [
+        yesterday.toISOString().slice(0, 10),
+        account.id,
+      ]);
+      const result = await claimDaily(pool, account.id);
+      expect(result.streak).toBe(8);
+      expect(result.coinsEarned).toBe(DAILY_REWARDS[0]); // (8-1) % 7 === 0, back to day-1's rate
+    });
+  });
+
+  describe("quests", () => {
+    it("starts every quest at 0 progress, unclaimed", async () => {
+      const account = await findOrCreateAccount(pool, "0xqueststart");
+      const quests = await getTodayQuests(pool, account.id);
+      expect(quests.length).toBeGreaterThan(0);
+      for (const q of quests) {
+        expect(q.progress).toBe(0);
+        expect(q.claimed).toBe(false);
+      }
+    });
+
+    it("recordQuestProgress advances only the matching track, capped at each quest's goal", async () => {
+      const account = await findOrCreateAccount(pool, "0xquestplay");
+      await recordQuestProgress(pool, account.id, "play");
+      await recordQuestProgress(pool, account.id, "play");
+      const quests = await getTodayQuests(pool, account.id);
+      expect(quests.find((q) => q.id === "play_1")!.progress).toBe(1); // goal 1, capped despite 2 records
+      expect(quests.find((q) => q.id === "play_3")!.progress).toBe(2);
+      expect(quests.find((q) => q.id === "win_1")!.progress).toBe(0); // never recorded on the "win" track
+    });
+
+    it("claims a completed quest exactly once, crediting Coins", async () => {
+      const account = await findOrCreateAccount(pool, "0xquestclaim");
+      await recordQuestProgress(pool, account.id, "play");
+      const result = await claimQuest(pool, account.id, "play_1");
+      expect(result.coinsEarned).toBe(50);
+      expect(result.balance).toBe(50);
+      expect(await getBalance(pool, account.id)).toBe(50);
+
+      await expect(claimQuest(pool, account.id, "play_1")).rejects.toThrow(QuestAlreadyClaimedError);
+      expect(await getBalance(pool, account.id)).toBe(50); // unchanged — no double-credit
+    });
+
+    it("rejects claiming an incomplete or unknown quest", async () => {
+      const account = await findOrCreateAccount(pool, "0xquestincomplete");
+      await expect(claimQuest(pool, account.id, "play_1")).rejects.toThrow(QuestNotCompleteError);
+      await expect(claimQuest(pool, account.id, "not_a_real_quest")).rejects.toThrow(UnknownQuestError);
     });
   });
 });

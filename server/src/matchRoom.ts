@@ -2,6 +2,7 @@ import { Intent, MatchState, PlayerId, applyIntent, createMatch } from "@cryptoc
 import { ServerMessage, serializeState } from "@cryptoclash/protocol";
 import { awardMatchResult, MatchOutcome } from "./coinsRepo.js";
 import { getPool } from "./db.js";
+import { recordQuestProgress } from "./questsRepo.js";
 import { RoomHandle, Session } from "./types.js";
 
 /** One live match: owns the authoritative MatchState and the two sockets watching it. */
@@ -79,6 +80,10 @@ export class MatchRoom implements RoomHandle {
         .catch(() => {
           // Best-effort — a Coins award failure shouldn't crash the match or the process.
         });
+      // Best-effort, same reasoning as the Coins award above — a quest-tracking failure
+      // shouldn't crash the match. "play" always advances; "win" only for the actual winner.
+      recordQuestProgress(pool, accountId, "play").catch(() => {});
+      if (outcome === "win") recordQuestProgress(pool, accountId, "win").catch(() => {});
     }
   }
 
