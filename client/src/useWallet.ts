@@ -12,7 +12,7 @@ interface StoredSession {
 }
 
 /** Minimal EIP-1193 injected provider surface — just what connecting + signing needs. */
-interface Eip1193Provider {
+export interface Eip1193Provider {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
   /**
    * Not part of the EIP-1193 base spec, but near-universal in practice
@@ -30,6 +30,27 @@ declare global {
   interface Window {
     ethereum?: Eip1193Provider;
   }
+}
+
+/**
+ * EIP-6963 "Multi Injected Provider Discovery" — replaces the old assumption
+ * that `window.ethereum` is *the* wallet. With more than one extension
+ * installed (MetaMask + Coinbase Wallet + Rabby + Phantom's EVM mode, etc.),
+ * `window.ethereum` is just whichever one happened to claim that global —
+ * there was never a way for a user to actually pick between them. EIP-6963
+ * wallets instead announce themselves as page-level events, so the app can
+ * enumerate every installed wallet and let the user choose. `window.ethereum`
+ * stays as the fallback for a wallet that hasn't adopted EIP-6963 yet.
+ */
+export interface DiscoveredWallet {
+  uuid: string;
+  name: string;
+  icon: string;
+}
+
+interface Eip6963ProviderDetail {
+  info: DiscoveredWallet;
+  provider: Eip1193Provider;
 }
 
 function loadStoredSession(): StoredSession | null {
@@ -64,6 +85,11 @@ export function useWallet() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [discoveredWallets, setDiscoveredWallets] = useState<Eip6963ProviderDetail[]>([]);
+  // Whichever provider actually signed the current session — not always window.ethereum, once
+  // there's more than one wallet to choose from — so accountsChanged/switchWallet target the
+  // right extension instead of silently falling back to whatever window.ethereum points at.
+  const [activeProvider, setActiveProvider] = useState<Eip1193Provider | null>(null);
 
   useEffect(() => {
     const stored = loadStoredSession();
@@ -74,16 +100,23 @@ export function useWallet() {
     }
   }, []);
 
-  const connect = useCallback(async () => {
-    setError(null);
-    if (!window.ethereum) {
-      setStatus("error");
-      setError("No wallet found — install MetaMask or another browser wallet extension.");
-      return;
+  // Collect every EIP-6963-announcing wallet. `requestProvider` re-asks wallets that already
+  // announced before this listener was attached (the common case — they announce on page load).
+  useEffect(() => {
+    function handleAnnounce(event: Event) {
+      const detail = (event as CustomEvent<Eip6963ProviderDetail>).detail;
+      setDiscoveredWallets((prev) => (prev.some((w) => w.info.uuid === detail.info.uuid) ? prev : [...prev, detail]));
     }
+    window.addEventListener("eip6963:announceProvider", handleAnnounce);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    return () => window.removeEventListener("eip6963:announceProvider", handleAnnounce);
+  }, []);
+
+  const signInWith = useCallback(async (eth: Eip1193Provider) => {
+    setError(null);
     setStatus("connecting");
     try {
-      const accounts = (await window.ethereum.request({ method: "eth_requestAccounts" })) as string[];
+      const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
       if (!accounts[0]) throw new Error("No account returned by the wallet.");
       // SIWE messages require an EIP-55 checksummed address (siwe's own validation throws
       // "invalid EIP-55 address" otherwise) — not every wallet returns one already checksummed
@@ -101,7 +134,7 @@ export function useWallet() {
         nonce,
       });
       const message = siwe.prepareMessage();
-      const signature = (await window.ethereum.request({
+      const signature = (await eth.request({
         method: "personal_sign",
         params: [message, address],
       })) as string;
@@ -118,6 +151,7 @@ export function useWallet() {
       storeSession({ token: result.token, walletAddress: result.account.walletAddress });
       setWalletAddress(result.account.walletAddress);
       setToken(result.token);
+      setActiveProvider(eth);
       setStatus("connected");
     } catch (e) {
       setStatus("error");
@@ -125,10 +159,36 @@ export function useWallet() {
     }
   }, []);
 
+  /** Default path — used when there's zero or one wallet to choose between, so most users never see a picker. */
+  const connect = useCallback(async () => {
+    const eth = discoveredWallets[0]?.provider ?? window.ethereum;
+    if (!eth) {
+      setError("No wallet found — install MetaMask or another browser wallet extension.");
+      setStatus("error");
+      return;
+    }
+    await signInWith(eth);
+  }, [discoveredWallets, signInWith]);
+
+  /** Explicit pick from a multi-wallet picker (App.tsx shows one whenever discoveredWallets.length > 1). */
+  const connectWithWallet = useCallback(
+    async (uuid: string) => {
+      const found = discoveredWallets.find((w) => w.info.uuid === uuid);
+      if (!found) {
+        setError("That wallet is no longer available — refresh and try again.");
+        setStatus("error");
+        return;
+      }
+      await signInWith(found.provider);
+    },
+    [discoveredWallets, signInWith],
+  );
+
   const disconnect = useCallback(() => {
     storeSession(null);
     setWalletAddress(null);
     setToken(null);
+    setActiveProvider(null);
     setStatus("disconnected");
   }, []);
 
@@ -139,7 +199,7 @@ export function useWallet() {
   // signature prompt the instant someone switches accounts for an unrelated reason would be
   // surprising; asking them to hit Connect Wallet again is a clearer, expected interaction.
   useEffect(() => {
-    const ethereum = window.ethereum;
+    const ethereum = activeProvider ?? window.ethereum;
     if (!ethereum?.on) return;
     function handleAccountsChanged(accounts: string[]) {
       if (accounts.length === 0) {
@@ -151,33 +211,53 @@ export function useWallet() {
         storeSession(null);
         setToken(null);
         setWalletAddress(null);
+        setActiveProvider(null);
         setStatus("disconnected");
         setError("Wallet account changed — click Connect Wallet to sign in with it.");
       }
     }
     ethereum.on("accountsChanged", handleAccountsChanged);
     return () => ethereum.removeListener?.("accountsChanged", handleAccountsChanged);
-  }, [walletAddress, disconnect]);
+  }, [walletAddress, activeProvider, disconnect]);
 
   /**
+   * Switches *account* within the currently active wallet (or window.ethereum
+   * if nothing's connected yet). Only the right tool when there's one wallet
+   * to work with — when multiple are installed, App.tsx shows the wallet
+   * picker instead so the user can pick a different *extension*, which this
+   * can't do (it only ever re-prompts whichever provider it's given).
+   *
    * A plain eth_requestAccounts (what `connect` calls) won't show MetaMask's
    * account picker once the site is already authorized — it just silently
    * returns whichever account is currently active. `wallet_requestPermissions`
    * forces that picker back open so the user can actually pick a *different*
-   * wallet/account to sign in as, then falls through to the normal connect
-   * flow (fresh nonce + SIWE signature) for whichever address they land on.
+   * account to sign in as, then falls through to the normal sign-in flow
+   * (fresh nonce + SIWE signature) for whichever address they land on.
    */
   const switchWallet = useCallback(async () => {
-    if (window.ethereum) {
+    const eth = activeProvider ?? discoveredWallets[0]?.provider ?? window.ethereum;
+    if (eth) {
       try {
-        await window.ethereum.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+        await eth.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
       } catch {
         // Picker dismissed, or the wallet doesn't support wallet_requestPermissions — either
-        // way, fall through to connect() below, which reuses whatever account is active now.
+        // way, fall through below, which reuses whatever account is active now.
       }
+      await signInWith(eth);
+    } else {
+      await connect();
     }
-    await connect();
-  }, [connect]);
+  }, [activeProvider, discoveredWallets, signInWith, connect]);
 
-  return { status, walletAddress, token, error, connect, disconnect, switchWallet };
+  return {
+    status,
+    walletAddress,
+    token,
+    error,
+    connect,
+    connectWithWallet,
+    discoveredWallets: discoveredWallets.map((w) => w.info),
+    disconnect,
+    switchWallet,
+  };
 }

@@ -1140,6 +1140,62 @@ button {
   color: var(--text-dim);
 }
 
+/* Wallet picker (EIP-6963 multi-wallet chooser) */
+
+.wallet-picker__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(2, 5, 4, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-picker {
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 260px;
+  max-width: 90vw;
+  box-shadow: 0 0 40px -8px var(--glow-green);
+}
+
+.wallet-picker__title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.wallet-picker__option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  text-align: left;
+}
+
+.wallet-picker__option:hover {
+  border-color: var(--accent-2);
+}
+
+.wallet-picker__icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
 /* Connection status */
 
 .connect-status {

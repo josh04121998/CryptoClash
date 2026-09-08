@@ -11,6 +11,7 @@ import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
 import { ReferralScreen } from "./components/ReferralScreen.js";
+import { WalletPicker } from "./components/WalletPicker.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
@@ -40,7 +41,19 @@ export default function App() {
   const [deckCards, setDeckCards] = useState<string[]>(SAMPLE_DECK);
   const [editingDeck, setEditingDeck] = useState<SavedDeck | undefined>(undefined);
   const [coinsBalance, setCoinsBalance] = useState<number | null>(null);
+  const [showWalletPicker, setShowWalletPicker] = useState(false);
   const wallet = useWallet();
+
+  // Only worth a picker once there's actually more than one wallet to choose between — with
+  // zero or one installed, connect()/switchWallet() already do the right thing on their own.
+  function handleConnectClick() {
+    if (wallet.discoveredWallets.length > 1) setShowWalletPicker(true);
+    else wallet.connect();
+  }
+  function handleSwitchClick() {
+    if (wallet.discoveredWallets.length > 1) setShowWalletPicker(true);
+    else wallet.switchWallet();
+  }
 
   const refreshCoins = useCallback((token: string) => {
     apiFetch<{ balance: number }>("/api/coins", { token })
@@ -168,7 +181,7 @@ export default function App() {
               <button type="button" onClick={() => setMode("my-decks")}>
                 My Decks
               </button>
-              <button type="button" title={`Switch wallet (currently ${wallet.walletAddress})`} onClick={wallet.switchWallet}>
+              <button type="button" title={`Switch wallet (currently ${wallet.walletAddress})`} onClick={handleSwitchClick}>
                 {shortAddress(wallet.walletAddress)}
               </button>
               <button type="button" title="Disconnect" onClick={wallet.disconnect}>
@@ -176,13 +189,23 @@ export default function App() {
               </button>
             </>
           ) : (
-            <button type="button" onClick={wallet.connect} disabled={wallet.status === "connecting"}>
+            <button type="button" onClick={handleConnectClick} disabled={wallet.status === "connecting"}>
               {wallet.status === "connecting" ? "Connecting…" : "Connect Wallet"}
             </button>
           )}
         </div>
       </header>
       {wallet.status === "error" && wallet.error && <p className="wallet-error">{wallet.error}</p>}
+      {showWalletPicker && (
+        <WalletPicker
+          wallets={wallet.discoveredWallets}
+          onClose={() => setShowWalletPicker(false)}
+          onSelect={(uuid) => {
+            setShowWalletPicker(false);
+            wallet.connectWithWallet(uuid);
+          }}
+        />
+      )}
       <main className="menu">
         <button type="button" className="menu__option" onClick={() => setMode("pick-local")}>
           <span className="menu__option-title">Play vs AI</span>
