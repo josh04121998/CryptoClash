@@ -1,15 +1,28 @@
+/*
+ * Design language: "the trading floor is the battlefield" — a dark exchange-floor/bullpen
+ * aesthetic (terminal green, ticker gold, electric cyan readouts) doubling as the game's combat
+ * identity, on-theme for a cast of Doggos/Frogs/Degens/Crypto Bros/Builders/Normies. Chakra Petch
+ * (a squared-off technical display face) for headlines/branding moments; IBM Plex Mono for any
+ * number that reads like a terminal readout (HP, Energy, Coins, leaderboard stats); everything
+ * else stays a plain readable sans so dense in-match text never fights the theme.
+ */
 :root {
-  --bg: #0a0e17;
-  --panel: #121826;
-  --panel-alt: #1a2236;
-  --border: #2a3550;
-  --text: #e8ecf5;
-  --text-dim: #8a93ab;
-  --accent: #f5c542;
-  --accent-2: #5eead4;
-  --hp: #ef4444;
-  --energy: #38bdf8;
-  --danger: #f87171;
+  --bg: #050907;
+  --panel: #0d1512;
+  --panel-alt: #131e19;
+  --border: #22322b;
+  --border-bright: #2e5c46;
+  --text: #dfeee7;
+  --text-dim: #71887d;
+  --accent: #f2b705;
+  --accent-2: #00e28a;
+  --hp: #ff4757;
+  --energy: #35c7ff;
+  --danger: #ff4757;
+  --glow-green: rgba(0, 226, 138, 0.16);
+  --glow-gold: rgba(242, 183, 5, 0.14);
+  --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", monospace;
 }
 
 * {
@@ -24,7 +37,8 @@ body,
 }
 
 body {
-  background: radial-gradient(circle at top, #131b2e 0%, var(--bg) 60%);
+  background: radial-gradient(circle at 15% 0%, var(--glow-green) 0%, transparent 45%), radial-gradient(circle at 85% 100%, var(--glow-gold) 0%, transparent 50%),
+    var(--bg);
   color: var(--text);
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   -webkit-tap-highlight-color: transparent;
@@ -49,14 +63,24 @@ button {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-bright);
+  box-shadow: 0 1px 0 var(--glow-green);
 }
 
 .app-bar h1 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   letter-spacing: 0.08em;
   color: var(--accent);
+  text-shadow: 0 0 14px var(--glow-gold);
+}
+
+.app-bar__logo-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 .app-bar__subtitle {
@@ -82,8 +106,9 @@ button {
 
 .app-bar__coins {
   align-self: center;
-  color: var(--energy);
-  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 600;
   font-size: 0.85rem;
 }
 
@@ -427,23 +452,30 @@ button {
 .menu__option {
   width: 100%;
   max-width: 360px;
-  background: var(--panel);
+  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-alt) 100%);
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-left: 3px solid var(--border-bright);
+  border-radius: 8px;
   padding: 1rem 1.2rem;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .menu__option:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-2);
+  border-left-color: var(--accent);
+  box-shadow: 0 0 20px -6px var(--glow-green);
+  transform: translateX(2px);
 }
 
 .menu__option-title {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: 1.05rem;
+  letter-spacing: 0.03em;
   color: var(--accent);
 }
 
@@ -1396,4 +1428,321 @@ button {
     padding: 0.5rem 1.2rem;
     font-size: 0.85rem;
   }
+}
+
+/* Ticker tape — a scrolling "exchange floor readout" strip, reused on the landing page and
+   available for any screen that wants a little ambient trading-floor noise. */
+
+.ticker-tape {
+  overflow: hidden;
+  white-space: nowrap;
+  background: #050807;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.ticker-tape__track {
+  display: inline-flex;
+  animation: ticker-scroll 34s linear infinite;
+}
+
+.ticker-tape__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+}
+
+.ticker-tape__item--up {
+  color: var(--accent-2);
+}
+
+.ticker-tape__item--down {
+  color: var(--hp);
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-tape__track {
+    animation: none;
+  }
+}
+
+/* Landing page — the marketing/hype page shown before the app menu. */
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.landing__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 25% 10%, var(--glow-green) 0%, transparent 45%), radial-gradient(circle at 78% 0%, var(--glow-gold) 0%, transparent 40%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 3px), var(--bg);
+}
+
+.landing__skyline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40vh;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.landing__skyline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.landing__content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+}
+
+.landing__logo {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: 0 0 14px var(--glow-gold);
+}
+
+.landing__nav-enter {
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 6px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.landing__hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.1rem;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.landing__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.landing__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 9vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  text-shadow: 0 0 40px var(--glow-green);
+}
+
+.landing__title span {
+  color: var(--accent);
+  text-shadow: 0 0 40px var(--glow-gold);
+}
+
+.landing__tagline {
+  max-width: 46ch;
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-dim);
+}
+
+.landing__cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.landing__cta {
+  background: linear-gradient(135deg, var(--accent-2), #00a868);
+  border: none;
+  border-radius: 8px;
+  padding: 0.9rem 2rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.03em;
+  color: #04140d;
+  box-shadow: 0 0 30px -6px var(--glow-green);
+}
+
+.landing__cta:hover {
+  filter: brightness(1.08);
+}
+
+.landing__cta-secondary {
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  padding: 0.9rem 1.6rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.landing__factions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  max-width: 720px;
+  margin-top: 1.75rem;
+}
+
+.landing__faction-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: var(--panel);
+}
+
+.landing__faction-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.landing__section {
+  position: relative;
+  z-index: 1;
+  padding: 2.5rem 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+}
+
+.landing__section-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: var(--text);
+}
+
+.landing__pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  max-width: 900px;
+  width: 100%;
+}
+
+.landing__pillar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.landing__pillar-title {
+  font-family: var(--font-display);
+  color: var(--accent-2);
+  font-size: 0.95rem;
+}
+
+.landing__pillar-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.landing__community {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.landing__community-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  background: var(--panel);
+  cursor: default;
+  position: relative;
+}
+
+.landing__community-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--border-bright);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.landing__footer {
+  position: relative;
+  z-index: 1;
+  padding: 1.25rem 1.5rem 2rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-dim);
 }

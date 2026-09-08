@@ -6,6 +6,7 @@ import { CraftingScreen } from "./components/CraftingScreen.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
+import { LandingPage } from "./components/LandingPage.js";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
@@ -14,6 +15,7 @@ import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
 
 type Mode =
+  | "landing"
   | "menu"
   | "pick-local"
   | "pick-online"
@@ -32,7 +34,7 @@ function shortAddress(address: string): string {
 }
 
 export default function App() {
-  const [mode, setMode] = useState<Mode>("menu");
+  const [mode, setMode] = useState<Mode>("landing");
   const [deckCards, setDeckCards] = useState<string[]>(SAMPLE_DECK);
   const [editingDeck, setEditingDeck] = useState<SavedDeck | undefined>(undefined);
   const [coinsBalance, setCoinsBalance] = useState<number | null>(null);
@@ -48,6 +50,8 @@ export default function App() {
     if (wallet.token) refreshCoins(wallet.token);
     else setCoinsBalance(null);
   }, [wallet.token, refreshCoins]);
+
+  if (mode === "landing") return <LandingPage onEnter={() => setMode("menu")} />;
 
   if (mode === "local") return <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
   if (mode === "online") return <OnlineMatch deckCards={deckCards} token={wallet.token} onExit={() => setMode("menu")} />;
@@ -131,8 +135,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>CRYPTO CLASH</h1>
-        <span className="app-bar__subtitle">prototype</span>
+        <button type="button" className="app-bar__logo-btn" onClick={() => setMode("landing")} title="Back to landing">
+          <h1>CRYPTO CLASH</h1>
+        </button>
         <div className="app-bar__actions">
           {wallet.status === "connected" && wallet.walletAddress ? (
             <>
