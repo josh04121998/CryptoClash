@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
+import { playRewardSound } from "../sound.js";
 
 export interface QuestsScreenProps {
   token: string;
@@ -51,6 +52,7 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
       });
       onBalanceChange(result.balance);
       setDaily((d) => (d ? { ...d, claimedToday: true, streak: result.streak } : d));
+      playRewardSound();
     } catch (e) {
       setActionError((e as Error).message);
     } finally {
@@ -68,6 +70,7 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
       });
       onBalanceChange(result.balance);
       setQuests((qs) => qs.map((q) => (q.id === quest.id ? { ...q, claimed: true } : q)));
+      playRewardSound();
     } catch (e) {
       setActionError((e as Error).message);
     } finally {

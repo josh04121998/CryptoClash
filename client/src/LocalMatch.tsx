@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MatchView } from "./components/MatchView.js";
+import { MuteToggle } from "./components/MuteToggle.js";
 import { useMatch } from "./useMatch.js";
 
 export interface LocalMatchProps {
@@ -17,6 +18,7 @@ export function LocalMatch({ deckCards, onExit }: LocalMatchProps) {
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">practice — vs. bot</span>
         <div className="app-bar__actions">
+          <MuteToggle />
           <button type="button" onClick={() => setLogOpen((o) => !o)}>
             Log
           </button>

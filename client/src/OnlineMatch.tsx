@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MatchView } from "./components/MatchView.js";
+import { MuteToggle } from "./components/MuteToggle.js";
+import { playRewardSound } from "./sound.js";
 import { useOnlineMatch } from "./useOnlineMatch.js";
 
 export interface OnlineMatchProps {
@@ -18,6 +20,12 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const prevRewardRef = useRef(reward);
+  useEffect(() => {
+    if (reward && reward !== prevRewardRef.current) playRewardSound();
+    prevRewardRef.current = reward;
+  }, [reward]);
+
   function handleExit() {
     disconnect();
     onExit();
@@ -29,6 +37,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">multiplayer</span>
         <div className="app-bar__actions">
+          <MuteToggle />
           {reward && <span className="match-reward">+{reward.coinsEarned} Coins</span>}
           {status === "in-match" && (
             <button type="button" onClick={() => setLogOpen((o) => !o)}>

@@ -1,7 +1,10 @@
-import { CARD_POOL } from "@cryptoclash/engine";
+import { CARD_POOL, Rarity } from "@cryptoclash/engine";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
+import { playRevealSound } from "../sound.js";
 import { CardFace } from "./CardFace.js";
+
+const EXCITING_RARITIES: ReadonlySet<Rarity> = new Set(["Rare", "Epic", "Legendary", "Mythic", "Genesis"]);
 
 interface PackDefinition {
   id: string;
@@ -51,8 +54,12 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
       setRevealedCount(0);
       // Reveal one card at a time rather than dumping the whole pack at once —
       // spec.md Section 17 calls this "one of the game's signature moments".
-      result.cards.forEach((_, i) => {
-        setTimeout(() => setRevealedCount((c) => Math.max(c, i + 1)), REVEAL_STEP_MS * (i + 1));
+      result.cards.forEach((card, i) => {
+        setTimeout(() => {
+          setRevealedCount((c) => Math.max(c, i + 1));
+          const rarity = CARD_POOL[card.templateId].rarity;
+          playRevealSound(card.isFoil || (rarity !== undefined && EXCITING_RARITIES.has(rarity)));
+        }, REVEAL_STEP_MS * (i + 1));
       });
     } catch (e) {
       setError((e as Error).message);

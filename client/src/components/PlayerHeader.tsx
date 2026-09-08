@@ -12,15 +12,24 @@ export interface PlayerHeaderProps {
 export function PlayerHeader({ name, player, isActive, targetable = false, onClick }: PlayerHeaderProps) {
   // Same one-shot "just took damage" pattern as CardFace: diff this render's
   // HP against last render's to detect a hit, rather than reacting to every
-  // re-render while HP happens to be below max.
+  // re-render while HP happens to be below max. Also covers a heal (HP rising).
   const [justHit, setJustHit] = useState(false);
+  const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
   const prevHpRef = useRef(player.hp);
   useEffect(() => {
-    if (player.hp < prevHpRef.current) {
-      setJustHit(true);
-      const timer = setTimeout(() => setJustHit(false), 450);
+    const prev = prevHpRef.current;
+    if (player.hp !== prev) {
+      const heal = player.hp > prev;
       prevHpRef.current = player.hp;
-      return () => clearTimeout(timer);
+      setPopup({ amount: Math.abs(player.hp - prev), heal, key: Date.now() });
+      const popupTimer = setTimeout(() => setPopup(null), 700);
+      if (heal) return () => clearTimeout(popupTimer);
+      setJustHit(true);
+      const hitTimer = setTimeout(() => setJustHit(false), 450);
+      return () => {
+        clearTimeout(popupTimer);
+        clearTimeout(hitTimer);
+      };
     }
     prevHpRef.current = player.hp;
   }, [player.hp]);
@@ -45,6 +54,12 @@ export function PlayerHeader({ name, player, isActive, targetable = false, onCli
         ⚡ {player.energy}/{player.maxEnergy}
       </span>
       <span className="player-header__deck">Deck: {player.deck.length}</span>
+      {popup && (
+        <span key={popup.key} className={`player-header__popup ${popup.heal ? "player-header__popup--heal" : "player-header__popup--damage"}`}>
+          {popup.heal ? "+" : "-"}
+          {popup.amount}
+        </span>
+      )}
     </button>
   );
 }

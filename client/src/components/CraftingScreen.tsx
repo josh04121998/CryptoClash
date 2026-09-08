@@ -2,6 +2,7 @@ import { CARD_POOL, CardTemplate, Rarity } from "@cryptoclash/engine";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
 import { rarityColor } from "../rarityColor.js";
+import { playRevealSound, playRewardSound } from "../sound.js";
 import { CardFace } from "./CardFace.js";
 
 export interface CraftingScreenProps {
@@ -76,6 +77,7 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
       setDust(result.balance);
       setOwned((o) => ({ ...o, [template.id]: Math.max(0, (o[template.id] ?? 0) - count) }));
       setDisenchantQty((q) => ({ ...q, [template.id]: 1 }));
+      playRewardSound();
     } catch (e) {
       setActionError((e as Error).message);
     } finally {
@@ -94,6 +96,7 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
       });
       setDust(result.balance);
       setOwned((o) => ({ ...o, [template.id]: (o[template.id] ?? 0) + 1 }));
+      playRevealSound(true);
     } catch (e) {
       setActionError((e as Error).message);
     } finally {

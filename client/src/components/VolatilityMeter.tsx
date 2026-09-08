@@ -8,7 +8,10 @@ export function VolatilityMeter({ volatility }: VolatilityMeterProps) {
     <div className="volatility-meter" title="Reaching 10 triggers a random Market Event, then resets to 0.">
       <span className="volatility-meter__label">VOLATILITY {volatility}/10</span>
       <div className="volatility-meter__track">
-        <div className="volatility-meter__fill" style={{ width: `${(volatility / 10) * 100}%` }} />
+        <div
+          className={volatility >= 8 ? "volatility-meter__fill volatility-meter__fill--critical" : "volatility-meter__fill"}
+          style={{ width: `${(volatility / 10) * 100}%` }}
+        />
       </div>
     </div>
   );

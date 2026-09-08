@@ -40,15 +40,25 @@ export function CardFace({
   // "just hit" is a one-shot trigger, distinct from `damaged` above: it fires
   // only on the render where health *drops* from what it was last render,
   // not on every render while the creature happens to be below max health.
+  // `popup` rides the same detection but also covers a *heal* (health rising) —
+  // one mechanism, two colors, both one-shot pop-and-fade numbers.
   const [justHit, setJustHit] = useState(false);
+  const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
   const prevHealthRef = useRef(health);
   useEffect(() => {
     const prev = prevHealthRef.current;
-    if (prev !== undefined && health !== undefined && health < prev) {
-      setJustHit(true);
-      const timer = setTimeout(() => setJustHit(false), 450);
+    if (prev !== undefined && health !== undefined && health !== prev) {
+      const heal = health > prev;
       prevHealthRef.current = health;
-      return () => clearTimeout(timer);
+      setPopup({ amount: Math.abs(health - prev), heal, key: Date.now() });
+      const popupTimer = setTimeout(() => setPopup(null), 700);
+      if (heal) return () => clearTimeout(popupTimer);
+      setJustHit(true);
+      const hitTimer = setTimeout(() => setJustHit(false), 450);
+      return () => {
+        clearTimeout(popupTimer);
+        clearTimeout(hitTimer);
+      };
     }
     prevHealthRef.current = health;
   }, [health]);
@@ -94,6 +104,12 @@ export function CardFace({
         <span className="card-face__stats">
           <span className="card-face__attack">{showAttack}</span>
           <span className={`card-face__health ${damaged ? "card-face__health--damaged" : ""}`}>{showHealth}</span>
+        </span>
+      )}
+      {popup && (
+        <span key={popup.key} className={`card-face__popup ${popup.heal ? "card-face__popup--heal" : "card-face__popup--damage"}`}>
+          {popup.heal ? "+" : "-"}
+          {popup.amount}
         </span>
       )}
     </button>

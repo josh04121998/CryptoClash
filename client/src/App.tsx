@@ -8,6 +8,7 @@ import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
 import { LandingPage } from "./components/LandingPage.js";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
+import { MuteToggle } from "./components/MuteToggle.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
 import { ReferralScreen } from "./components/ReferralScreen.js";
@@ -158,6 +159,7 @@ export default function App() {
           <h1>CRYPTO CLASH</h1>
         </button>
         <div className="app-bar__actions">
+          <MuteToggle />
           {wallet.status === "connected" && wallet.walletAddress ? (
             <>
               <span className="app-bar__coins" title="Coins">

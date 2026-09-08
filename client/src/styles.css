@@ -134,6 +134,7 @@ button {
 }
 
 .player-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -229,6 +230,20 @@ button {
   height: 100%;
   background: linear-gradient(90deg, var(--energy), var(--danger));
   transition: width 0.3s ease;
+}
+
+@keyframes volatility-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.6);
+  }
+}
+
+.volatility-meter__fill--critical {
+  animation: volatility-pulse 0.7s ease-in-out infinite;
 }
 
 .table__divider {
@@ -1408,6 +1423,78 @@ button {
 
 .player-header__hp--hit {
   animation: hp-flash 0.5s ease;
+}
+
+/* Floating damage/heal number popups — CardFace and PlayerHeader share the same animation. */
+
+@keyframes number-popup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -6px) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -14px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -22px) scale(1);
+  }
+}
+
+.card-face__popup,
+.player-header__popup {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, 0);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.1rem;
+  pointer-events: none;
+  animation: number-popup 0.7s ease-out forwards;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+
+.player-header__popup {
+  top: -0.4rem;
+  font-size: 1.3rem;
+}
+
+.card-face__popup--damage,
+.player-header__popup--damage {
+  color: var(--hp);
+}
+
+.card-face__popup--heal,
+.player-header__popup--heal {
+  color: var(--accent-2);
+}
+
+/* Market Event screen flash — a dramatic, game-swinging moment (batlleSpec.md Sections 16-18) gets a visual beat to match its sound. */
+
+@keyframes market-event-flash {
+  0% {
+    background-color: transparent;
+    filter: brightness(1);
+  }
+  15% {
+    background-color: rgba(242, 183, 5, 0.16);
+    filter: brightness(1.25);
+  }
+  100% {
+    background-color: transparent;
+    filter: brightness(1);
+  }
+}
+
+.table--market-event-flash {
+  animation: market-event-flash 0.5s ease-out;
 }
 
 /* Interaction polish (hover/lift, smoother transitions, turn affordance) */

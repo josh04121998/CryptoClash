@@ -1,5 +1,7 @@
 import { CARD_POOL, Intent, MatchState, PlayerId, targetsFriendlyCreature } from "@cryptoclash/engine";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { playClickSound, playErrorSound, playEndTurnSound, playSelectSound } from "../sound.js";
+import { useMatchSounds } from "../useMatchSounds.js";
 import { BoardRow } from "./BoardRow.js";
 import { HandRow } from "./HandRow.js";
 import { LogPanel } from "./LogPanel.js";
@@ -48,6 +50,24 @@ export function MatchView({
   const opponentId: PlayerId = myPlayerId === "A" ? "B" : "A";
   const [selection, setSelection] = useState<Selection>({ type: "none" });
 
+  const { marketEventFlash } = useMatchSounds(state, myPlayerId);
+  const prevErrorRef = useRef(lastError);
+  useEffect(() => {
+    if (lastError && lastError !== prevErrorRef.current) playErrorSound();
+    prevErrorRef.current = lastError;
+  }, [lastError]);
+
+  const [flashing, setFlashing] = useState(false);
+  const prevFlashCountRef = useRef(marketEventFlash);
+  useEffect(() => {
+    if (marketEventFlash !== prevFlashCountRef.current) {
+      prevFlashCountRef.current = marketEventFlash;
+      setFlashing(true);
+      const timer = setTimeout(() => setFlashing(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [marketEventFlash]);
+
   const me = state.players[myPlayerId];
   const canAct = state.activePlayer === myPlayerId && !state.winner;
   const act = (fn: () => void) => {
@@ -58,9 +78,11 @@ export function MatchView({
   function onHandCardClick(index: number) {
     if (!canAct) return;
     if (selection.type === "hand" && selection.handIndex === index) {
+      playClickSound();
       setSelection({ type: "none" });
       return;
     }
+    playSelectSound();
     const templateId = me.hand[index];
     const template = CARD_POOL[templateId];
     if (template.type !== "Creature" && !needsTarget(templateId)) {
@@ -98,6 +120,7 @@ export function MatchView({
       setSelection({ type: "none" });
       return;
     }
+    playSelectSound();
     setSelection(selection.type === "attacker" && selection.slot === slot ? { type: "none" } : { type: "attacker", slot });
   }
 
@@ -169,7 +192,7 @@ export function MatchView({
 
   return (
     <>
-      <main className="table">
+      <main className={flashing ? "table table--market-event-flash" : "table"}>
         <PlayerHeader
           name={opponentLabel}
           player={state.players[opponentId]}
@@ -208,7 +231,10 @@ export function MatchView({
           type="button"
           className="end-turn-btn"
           disabled={!canAct}
-          onClick={() => act(() => dispatch({ kind: "endTurn", playerId: myPlayerId }))}
+          onClick={() => {
+            playEndTurnSound();
+            act(() => dispatch({ kind: "endTurn", playerId: myPlayerId }));
+          }}
         >
           End Turn
         </button>
