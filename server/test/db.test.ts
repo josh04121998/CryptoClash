@@ -13,6 +13,15 @@ import {
   WELCOME_BONUS_COINS,
 } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
+import {
+  getMyCoinsEarned,
+  getMyWinRate,
+  getMyWins,
+  getTopCoinsEarned,
+  getTopWinRate,
+  getTopWins,
+  MIN_GAMES_FOR_WIN_RATE,
+} from "../src/leaderboardRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
 import {
@@ -499,6 +508,70 @@ d("accounts + decks (integration, real Postgres)", () => {
       const account = await findOrCreateAccount(pool, "0xquestincomplete");
       await expect(claimQuest(pool, account.id, "play_1")).rejects.toThrow(QuestNotCompleteError);
       await expect(claimQuest(pool, account.id, "not_a_real_quest")).rejects.toThrow(UnknownQuestError);
+    });
+  });
+
+  describe("leaderboard", () => {
+    it("ranks accounts by wins, most first, and omits accounts with zero wins", async () => {
+      const a = await findOrCreateAccount(pool, "0xleaderwinsa");
+      const b = await findOrCreateAccount(pool, "0xleaderwinsb");
+      const c = await findOrCreateAccount(pool, "0xleaderwinsc");
+      await awardMatchResult(pool, a.id, "win");
+      await awardMatchResult(pool, a.id, "win");
+      await awardMatchResult(pool, a.id, "win");
+      await awardMatchResult(pool, b.id, "win");
+      // c never wins — should never appear on this board.
+
+      const top = await getTopWins(pool);
+      const aEntry = top.find((e) => e.walletAddress === "0xleaderwinsa");
+      const bEntry = top.find((e) => e.walletAddress === "0xleaderwinsb");
+      expect(aEntry?.wins).toBe(3);
+      expect(bEntry?.wins).toBe(1);
+      expect(aEntry!.rank).toBeLessThan(bEntry!.rank);
+      expect(top.some((e) => e.walletAddress === "0xleaderwinsc")).toBe(false);
+
+      expect(await getMyWins(pool, a.id)).toEqual({ wins: 3, rank: aEntry!.rank });
+      expect(await getMyWins(pool, c.id)).toEqual({ wins: 0, rank: null });
+    });
+
+    it("ranks accounts by lifetime Coins earned, unaffected by later spending", async () => {
+      const spender = await findOrCreateAccount(pool, "0xleadercoinsspender");
+      const saver = await findOrCreateAccount(pool, "0xleadercoinssaver");
+      await grantWelcomeBonus(pool, spender.id);
+      await grantWelcomeBonus(pool, saver.id);
+      await openPack(pool, spender.id, "standard"); // spends Coins — shouldn't reduce "earned"
+
+      const earnedSpender = await getMyCoinsEarned(pool, spender.id);
+      const earnedSaver = await getMyCoinsEarned(pool, saver.id);
+      expect(earnedSpender.coinsEarned).toBe(WELCOME_BONUS_COINS);
+      expect(earnedSaver.coinsEarned).toBe(WELCOME_BONUS_COINS);
+      expect(await getBalance(pool, spender.id)).toBeLessThan(earnedSpender.coinsEarned);
+
+      const top = await getTopCoinsEarned(pool);
+      expect(top.some((e) => e.walletAddress === "0xleadercoinsspender" && e.coinsEarned === WELCOME_BONUS_COINS)).toBe(true);
+    });
+
+    it("excludes accounts under MIN_GAMES_FOR_WIN_RATE from the win-rate board, but still reports their raw stats", async () => {
+      const veteran = await findOrCreateAccount(pool, "0xleaderwinratevet");
+      const rookie = await findOrCreateAccount(pool, "0xleaderwinraterookie");
+      for (let i = 0; i < MIN_GAMES_FOR_WIN_RATE; i++) {
+        await awardMatchResult(pool, veteran.id, i === 0 ? "loss" : "win");
+      }
+      await awardMatchResult(pool, rookie.id, "win"); // 1 game — below threshold
+
+      const top = await getTopWinRate(pool);
+      expect(top.some((e) => e.walletAddress === "0xleaderwinratevet")).toBe(true);
+      expect(top.some((e) => e.walletAddress === "0xleaderwinraterookie")).toBe(false);
+
+      const veteranStats = await getMyWinRate(pool, veteran.id);
+      expect(veteranStats.games).toBe(MIN_GAMES_FOR_WIN_RATE);
+      expect(veteranStats.wins).toBe(MIN_GAMES_FOR_WIN_RATE - 1);
+      expect(veteranStats.rank).not.toBeNull();
+
+      const rookieStats = await getMyWinRate(pool, rookie.id);
+      expect(rookieStats.games).toBe(1);
+      expect(rookieStats.wins).toBe(1);
+      expect(rookieStats.rank).toBeNull();
     });
   });
 });

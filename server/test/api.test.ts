@@ -434,4 +434,33 @@ d("/api/* over real HTTP, against real Postgres", () => {
       expect((await fetch(`${baseUrl}/api/quests/play_1/claim`, { method: "POST" })).status).toBe(401);
     });
   });
+
+  describe("leaderboard", () => {
+    it("is publicly readable with no Authorization header, and omits 'mine' without one", async () => {
+      const res = await fetch(`${baseUrl}/api/leaderboard/wins`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { entries: unknown[]; mine: unknown };
+      expect(Array.isArray(body.entries)).toBe(true);
+      expect(body.mine).toBeNull();
+    });
+
+    it("includes 'mine' when a valid token is sent, reflecting real Coins-earned rank", async () => {
+      const { token } = await signIn();
+      const res = await fetch(`${baseUrl}/api/leaderboard/coins-earned`, { headers: { Authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { mine: { coinsEarned: number; rank: number } };
+      expect(body.mine.coinsEarned).toBe(WELCOME_BONUS_COINS); // only the welcome bonus so far
+      expect(body.mine.rank).toBeGreaterThanOrEqual(1);
+    });
+
+    it("serves the win-rate board with a minGames-gated 'mine'", async () => {
+      const { token } = await signIn();
+      const res = await fetch(`${baseUrl}/api/leaderboard/win-rate`, { headers: { Authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { mine: { games: number; rank: number | null; minGames: number } };
+      expect(body.mine.games).toBe(0); // no matches played yet in this test
+      expect(body.mine.rank).toBeNull();
+      expect(body.mine.minGames).toBeGreaterThan(0);
+    });
+  });
 });

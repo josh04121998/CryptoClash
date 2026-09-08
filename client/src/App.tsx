@@ -6,6 +6,7 @@ import { CraftingScreen } from "./components/CraftingScreen.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
+import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
 import { LocalMatch } from "./LocalMatch.js";
@@ -23,7 +24,8 @@ type Mode =
   | "packs"
   | "collection"
   | "crafting"
-  | "quests";
+  | "quests"
+  | "leaderboard";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -62,6 +64,10 @@ export default function App() {
         }}
       />
     );
+  }
+
+  if (mode === "leaderboard") {
+    return <LeaderboardScreen token={wallet.token} onBack={() => setMode("menu")} />;
   }
 
   if (mode === "packs" && wallet.token) {
@@ -171,6 +177,10 @@ export default function App() {
         <button type="button" className="menu__option" onClick={() => setMode("pick-online")}>
           <span className="menu__option-title">Play Online</span>
           <span className="menu__option-desc">Get matched with another player in real time.</span>
+        </button>
+        <button type="button" className="menu__option" onClick={() => setMode("leaderboard")}>
+          <span className="menu__option-title">Leaderboard</span>
+          <span className="menu__option-desc">Most wins, best win rate, most Coins earned. No wallet required to look.</span>
         </button>
       </main>
     </div>

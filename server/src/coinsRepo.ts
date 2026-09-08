@@ -52,6 +52,16 @@ export async function grantWelcomeBonus(pool: Pool, accountId: string): Promise<
 export type MatchOutcome = "win" | "loss" | "draw";
 
 /**
+ * The `coin_transactions.reason` strings awardMatchResult writes below — exported so
+ * leaderboardRepo.ts can query "how many wins/losses/draws has this account had" straight
+ * off the existing audit log instead of a second, denormalized wins/losses column that could
+ * drift out of sync with it. `MATCH_REASONS` is every reason a completed Play Online match
+ * writes, i.e. "how many games has this account played" as a single IN-list.
+ */
+export const MATCH_REASON: Record<MatchOutcome, string> = { win: "match_win", loss: "match_loss", draw: "match_draw" };
+export const MATCH_REASONS: string[] = Object.values(MATCH_REASON);
+
+/**
  * Placeholder match-reward economy — spec.md Section 21 lists "playing,
  * winning" as a Coins source but gives no numbers (same "not tuned economy
  * design" caveat as WELCOME_BONUS_COINS above). A win pays more than a loss
@@ -86,6 +96,6 @@ export async function awardMatchResult(
   outcome: MatchOutcome,
 ): Promise<{ amount: number; balance: number }> {
   const amount = matchRewardAmount(outcome);
-  const balance = await creditCoins(pool, accountId, amount, `match_${outcome}`);
+  const balance = await creditCoins(pool, accountId, amount, MATCH_REASON[outcome]);
   return { amount, balance };
 }

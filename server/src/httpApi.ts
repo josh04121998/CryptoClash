@@ -16,6 +16,7 @@ import {
 } from "./craftingRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, getDailyStatus } from "./dailyRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
+import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
 
@@ -211,6 +212,30 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           throw e;
         }
       }
+      return true;
+    }
+
+    if (url.pathname === "/api/leaderboard/wins" && req.method === "GET") {
+      // Public — viewing the leaderboard needs no wallet (same "no login wall to look" principle
+      // as GET /api/packs); only "mine" needs identity, and that's soft — an absent/invalid token
+      // just omits it rather than 401ing the whole request.
+      const accountId = await requireAccount(req);
+      const [entries, mine] = await Promise.all([getTopWins(pool), accountId ? getMyWins(pool, accountId) : null]);
+      sendJson(res, 200, { entries, mine });
+      return true;
+    }
+
+    if (url.pathname === "/api/leaderboard/win-rate" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      const [entries, mine] = await Promise.all([getTopWinRate(pool), accountId ? getMyWinRate(pool, accountId) : null]);
+      sendJson(res, 200, { entries, mine });
+      return true;
+    }
+
+    if (url.pathname === "/api/leaderboard/coins-earned" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      const [entries, mine] = await Promise.all([getTopCoinsEarned(pool), accountId ? getMyCoinsEarned(pool, accountId) : null]);
+      sendJson(res, 200, { entries, mine });
       return true;
     }
 
