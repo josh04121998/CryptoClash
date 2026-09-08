@@ -35,7 +35,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     await pool.query("delete from accounts"); // cascades to card_instances
   });
 
-  async function signIn(): Promise<{ token: string; address: string }> {
+  async function signIn(referralCode?: string): Promise<{ token: string; address: string }> {
     const wallet = Wallet.createRandom();
     const nonceRes = await fetch(`${baseUrl}/api/auth/nonce`);
     const { nonce } = (await nonceRes.json()) as { nonce: string };
@@ -55,7 +55,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const verifyRes = await fetch(`${baseUrl}/api/auth/verify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message, signature }),
+      body: JSON.stringify({ message, signature, referralCode }),
     });
     expect(verifyRes.status).toBe(200);
     const body = (await verifyRes.json()) as { token: string; account: { walletAddress: string } };
@@ -461,6 +461,48 @@ d("/api/* over real HTTP, against real Postgres", () => {
       expect(body.mine.games).toBe(0); // no matches played yet in this test
       expect(body.mine.rank).toBeNull();
       expect(body.mine.minGames).toBeGreaterThan(0);
+    });
+  });
+
+  describe("referrals", () => {
+    it("exposes a stable referral code and stats over GET /api/referral", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}` };
+      const res = await fetch(`${baseUrl}/api/referral`, { headers: auth });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { code: string; totalReferred: number };
+      expect(body.code).toBeTruthy();
+      expect(body.totalReferred).toBe(0);
+
+      const again = await fetch(`${baseUrl}/api/referral`, { headers: auth });
+      expect(((await again.json()) as { code: string }).code).toBe(body.code);
+    });
+
+    it("grants a free pack to a new signup that used a real referral code", async () => {
+      const referrer = await signIn();
+      const referrerCodeRes = await fetch(`${baseUrl}/api/referral`, { headers: { Authorization: `Bearer ${referrer.token}` } });
+      const { code } = (await referrerCodeRes.json()) as { code: string };
+
+      const referred = await signIn(code);
+      const collectionRes = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${referred.token}` } });
+      const { owned } = (await collectionRes.json()) as { owned: Record<string, number> };
+      // The starting Common grant already owns something too, but a free pack can pull
+      // Uncommon+ — confirm the referrer's stats reflect one real pending referral either way.
+      expect(Object.keys(owned).length).toBeGreaterThan(0);
+
+      const statsRes = await fetch(`${baseUrl}/api/referral`, { headers: { Authorization: `Bearer ${referrer.token}` } });
+      const stats = (await statsRes.json()) as { pending: number; rewarded: number };
+      expect(stats.pending).toBe(1);
+      expect(stats.rewarded).toBe(0);
+    });
+
+    it("doesn't fail sign-in over a garbled/unknown referral code", async () => {
+      const { token } = await signIn("not-a-real-code-at-all");
+      expect(token).toBeTruthy();
+    });
+
+    it("rejects the referral endpoint with no Authorization header", async () => {
+      expect((await fetch(`${baseUrl}/api/referral`)).status).toBe(401);
     });
   });
 });

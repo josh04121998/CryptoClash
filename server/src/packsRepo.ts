@@ -1,6 +1,6 @@
 import { CARD_POOL, mulberry32, Rarity } from "@cryptoclash/engine";
 import { randomInt } from "node:crypto";
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { applyCoinDeltaOnClient } from "./coinsRepo.js";
 import { grantCardInstances, PackCard } from "./collectionRepo.js";
 
@@ -133,11 +133,32 @@ export interface PackOpenResult {
 }
 
 /**
+ * Rolls a fresh seed, grants the resulting cards, and logs the roll to
+ * pack_openings — the shared middle step between a paid open (openPack,
+ * coinsSpent = the pack's cost) and a free grant (referralsRepo's viral-invite
+ * rewards, coinsSpent = 0 — a real audit-log row, not a special case, so a
+ * free pack is just as reproducible/auditable as a paid one). Takes a
+ * `PoolClient` so callers compose it into their own transaction.
+ */
+export async function rollGrantAndLog(client: PoolClient, accountId: string, packType: string, coinsSpent: number): Promise<PackCard[]> {
+  const def = PACK_DEFINITIONS[packType];
+  if (!def) throw new UnknownPackTypeError(`Unknown pack type: ${packType}`);
+
+  const seed = randomInt(0, 2 ** 31 - 1);
+  const cards = rollPackCards(packType, seed);
+  await grantCardInstances(client, accountId, cards);
+  await client.query(
+    `insert into pack_openings (account_id, pack_type, coins_spent, cards, seed) values ($1, $2, $3, $4, $5)`,
+    [accountId, packType, coinsSpent, JSON.stringify(cards), seed],
+  );
+  return cards;
+}
+
+/**
  * Atomically: locks and checks the account's Coins balance, debits the pack
- * cost, rolls cards against a fresh random seed, grants those as new
- * standard-edition instances, and logs the roll to pack_openings — all in
- * one transaction, so a mid-way failure can never charge Coins without
- * granting cards or vice versa.
+ * cost, then rolls/grants/logs via rollGrantAndLog — all in one transaction,
+ * so a mid-way failure can never charge Coins without granting cards or vice
+ * versa.
  */
 export async function openPack(pool: Pool, accountId: string, packType: string): Promise<PackOpenResult> {
   const def = PACK_DEFINITIONS[packType];
@@ -154,17 +175,10 @@ export async function openPack(pool: Pool, accountId: string, packType: string):
     const balance = balanceRow.rows[0]?.coins_balance ?? 0;
     if (balance < def.cost) throw new InsufficientCoinsError(`Need ${def.cost} Coins, have ${balance}.`);
 
-    // Rolled after the balance is confirmed (and locked) but before it's spent — a seed generated per
-    // attempt, not per success, would leak information about rejected rolls through timing/order.
-    const seed = randomInt(0, 2 ** 31 - 1);
-    const cards = rollPackCards(packType, seed);
-
     const balanceAfter = await applyCoinDeltaOnClient(client, accountId, -def.cost, `pack_open:${packType}`);
-    await grantCardInstances(client, accountId, cards);
-    await client.query(
-      `insert into pack_openings (account_id, pack_type, coins_spent, cards, seed) values ($1, $2, $3, $4, $5)`,
-      [accountId, packType, def.cost, JSON.stringify(cards), seed],
-    );
+    // Debited before rolling — a seed generated per attempt, not per success, would leak
+    // information about rejected rolls through timing/order.
+    const cards = await rollGrantAndLog(client, accountId, packType, def.cost);
 
     await client.query("commit");
     return { cards, balance: balanceAfter };

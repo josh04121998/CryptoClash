@@ -2,6 +2,7 @@ import { getAddress } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { SiweMessage } from "siwe";
 import { apiFetch } from "./api.js";
+import { consumeStoredReferralCode } from "./referral.js";
 
 const STORAGE_KEY = "cryptoclash.session";
 
@@ -105,9 +106,13 @@ export function useWallet() {
         params: [message, address],
       })) as string;
 
+      // One-shot: consumed here regardless of outcome, so a garbled/expired code can't be
+      // retried on every future connect attempt. Only ever matters for a brand-new account
+      // (server-side, gated on Account.isNew) — a no-op for an existing account signing back in.
+      const referralCode = consumeStoredReferralCode();
       const result = await apiFetch<{ token: string; account: { walletAddress: string } }>("/api/auth/verify", {
         method: "POST",
-        body: JSON.stringify({ message, signature }),
+        body: JSON.stringify({ message, signature, referralCode: referralCode ?? undefined }),
       });
 
       storeSession({ token: result.token, walletAddress: result.account.walletAddress });

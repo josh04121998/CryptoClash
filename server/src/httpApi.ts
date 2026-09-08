@@ -19,6 +19,7 @@ import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
+import { getReferralStats, recordReferralSignup } from "./referralsRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
 function corsHeaders(): Record<string, string> {
@@ -76,7 +77,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     }
 
     if (req.method === "POST" && url.pathname === "/api/auth/verify") {
-      const body = (await readJsonBody(req)) as { message?: string; signature?: string };
+      const body = (await readJsonBody(req)) as { message?: string; signature?: string; referralCode?: string };
       if (!body.message || !body.signature) {
         sendJson(res, 400, { error: "message and signature are required." });
         return true;
@@ -93,7 +94,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       const account = await findOrCreateAccount(pool, result.address);
       await grantStartingCollection(pool, account.id);
-      if (account.isNew) await grantWelcomeBonus(pool, account.id);
+      if (account.isNew) {
+        await grantWelcomeBonus(pool, account.id);
+        // Best-effort — an unknown/garbled ?ref= code shouldn't block sign-in. Never applies to
+        // an existing account (isNew-gated), same idempotency shape as the welcome bonus above.
+        if (body.referralCode) await recordReferralSignup(pool, account.id, body.referralCode).catch(() => null);
+      }
       const token = await issueSessionToken({ accountId: account.id, walletAddress: account.walletAddress });
       sendJson(res, 200, { token, account: { id: account.id, walletAddress: account.walletAddress } });
       return true;
@@ -212,6 +218,16 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           throw e;
         }
       }
+      return true;
+    }
+
+    if (url.pathname === "/api/referral" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, await getReferralStats(pool, accountId));
       return true;
     }
 

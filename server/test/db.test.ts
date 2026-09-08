@@ -23,6 +23,12 @@ import {
   MIN_GAMES_FOR_WIN_RATE,
 } from "../src/leaderboardRepo.js";
 import { runMigrations } from "../src/migrate.js";
+import {
+  getOrCreateReferralCode,
+  getReferralStats,
+  recordReferralSignup,
+  rewardReferrerIfPending,
+} from "../src/referralsRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
 import {
   claimQuest,
@@ -572,6 +578,74 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(rookieStats.games).toBe(1);
       expect(rookieStats.wins).toBe(1);
       expect(rookieStats.rank).toBeNull();
+    });
+  });
+
+  describe("referrals", () => {
+    it("lazily generates a stable, unique referral code", async () => {
+      const a = await findOrCreateAccount(pool, "0xreferrercodea");
+      const b = await findOrCreateAccount(pool, "0xreferrercodeb");
+      const codeA1 = await getOrCreateReferralCode(pool, a.id);
+      const codeA2 = await getOrCreateReferralCode(pool, a.id);
+      const codeB = await getOrCreateReferralCode(pool, b.id);
+      expect(codeA1).toBe(codeA2);
+      expect(codeA1).not.toBe(codeB);
+    });
+
+    it("grants the referred account a free pack immediately, and records a pending referral", async () => {
+      const referrer = await findOrCreateAccount(pool, "0xreferrer1");
+      const code = await getOrCreateReferralCode(pool, referrer.id);
+      const referred = await findOrCreateAccount(pool, "0xreferred1");
+
+      const result = await recordReferralSignup(pool, referred.id, code);
+      expect(result).not.toBeNull();
+      expect(result!.referrerId).toBe(referrer.id);
+      expect(result!.cards).toHaveLength(PACK_DEFINITIONS.standard.cardCount);
+
+      // Free — a real card grant with coins_spent 0, not a special-case row shape.
+      const logged = await pool.query<{ coins_spent: number }>("select coins_spent from pack_openings where account_id = $1", [referred.id]);
+      expect(logged.rows[0].coins_spent).toBe(0);
+      expect(Object.keys(await getCollectionCounts(pool, referred.id)).length).toBeGreaterThan(0);
+
+      const stats = await getReferralStats(pool, referrer.id);
+      expect(stats.pending).toBe(1);
+      expect(stats.rewarded).toBe(0);
+      expect(stats.totalReferred).toBe(1);
+    });
+
+    it("returns null (no-op) for an unknown code or a self-referral, granting nothing", async () => {
+      const account = await findOrCreateAccount(pool, "0xreferralnoop");
+      expect(await recordReferralSignup(pool, account.id, "not-a-real-code")).toBeNull();
+
+      const own = await getOrCreateReferralCode(pool, account.id);
+      expect(await recordReferralSignup(pool, account.id, own)).toBeNull(); // referrerId === referredAccountId
+      expect(Object.keys(await getCollectionCounts(pool, account.id))).toHaveLength(0);
+    });
+
+    it("rewards the referrer exactly once, the first time the referred account's match completes", async () => {
+      const referrer = await findOrCreateAccount(pool, "0xreferrer2");
+      const code = await getOrCreateReferralCode(pool, referrer.id);
+      const referred = await findOrCreateAccount(pool, "0xreferred2");
+      await recordReferralSignup(pool, referred.id, code);
+
+      const reward = await rewardReferrerIfPending(pool, referred.id);
+      expect(reward).not.toBeNull();
+      expect(reward!.referrerId).toBe(referrer.id);
+      expect(reward!.cards).toHaveLength(PACK_DEFINITIONS.standard.cardCount);
+      expect(Object.keys(await getCollectionCounts(pool, referrer.id)).length).toBeGreaterThan(0);
+
+      // A second "match completion" for the same referred account shouldn't pay out again.
+      const again = await rewardReferrerIfPending(pool, referred.id);
+      expect(again).toBeNull();
+
+      const stats = await getReferralStats(pool, referrer.id);
+      expect(stats.rewarded).toBe(1);
+      expect(stats.pending).toBe(0);
+    });
+
+    it("is a no-op for an account with no pending referral", async () => {
+      const account = await findOrCreateAccount(pool, "0xneverreferred");
+      expect(await rewardReferrerIfPending(pool, account.id)).toBeNull();
     });
   });
 });

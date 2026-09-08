@@ -9,6 +9,7 @@ import { getBalance } from "../src/coinsRepo.js";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
 import { getTodayQuests } from "../src/questsRepo.js";
+import { getOrCreateReferralCode, getReferralStats, recordReferralSignup } from "../src/referralsRepo.js";
 
 let server: MatchServerHandle;
 let url: string;
@@ -386,6 +387,34 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         const loserQuests = await getTodayQuests(pool, accountFor[loser].accountId);
         expect(loserQuests.find((q) => q.id === "win_1")!.progress).toBe(0);
       }
+
+      aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "pays out the referrer's free pack once their referred friend finishes a real match",
+    async () => {
+      const referrer = await accountToken("0xreferrerlive");
+      const code = await getOrCreateReferralCode(pool, referrer.accountId);
+      const referred = await accountToken("0xreferredlive");
+      await recordReferralSignup(pool, referred.accountId, code);
+      const opponent = await accountToken("0xreferralopponent");
+
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpMatch({ a: referred.token, b: opponent.token });
+      await playMatchToConclusion(aSocket, bSocket, aPlayerId, bPlayerId, foundA.state, 15000);
+
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const stats = await getReferralStats(pool, referrer.accountId);
+        if (stats.rewarded === 1) break;
+        if (attempt === 19) throw new Error("referrer was never rewarded after the referred account's match completed");
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const stats = await getReferralStats(pool, referrer.accountId);
+      expect(stats.rewarded).toBe(1);
+      expect(stats.pending).toBe(0);
 
       aSocket.close();
       bSocket.close();

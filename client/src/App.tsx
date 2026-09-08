@@ -10,6 +10,7 @@ import { LandingPage } from "./components/LandingPage.js";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
+import { ReferralScreen } from "./components/ReferralScreen.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
 import { useWallet } from "./useWallet.js";
@@ -27,7 +28,8 @@ type Mode =
   | "collection"
   | "crafting"
   | "quests"
-  | "leaderboard";
+  | "leaderboard"
+  | "referral";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -96,6 +98,10 @@ export default function App() {
     );
   }
 
+  if (mode === "referral" && wallet.token) {
+    return <ReferralScreen token={wallet.token} onBack={() => setMode("menu")} />;
+  }
+
   if (mode === "collection" && wallet.token) {
     return <CollectionScreen token={wallet.token} onBack={() => setMode("menu")} />;
   }
@@ -155,6 +161,9 @@ export default function App() {
               </button>
               <button type="button" onClick={() => setMode("crafting")}>
                 Crafting
+              </button>
+              <button type="button" onClick={() => setMode("referral")}>
+                Invite Friends
               </button>
               <button type="button" onClick={() => setMode("my-decks")}>
                 My Decks

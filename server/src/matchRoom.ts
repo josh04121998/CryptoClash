@@ -3,6 +3,7 @@ import { ServerMessage, serializeState } from "@cryptoclash/protocol";
 import { awardMatchResult, MatchOutcome } from "./coinsRepo.js";
 import { getPool } from "./db.js";
 import { recordQuestProgress } from "./questsRepo.js";
+import { rewardReferrerIfPending } from "./referralsRepo.js";
 import { RoomHandle, Session } from "./types.js";
 
 /** One live match: owns the authoritative MatchState and the two sockets watching it. */
@@ -84,6 +85,9 @@ export class MatchRoom implements RoomHandle {
       // shouldn't crash the match. "play" always advances; "win" only for the actual winner.
       recordQuestProgress(pool, accountId, "play").catch(() => {});
       if (outcome === "win") recordQuestProgress(pool, accountId, "win").catch(() => {});
+      // Best-effort, same reasoning — pays out a referrer's free pack the first time their
+      // referred friend (this account) finishes a real match. A silent no-op for everyone else.
+      rewardReferrerIfPending(pool, accountId).catch(() => {});
     }
   }
 
