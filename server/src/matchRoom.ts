@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Intent, MatchState, PlayerId, applyIntent, createMatch } from "@cryptoclash/engine";
 import { NetworkMatchState, ServerMessage, serializeState } from "@cryptoclash/protocol";
+import { recordMatchOutcomeForAchievements } from "./achievementsRepo.js";
 import { awardMatchResult, MatchOutcome } from "./coinsRepo.js";
 import { getPool } from "./db.js";
+import { awardRankPoints } from "./rankRepo.js";
 import { recordQuestProgress } from "./questsRepo.js";
 import { rewardReferrerIfPending } from "./referralsRepo.js";
 import { RoomHandle, Session } from "./types.js";
@@ -165,6 +167,11 @@ export class MatchRoom implements RoomHandle {
       // Best-effort, same reasoning — pays out a referrer's free pack the first time their
       // referred friend (this account) finishes a real match. A silent no-op for everyone else.
       rewardReferrerIfPending(pool, accountId).catch(() => {});
+      // Best-effort, same reasoning — advances "win_total"/"win_streak" achievements and the
+      // real-money-free ranked ladder (achievementsRepo.ts, rankRepo.ts), both keyed off this
+      // exact server-validated match result.
+      recordMatchOutcomeForAchievements(pool, accountId, outcome).catch(() => {});
+      awardRankPoints(pool, accountId, outcome).catch(() => {});
     }
   }
 

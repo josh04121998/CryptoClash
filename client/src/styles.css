@@ -2319,3 +2319,37 @@ button {
   font-size: 0.72rem;
   color: var(--text-dim);
 }
+
+/* Events banner (spec.md Section 21's "Events" earn source — see EventBanner.tsx) */
+
+.event-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  max-width: 420px;
+  background: var(--glow-gold);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  text-align: center;
+}
+
+.event-banner__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.event-banner__desc {
+  font-size: 0.78rem;
+  color: var(--text);
+}
+
+.event-banner__ends {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}

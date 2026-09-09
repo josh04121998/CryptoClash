@@ -33,6 +33,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
   afterEach(async () => {
     await pool.query("delete from decks");
     await pool.query("delete from accounts"); // cascades to card_instances
+    await pool.query("delete from events"); // not account-scoped, so not covered by the cascade above
   });
 
   async function signIn(referralCode?: string): Promise<{ token: string; address: string }> {
@@ -503,6 +504,148 @@ d("/api/* over real HTTP, against real Postgres", () => {
 
     it("rejects the referral endpoint with no Authorization header", async () => {
       expect((await fetch(`${baseUrl}/api/referral`)).status).toBe(401);
+    });
+  });
+
+  describe("weekly rewards + achievements + ranked", () => {
+    it("claims the weekly reward once, then rejects a same-week repeat with 409", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}` };
+
+      const statusRes = await fetch(`${baseUrl}/api/weekly`, { headers: auth });
+      expect(statusRes.status).toBe(200);
+      expect(((await statusRes.json()) as { claimedThisWeek: boolean }).claimedThisWeek).toBe(false);
+
+      const claimRes = await fetch(`${baseUrl}/api/weekly/claim`, { method: "POST", headers: auth });
+      expect(claimRes.status).toBe(200);
+      const claimed = (await claimRes.json()) as { coinsEarned: number; streak: number };
+      expect(claimed.streak).toBe(1);
+      expect(claimed.coinsEarned).toBeGreaterThan(0);
+
+      const repeatRes = await fetch(`${baseUrl}/api/weekly/claim`, { method: "POST", headers: auth });
+      expect(repeatRes.status).toBe(409);
+    });
+
+    it("lists achievements at 0 progress and rejects claiming one that isn't complete yet", async () => {
+      const { token } = await signIn();
+      const auth = { Authorization: `Bearer ${token}` };
+
+      const listRes = await fetch(`${baseUrl}/api/achievements`, { headers: auth });
+      expect(listRes.status).toBe(200);
+      const { achievements } = (await listRes.json()) as { achievements: { id: string; progress: number; claimed: boolean }[] };
+      expect(achievements.length).toBeGreaterThan(0);
+      expect(achievements.every((a) => a.progress === 0 && !a.claimed)).toBe(true);
+
+      const claimRes = await fetch(`${baseUrl}/api/achievements/${achievements[0].id}/claim`, { method: "POST", headers: auth });
+      expect(claimRes.status).toBe(409);
+    });
+
+    it("rejects claiming an unknown achievement with 400", async () => {
+      const { token } = await signIn();
+      const claimRes = await fetch(`${baseUrl}/api/achievements/not_a_real_achievement/claim`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(claimRes.status).toBe(400);
+    });
+
+    it("rejects weekly/achievement endpoints with no Authorization header", async () => {
+      expect((await fetch(`${baseUrl}/api/weekly`)).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/weekly/claim`, { method: "POST" })).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/achievements`)).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/achievements/win_10/claim`, { method: "POST" })).status).toBe(401);
+      expect((await fetch(`${baseUrl}/api/rank`)).status).toBe(401);
+    });
+
+    it("reports a fresh account's rank as Bronze with 0 points and no leaderboard rank yet", async () => {
+      const { token } = await signIn();
+      const res = await fetch(`${baseUrl}/api/rank`, { headers: { Authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { points: number; tier: { name: string }; rank: number | null };
+      expect(body.points).toBe(0);
+      expect(body.tier.name).toBe("Bronze");
+      expect(body.rank).toBeNull();
+    });
+
+    it("serves the ranked leaderboard publicly, with 'mine' only when authenticated", async () => {
+      const res = await fetch(`${baseUrl}/api/leaderboard/rank`);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { entries: unknown[]; mine: unknown };
+      expect(Array.isArray(body.entries)).toBe(true);
+      expect(body.mine).toBeNull();
+    });
+  });
+
+  describe("events", () => {
+    it("reports no active event by default", async () => {
+      const res = await fetch(`${baseUrl}/api/events/active`);
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as { event: unknown }).event).toBeNull();
+    });
+
+    it("501s the admin event routes when ADMIN_SECRET isn't configured", async () => {
+      expect(process.env.ADMIN_SECRET).toBeUndefined();
+      const res = await fetch(`${baseUrl}/api/admin/events`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "x",
+          name: "x",
+          description: "x",
+          coinMultiplier: 2,
+          startsAt: new Date().toISOString(),
+          endsAt: new Date().toISOString(),
+        }),
+      });
+      expect(res.status).toBe(501);
+    });
+
+    it("lets an admin create, see, and delete an event once ADMIN_SECRET is configured", async () => {
+      process.env.ADMIN_SECRET = "test-admin-secret-do-not-use-in-prod";
+      try {
+        const now = new Date();
+        const createRes = await fetch(`${baseUrl}/api/admin/events`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-admin-secret": "test-admin-secret-do-not-use-in-prod" },
+          body: JSON.stringify({
+            id: "test_api_event",
+            name: "Test API Event",
+            description: "A test event created over HTTP.",
+            coinMultiplier: 2,
+            startsAt: new Date(now.getTime() - 1000).toISOString(),
+            endsAt: new Date(now.getTime() + 60_000).toISOString(),
+          }),
+        });
+        expect(createRes.status).toBe(200);
+
+        const wrongSecretRes = await fetch(`${baseUrl}/api/admin/events`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-admin-secret": "wrong" },
+          body: JSON.stringify({
+            id: "test_api_event_2",
+            name: "x",
+            description: "x",
+            coinMultiplier: 1,
+            startsAt: now.toISOString(),
+            endsAt: now.toISOString(),
+          }),
+        });
+        expect(wrongSecretRes.status).toBe(401);
+
+        const activeRes = await fetch(`${baseUrl}/api/events/active`);
+        const { event } = (await activeRes.json()) as { event: { id: string; coinMultiplier: number } | null };
+        expect(event?.id).toBe("test_api_event");
+        expect(event?.coinMultiplier).toBe(2);
+
+        const deleteRes = await fetch(`${baseUrl}/api/admin/events/test_api_event`, {
+          method: "DELETE",
+          headers: { "x-admin-secret": "test-admin-secret-do-not-use-in-prod" },
+        });
+        expect(deleteRes.status).toBe(204);
+        expect(((await (await fetch(`${baseUrl}/api/events/active`)).json()) as { event: unknown }).event).toBeNull();
+      } finally {
+        delete process.env.ADMIN_SECRET;
+      }
     });
   });
 });

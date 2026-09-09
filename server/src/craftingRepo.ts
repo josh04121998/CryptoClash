@@ -1,5 +1,6 @@
 import { CARD_POOL, CardTemplate, Rarity } from "@cryptoclash/engine";
 import type { Pool } from "pg";
+import { recordAchievementProgress } from "./achievementsRepo.js";
 import { grantCardInstances } from "./collectionRepo.js";
 import { applyDustDeltaOnClient } from "./ledger.js";
 
@@ -167,6 +168,9 @@ export async function craftCard(pool: Pool, accountId: string, templateId: strin
 
     const balanceAfter = await applyDustDeltaOnClient(client, accountId, -cost, `craft:${templateId}`);
     await grantCardInstances(client, accountId, [{ templateId, isFoil: false }]);
+    // "Craft your first Legendary" achievement — hooked right at the real event, same reasoning
+    // packsRepo.ts's rollGrantAndLog tracks "pack_opened_total" at its own real event.
+    if (template.rarity === "Legendary") await recordAchievementProgress(client, accountId, "craft_legendary", 1);
 
     await client.query("commit");
     return { balance: balanceAfter };

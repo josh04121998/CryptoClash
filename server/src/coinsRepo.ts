@@ -1,4 +1,5 @@
 import type { Pool } from "pg";
+import { getActiveEvent } from "./eventsRepo.js";
 import { applyCoinDeltaOnClient } from "./ledger.js";
 
 export { applyCoinDeltaOnClient };
@@ -89,13 +90,22 @@ function matchRewardAmount(outcome: MatchOutcome): number {
   }
 }
 
-/** Called once per Play Online match, per participant with a real (wallet-linked) session — see matchRoom.ts. */
+/**
+ * Called once per Play Online match, per participant with a real (wallet-linked) session — see
+ * matchRoom.ts. Applies the active event's Coins multiplier, if any (spec.md Section 21's
+ * "Events" earn source — see eventsRepo.ts's scope note for why match rewards specifically, and
+ * not every Coins credit site). A failure reading the active event degrades to "no event" rather
+ * than blocking the reward — the event system is a bonus layer, not something that should ever
+ * be able to withhold a match's base reward.
+ */
 export async function awardMatchResult(
   pool: Pool,
   accountId: string,
   outcome: MatchOutcome,
 ): Promise<{ amount: number; balance: number }> {
-  const amount = matchRewardAmount(outcome);
+  const base = matchRewardAmount(outcome);
+  const event = await getActiveEvent(pool).catch(() => null);
+  const amount = event ? Math.max(1, Math.floor(base * event.coinMultiplier)) : base;
   const balance = await creditCoins(pool, accountId, amount, MATCH_REASON[outcome]);
   return { amount, balance };
 }

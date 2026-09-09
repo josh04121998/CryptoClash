@@ -2,6 +2,13 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { validateDeck } from "@cryptoclash/engine";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
+import {
+  AchievementAlreadyClaimedError,
+  AchievementNotCompleteError,
+  claimAchievement,
+  getMyAchievements,
+  UnknownAchievementError,
+} from "./achievementsRepo.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
 import { getCollectionSummary, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
 import { getBalance, grantWelcomeBonus } from "./coinsRepo.js";
@@ -16,10 +23,13 @@ import {
 } from "./craftingRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, getDailyStatus } from "./dailyRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
+import { deleteEvent, getActiveEvent, upsertEvent } from "./eventsRepo.js";
 import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
+import { getMyRank, getTopRank } from "./rankRepo.js";
 import { getReferralStats, recordReferralSignup } from "./referralsRepo.js";
+import { AlreadyClaimedThisWeekError, claimWeekly, getWeeklyStatus } from "./weeklyRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
 function corsHeaders(): Record<string, string> {
@@ -311,6 +321,146 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
           throw e;
         }
       }
+      return true;
+    }
+
+    if (url.pathname === "/api/weekly" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, await getWeeklyStatus(pool, accountId));
+      return true;
+    }
+
+    if (url.pathname === "/api/weekly/claim" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      try {
+        sendJson(res, 200, await claimWeekly(pool, accountId));
+      } catch (e) {
+        if (e instanceof AlreadyClaimedThisWeekError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/achievements" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { achievements: await getMyAchievements(pool, accountId) });
+      return true;
+    }
+
+    const achievementClaimMatch = url.pathname.match(/^\/api\/achievements\/([^/]+)\/claim$/);
+    if (achievementClaimMatch && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      try {
+        sendJson(res, 200, await claimAchievement(pool, accountId, achievementClaimMatch[1]));
+      } catch (e) {
+        if (e instanceof UnknownAchievementError) {
+          sendJson(res, 400, { error: e.message });
+        } else if (e instanceof AchievementNotCompleteError || e instanceof AchievementAlreadyClaimedError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    if (url.pathname === "/api/rank" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, await getMyRank(pool, accountId));
+      return true;
+    }
+
+    if (url.pathname === "/api/leaderboard/rank" && req.method === "GET") {
+      // Public, same "no login wall to look" posture as the other /api/leaderboard/* routes.
+      const accountId = await requireAccount(req);
+      const [entries, mine] = await Promise.all([getTopRank(pool), accountId ? getMyRank(pool, accountId) : null]);
+      sendJson(res, 200, { entries, mine });
+      return true;
+    }
+
+    if (url.pathname === "/api/events/active" && req.method === "GET") {
+      // Public — seeing that a bonus is running needs no wallet, same as GET /api/packs.
+      sendJson(res, 200, { event: await getActiveEvent(pool) });
+      return true;
+    }
+
+    // Crude admin gate — see eventsRepo.ts's top comment. Disabled entirely (501) unless
+    // ADMIN_SECRET is configured; when it is, the caller must echo it back in x-admin-secret.
+    if (url.pathname === "/api/admin/events" && req.method === "POST") {
+      const secret = process.env.ADMIN_SECRET;
+      if (!secret) {
+        sendJson(res, 501, { error: "Admin routes aren't configured (ADMIN_SECRET is not set)." });
+        return true;
+      }
+      if (req.headers["x-admin-secret"] !== secret) {
+        sendJson(res, 401, { error: "Invalid admin secret." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as {
+        id?: string;
+        name?: string;
+        description?: string;
+        coinMultiplier?: number;
+        startsAt?: string;
+        endsAt?: string;
+      };
+      if (!body.id || !body.name || !body.description || !body.coinMultiplier || !body.startsAt || !body.endsAt) {
+        sendJson(res, 400, { error: "id, name, description, coinMultiplier, startsAt, and endsAt are all required." });
+        return true;
+      }
+      const event = await upsertEvent(pool, {
+        id: body.id,
+        name: body.name,
+        description: body.description,
+        coinMultiplier: body.coinMultiplier,
+        startsAt: body.startsAt,
+        endsAt: body.endsAt,
+      });
+      sendJson(res, 200, { event });
+      return true;
+    }
+
+    const adminEventIdMatch = url.pathname.match(/^\/api\/admin\/events\/([^/]+)$/);
+    if (adminEventIdMatch && req.method === "DELETE") {
+      const secret = process.env.ADMIN_SECRET;
+      if (!secret) {
+        sendJson(res, 501, { error: "Admin routes aren't configured (ADMIN_SECRET is not set)." });
+        return true;
+      }
+      if (req.headers["x-admin-secret"] !== secret) {
+        sendJson(res, 401, { error: "Invalid admin secret." });
+        return true;
+      }
+      const deleted = await deleteEvent(pool, adminEventIdMatch[1]);
+      if (!deleted) {
+        sendJson(res, 404, { error: "Event not found." });
+        return true;
+      }
+      res.writeHead(204, corsHeaders());
+      res.end();
       return true;
     }
 
