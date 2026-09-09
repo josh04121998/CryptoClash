@@ -1216,6 +1216,35 @@ button {
   flex-shrink: 0;
 }
 
+/* Reconnect / opponent-disconnected banner */
+
+.reconnect-banner {
+  position: fixed;
+  top: 4.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: reconnect-banner-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes reconnect-banner-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 /* Connection status */
 
 .connect-status {
