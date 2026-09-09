@@ -1,6 +1,7 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { factionColor } from "../factionColor.js";
+import { factionTicker } from "../factionTicker.js";
 import { KEYWORD_TOOLTIPS } from "../keywordInfo.js";
 import { rarityColor } from "../rarityColor.js";
 
@@ -21,6 +22,23 @@ export interface CardFaceProps {
   onClick?: () => void;
 }
 
+/**
+ * The card frame — a Hearthstone-style layout (rarity-colored border + gem, a
+ * faction "ticker" badge standing in for a faction icon, a name plate with a
+ * rarity gem straddling its top edge, an inset text box, hexagon/circle stat
+ * gems) built entirely from CSS/SVG shapes since there's no art-asset pipeline
+ * (branding.md Section 7 — card art is last on the roadmap, not started). The
+ * "portrait" band has no illustration; it's a faction-tinted glow over the
+ * brand's existing scanline/CRT texture (branding.md Section 4) standing in
+ * for art the same way the landing page's skyline is CSS/SVG rather than an
+ * image.
+ *
+ * Structural change only — every existing hook this hangs off of (hit-flash,
+ * damage/heal popups, foil shimmer, keyword tooltips, lunge classes) is
+ * untouched: they all key off `.card-face` itself (classes, the `::after`
+ * hit-flash overlay, the foil dual-background trick) or absolutely-positioned
+ * children, none of which care about the frame's internal structure.
+ */
 export function CardFace({
   template,
   attack,
@@ -81,29 +99,47 @@ export function CardFace({
       ]
         .filter(Boolean)
         .join(" ")}
-      // A plain `borderColor` here would always win over CSS (inline style beats any
-      // stylesheet rule regardless of specificity) — setting a custom property instead
-      // lets .card-face--foil's border-color: transparent actually override it.
-      style={{ "--faction-color": factionColor(template.faction) } as CSSProperties}
+      // Plain style props here would always win over CSS (inline style beats any
+      // stylesheet rule regardless of specificity) — custom properties instead
+      // let .card-face--foil's border-color: transparent still override the base
+      // rarity-colored border.
+      style={
+        {
+          "--faction-color": factionColor(template.faction),
+          "--rarity-color": template.rarity ? rarityColor(template.rarity) : "var(--border-bright)",
+        } as CSSProperties
+      }
       onClick={onClick}
       disabled={!onClick}
     >
-      <span className="card-face__cost">{template.cost}</span>
-      {template.rarity && (
-        <span className="card-face__rarity" style={{ background: rarityColor(template.rarity) }} title={template.rarity} />
-      )}
-      <span className="card-face__name">{template.name}</span>
-      {keywords && keywords.length > 0 && (
-        <span className="card-face__keywords">
-          {keywords.map((kw, i) => (
-            <span key={kw} className="card-face__keyword" title={KEYWORD_TOOLTIPS[kw]}>
-              {kw}
-              {i < keywords.length - 1 ? " · " : ""}
-            </span>
-          ))}
+      <span className="card-face__stripe" />
+
+      <span className="card-face__portrait" aria-hidden="true">
+        <span className="card-face__cost">{template.cost}</span>
+        <span className="card-face__ticker" title={template.faction}>
+          {factionTicker(template.faction)}
         </span>
-      )}
-      <span className="card-face__text">{template.text}</span>
+      </span>
+
+      <span className="card-face__name-plate">
+        {template.rarity && <span className="card-face__rarity-gem" title={template.rarity} />}
+        <span className="card-face__name">{template.name}</span>
+      </span>
+
+      <span className="card-face__textbox">
+        {keywords && keywords.length > 0 && (
+          <span className="card-face__keywords">
+            {keywords.map((kw, i) => (
+              <span key={kw} className="card-face__keyword" title={KEYWORD_TOOLTIPS[kw]}>
+                {kw}
+                {i < keywords.length - 1 ? " · " : ""}
+              </span>
+            ))}
+          </span>
+        )}
+        <span className="card-face__text">{template.text}</span>
+      </span>
+
       {isCreature && (
         <span className="card-face__stats">
           <span className="card-face__attack">{showAttack}</span>
