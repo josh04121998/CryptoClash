@@ -1,5 +1,5 @@
 import { CARD_POOL, PlayerId, TargetRef } from "@cryptoclash/engine";
-import { ClientMessage, NetworkMatchState, ServerMessage } from "@cryptoclash/protocol";
+import { ClientMessage, HIDDEN_CARD_ID, NetworkMatchState, ServerMessage } from "@cryptoclash/protocol";
 import { Pool } from "pg";
 import { WebSocket } from "ws";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -372,6 +372,145 @@ describe("reconnect", () => {
       } finally {
         await shortServer.close();
       }
+    },
+    20000,
+  );
+});
+
+/**
+ * A legal 30-card deck (3x the one Secret template + 3x each of 9 no-target,
+ * board-slot-free filler spells) built specifically so a scripted player can
+ * always play whatever it draws immediately (keeping its hand small, so a
+ * full-hand discard — draw.ts's MAX_HAND_SIZE — can never eat the Secret
+ * before it's seen) while guaranteeing, by the pigeonhole principle, that
+ * the Secret is drawn within the deck's first 28 cards (only 27 non-Secret
+ * cards exist in this 30-card list).
+ */
+const SECRET_TEST_FILLERS = [
+  "pump_signal",
+  "cool_down",
+  "seed_round",
+  "first_aid",
+  "chaos_croak",
+  "venture_capital",
+  "pack_rush",
+  "ember_curse",
+  "technical_debt",
+];
+const SECRET_TEST_DECK = [
+  ...Array(3).fill("short_position"),
+  ...SECRET_TEST_FILLERS.flatMap((id) => Array(3).fill(id)),
+];
+
+async function setUpSecretMatch() {
+  const a = await connect();
+  const b = await connect();
+  send(a, { type: "findMatch", cards: SECRET_TEST_DECK });
+  await nextMessage(a); // queued
+  send(b, { type: "findMatch", cards: AGGRO_DECK });
+  const [foundA, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+  if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+  return { aSocket: a, bSocket: b, aPlayerId: foundA.playerId, bPlayerId: foundB.playerId, foundA, foundB };
+}
+
+/**
+ * Drives real turns over the live sockets — A plays "Short Position" the
+ * instant it's in hand, otherwise dumps any affordable filler (keeping its
+ * hand small) or ends turn; B just ends turn every time, since nothing about
+ * B's play matters for this test. Returns the single state broadcast pair
+ * (as seen by A, and separately as seen by B) from the exact intent that
+ * armed the Secret, so the test can compare both viewers' copies of the
+ * same real event.
+ */
+async function driveUntilSecretArmed(
+  aSocket: WebSocket,
+  bSocket: WebSocket,
+  aPlayerId: PlayerId,
+  bPlayerId: PlayerId,
+  initialAState: NetworkMatchState,
+  maxSteps = 200,
+): Promise<{ stateAsSeenByA: NetworkMatchState; stateAsSeenByB: NetworkMatchState }> {
+  let stateForA = initialAState;
+  for (let step = 0; step < maxSteps; step++) {
+    if (stateForA.winner) throw new Error("match ended before the Secret was ever played");
+
+    if (stateForA.activePlayer === aPlayerId) {
+      const player = stateForA.players[aPlayerId];
+      const secretIndex = player.hand.findIndex((id) => id === "short_position");
+      if (secretIndex !== -1 && player.energy >= CARD_POOL["short_position"].cost) {
+        send(aSocket, { type: "intent", intent: { kind: "playCard", playerId: aPlayerId, handIndex: secretIndex } });
+        const [nextA, nextB] = await Promise.all([nextMessage(aSocket), nextMessage(bSocket)]);
+        if (nextA.type !== "state" || nextB.type !== "state") {
+          throw new Error("expected a real state broadcast to both sockets after arming the Secret");
+        }
+        return { stateAsSeenByA: nextA.state, stateAsSeenByB: nextB.state };
+      }
+      const fillerIndex = player.hand.findIndex((id) => CARD_POOL[id].cost <= player.energy);
+      const handIndex = fillerIndex !== -1 ? fillerIndex : undefined;
+      send(
+        aSocket,
+        handIndex !== undefined
+          ? { type: "intent", intent: { kind: "playCard", playerId: aPlayerId, handIndex } }
+          : { type: "intent", intent: { kind: "endTurn", playerId: aPlayerId } },
+      );
+    } else {
+      send(bSocket, { type: "intent", intent: { kind: "endTurn", playerId: bPlayerId } });
+    }
+    const [nextA] = await Promise.all([nextMessage(aSocket), nextMessage(bSocket)]);
+    if (nextA.type === "state") stateForA = nextA.state;
+  }
+  throw new Error(`never drew "Short Position" within ${maxSteps} steps`);
+}
+
+describe("wire redaction (Secrets/hand/deck)", () => {
+  it(
+    "gives each player their own real hand/deck while hiding the opponent's as counts-only",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch();
+
+      // Each socket's own player entry round-trips for real — never the placeholder.
+      expect(foundA.state.players[aPlayerId].hand.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[aPlayerId].deck.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+      expect(foundB.state.players[bPlayerId].hand.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+
+      // A's copy of B is fully redacted — real counts, placeholder identities.
+      expect(foundA.state.players[bPlayerId].hand.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[bPlayerId].hand.length).toBe(foundB.state.players[bPlayerId].hand.length);
+      expect(foundA.state.players[bPlayerId].deck.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[bPlayerId].deck.length).toBe(foundB.state.players[bPlayerId].deck.length);
+
+      // Symmetric the other way — B's copy of A is redacted the same way.
+      expect(foundB.state.players[aPlayerId].hand.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundB.state.players[aPlayerId].hand.length).toBe(foundA.state.players[aPlayerId].hand.length);
+
+      aSocket.close();
+      bSocket.close();
+    },
+    10000,
+  );
+
+  it(
+    "hides an armed Secret's real identity from the opponent (count-only) while the owner still sees it",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpSecretMatch();
+
+      const { stateAsSeenByA, stateAsSeenByB } = await driveUntilSecretArmed(
+        aSocket,
+        bSocket,
+        aPlayerId,
+        bPlayerId,
+        foundA.state,
+      );
+
+      // A's own broadcast: the Secret it just armed is really "short_position."
+      expect(stateAsSeenByA.players[aPlayerId].secrets).toEqual(["short_position"]);
+      // The exact same event, from B's socket: a real count (one Secret armed)
+      // but never the real identity.
+      expect(stateAsSeenByB.players[aPlayerId].secrets.length).toBe(1);
+      expect(stateAsSeenByB.players[aPlayerId].secrets[0]).toBe(HIDDEN_CARD_ID);
+
+      aSocket.close();
+      bSocket.close();
     },
     20000,
   );

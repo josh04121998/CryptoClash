@@ -587,6 +587,58 @@ describe("bot AI", () => {
     expect([1, 3]).toContain(landedSlot);
     expect(getAdjacentSlots(landedSlot)).toContain(2);
   });
+
+  // Session 16 balance-pass follow-up: the bot previously had no self-damage-risk
+  // model at all — it would play a Degens "pay your own HP" card purely for the
+  // value/tempo gain, blind to how low that left its own HP. These three cases
+  // exercise the fix (isSelfDamageTooRisky in bot.ts).
+  it("declines a self-damage spell that would drop it critically low with nothing to gain from the risk", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
+    // Margin Call: deal 3 to the enemy player, take 2 damage yourself.
+    state.players.A.hand = ["margin_call"];
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+    state.players.A.hp = 5; // 5 - 2 = 3, well under the bot's safety floor
+    state.players.B.hp = 20; // nowhere near lethal even after the 3 face damage
+
+    takeBotTurn(state, "A");
+
+    // The old blind bot would've played it for the "free" 3 damage regardless of the cost.
+    expect(state.players.A.hand).toContain("margin_call"); // left unplayed
+    expect(state.players.A.hp).toBe(5); // no self-damage taken
+    expect(state.players.B.hp).toBe(20); // and the face damage never landed either
+  });
+
+  it("still plays a self-damage spell at critically low HP when it closes out the game outright", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
+    state.players.A.hand = ["margin_call"];
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+    state.players.A.hp = 5; // still well under the safety floor after paying the cost...
+    state.players.B.hp = 3; // ...but Margin Call's 3 face damage alone is lethal, so the risk is moot
+
+    takeBotTurn(state, "A");
+
+    expect(state.winner).toBe("A");
+    expect(state.players.B.hp).toBeLessThanOrEqual(0);
+  });
+
+  it("declines a self-damage creature that would step into the enemy board's current lethal-swing range, even above the flat HP floor", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
+    // Leverage Trade: a Creature, not a Spell — deal 1 damage to yourself, gain +2 Attack.
+    state.players.A.hand = ["leverage_trade"];
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+    state.players.A.hp = 11; // comfortably above the flat safety floor on its own
+
+    // Two 5-attack creatures on the enemy board sum to 10 effective attack — playing
+    // Leverage Trade would drop A to 10 HP, at or below that full-swing threat next turn.
+    placeCreature(state, "B", 0, "loyal_hound");
+    placeCreature(state, "B", 1, "loyal_hound");
+
+    takeBotTurn(state, "A");
+
+    expect(state.players.A.hand).toContain("leverage_trade"); // left unplayed
+    expect(state.players.A.hp).toBe(11); // no self-damage taken
+    expect(state.players.A.board.every((slot) => slot === null)).toBe(true); // never summoned
+  });
 });
 
 describe("Deathrattle", () => {

@@ -82,15 +82,16 @@ export class MatchRoom implements RoomHandle {
   }
 
   start() {
-    const state = serializeState(this.state);
-    this.send("A", { type: "matchFound", playerId: "A", state, reconnectToken: this.reconnectTokens.A });
-    this.send("B", { type: "matchFound", playerId: "B", state, reconnectToken: this.reconnectTokens.B });
+    // Per-viewer redaction (shared/src/index.ts) means A and B no longer get
+    // an identical payload — each has to be serialized from its own vantage
+    // point so the *other* player's hand/deck/secrets come across hidden.
+    this.send("A", { type: "matchFound", playerId: "A", state: serializeState(this.state, "A"), reconnectToken: this.reconnectTokens.A });
+    this.send("B", { type: "matchFound", playerId: "B", state: serializeState(this.state, "B"), reconnectToken: this.reconnectTokens.B });
   }
 
   private broadcastState() {
-    const state = serializeState(this.state);
-    this.send("A", { type: "state", state });
-    this.send("B", { type: "state", state });
+    this.send("A", { type: "state", state: serializeState(this.state, "A") });
+    this.send("B", { type: "state", state: serializeState(this.state, "B") });
   }
 
   private playerIdFor(sessionId: string): PlayerId | null {
@@ -223,7 +224,7 @@ export class MatchRoom implements RoomHandle {
     this.send(other(playerId), { type: "opponentReconnected" });
     const reward = this.lastReward[playerId];
     if (reward) this.send(playerId, { type: "matchReward", ...reward });
-    return serializeState(this.state);
+    return serializeState(this.state, playerId);
   }
 
   private scheduleTeardown(delayMs: number) {
