@@ -2,6 +2,16 @@ import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
+import {
+  AchievementAlreadyClaimedError,
+  AchievementNotCompleteError,
+  ACHIEVEMENT_DEFS,
+  claimAchievement,
+  getMyAchievements,
+  recordAchievementProgress,
+  recordMatchOutcomeForAchievements,
+  UnknownAchievementError,
+} from "../src/achievementsRepo.js";
 import { getCollectionCounts, getCollectionSummary, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
 import {
   awardMatchResult,
@@ -13,6 +23,7 @@ import {
   WELCOME_BONUS_COINS,
 } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
+import { deleteEvent, getActiveEvent, upsertEvent } from "../src/eventsRepo.js";
 import {
   getMyCoinsEarned,
   getMyWinRate,
@@ -23,6 +34,7 @@ import {
   MIN_GAMES_FOR_WIN_RATE,
 } from "../src/leaderboardRepo.js";
 import { runMigrations } from "../src/migrate.js";
+import { awardRankPoints, getMyRank, getTopRank, RANK_TIERS } from "../src/rankRepo.js";
 import {
   getOrCreateReferralCode,
   getReferralStats,
@@ -47,6 +59,7 @@ import {
   InvalidTemplateError,
 } from "../src/craftingRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, rollPackCards, UnknownPackTypeError } from "../src/packsRepo.js";
+import { AlreadyClaimedThisWeekError, claimWeekly, getWeeklyStatus, WEEKLY_REWARDS } from "../src/weeklyRepo.js";
 
 // These hit a real Postgres — set DATABASE_URL (see server/README.md) to run them.
 // They no-op (describe.skip) rather than fail when it's unset, so the rest of the
@@ -70,6 +83,7 @@ d("accounts + decks (integration, real Postgres)", () => {
     // Isolate each test — this suite owns the whole DB it's pointed at.
     await pool.query("delete from decks");
     await pool.query("delete from accounts");
+    await pool.query("delete from events"); // not account-scoped, so not covered by the cascade above
   });
 
   describe("findOrCreateAccount", () => {
@@ -648,4 +662,287 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(await rewardReferrerIfPending(pool, account.id)).toBeNull();
     });
   });
+
+  describe("weekly rewards", () => {
+    it("claims the first-ever weekly reward with streak 1", async () => {
+      const account = await findOrCreateAccount(pool, "0xweeklyfirst");
+      const status = await getWeeklyStatus(pool, account.id);
+      expect(status.claimedThisWeek).toBe(false);
+      expect(status.streak).toBe(0);
+      expect(status.nextRewardCoins).toBe(WEEKLY_REWARDS[0]);
+
+      const result = await claimWeekly(pool, account.id);
+      expect(result.streak).toBe(1);
+      expect(result.coinsEarned).toBe(WEEKLY_REWARDS[0]);
+      expect(result.balance).toBe(WEEKLY_REWARDS[0]);
+      expect(await getBalance(pool, account.id)).toBe(WEEKLY_REWARDS[0]);
+
+      const after = await getWeeklyStatus(pool, account.id);
+      expect(after.claimedThisWeek).toBe(true);
+      expect(after.streak).toBe(1);
+    });
+
+    it("rejects claiming twice in the same ISO week, without double-crediting", async () => {
+      const account = await findOrCreateAccount(pool, "0xweeklytwice");
+      await claimWeekly(pool, account.id);
+      await expect(claimWeekly(pool, account.id)).rejects.toThrow(AlreadyClaimedThisWeekError);
+      expect(await getBalance(pool, account.id)).toBe(WEEKLY_REWARDS[0]);
+    });
+
+    it("extends the streak when the previous claim was last week, and resets it after a gap", async () => {
+      const account = await findOrCreateAccount(pool, "0xweeklystreak");
+      const lastWeek = new Date();
+      lastWeek.setUTCDate(lastWeek.getUTCDate() - 7);
+      await pool.query("update accounts set last_weekly_claim_week = $1, weekly_streak = 2 where id = $2", [
+        isoWeekOfForTest(lastWeek),
+        account.id,
+      ]);
+      const extended = await claimWeekly(pool, account.id);
+      expect(extended.streak).toBe(3);
+      expect(extended.coinsEarned).toBe(WEEKLY_REWARDS[2]);
+
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
+      await pool.query("update accounts set last_weekly_claim_week = $1, weekly_streak = 3 where id = $2", [
+        isoWeekOfForTest(twoWeeksAgo),
+        account.id,
+      ]);
+      const reset = await claimWeekly(pool, account.id);
+      expect(reset.streak).toBe(1);
+      expect(reset.coinsEarned).toBe(WEEKLY_REWARDS[0]);
+    });
+
+    it("cycles the reward table past week 4 rather than capping the streak", async () => {
+      const account = await findOrCreateAccount(pool, "0xweeklycycle");
+      const lastWeek = new Date();
+      lastWeek.setUTCDate(lastWeek.getUTCDate() - 7);
+      await pool.query("update accounts set last_weekly_claim_week = $1, weekly_streak = 4 where id = $2", [
+        isoWeekOfForTest(lastWeek),
+        account.id,
+      ]);
+      const result = await claimWeekly(pool, account.id);
+      expect(result.streak).toBe(5);
+      expect(result.coinsEarned).toBe(WEEKLY_REWARDS[0]); // (5-1) % 4 === 0, back to week-1's rate
+    });
+  });
+
+  describe("achievements", () => {
+    it("starts every achievement at 0 progress, unclaimed", async () => {
+      const account = await findOrCreateAccount(pool, "0xachievestart");
+      const achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.length).toBe(ACHIEVEMENT_DEFS.length);
+      for (const a of achievements) {
+        expect(a.progress).toBe(0);
+        expect(a.claimed).toBe(false);
+      }
+    });
+
+    it("recordAchievementProgress increments only the matching track, capped at each achievement's goal", async () => {
+      const account = await findOrCreateAccount(pool, "0xachieveincrement");
+      await recordAchievementProgress(pool, account.id, "pack_opened_total", 1);
+      await recordAchievementProgress(pool, account.id, "pack_opened_total", 1);
+      const achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "packs_25")!.progress).toBe(2);
+      expect(achievements.find((a) => a.id === "win_10")!.progress).toBe(0); // never recorded on that track
+    });
+
+    it("recordAchievementProgress in 'max' mode keeps the greatest value reported, not a running sum", async () => {
+      const account = await findOrCreateAccount(pool, "0xachievemax");
+      await recordAchievementProgress(pool, account.id, "win_streak", 3);
+      await recordAchievementProgress(pool, account.id, "win_streak", 1); // a broken/shorter streak shouldn't erase the record
+      let achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "win_streak_5")!.progress).toBe(3);
+
+      await recordAchievementProgress(pool, account.id, "win_streak", 5);
+      achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "win_streak_5")!.progress).toBe(5); // capped at the goal too
+    });
+
+    it("recordMatchOutcomeForAchievements advances win_total and win_streak on a win, and resets the live streak on a loss/draw", async () => {
+      const account = await findOrCreateAccount(pool, "0xachievematch");
+      await recordMatchOutcomeForAchievements(pool, account.id, "win");
+      await recordMatchOutcomeForAchievements(pool, account.id, "win");
+      let achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "win_10")!.progress).toBe(2);
+      expect(achievements.find((a) => a.id === "win_streak_5")!.progress).toBe(2); // best streak so far: 2
+
+      await recordMatchOutcomeForAchievements(pool, account.id, "loss");
+      const row = await pool.query<{ current_win_streak: number }>("select current_win_streak from accounts where id = $1", [account.id]);
+      expect(row.rows[0].current_win_streak).toBe(0); // live streak reset...
+
+      await recordMatchOutcomeForAchievements(pool, account.id, "win");
+      achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "win_10")!.progress).toBe(3); // ...but win_total keeps counting
+      expect(achievements.find((a) => a.id === "win_streak_5")!.progress).toBe(2); // ...and the best-streak record survives the reset
+    });
+
+    it("claims a completed achievement exactly once, crediting Coins", async () => {
+      const account = await findOrCreateAccount(pool, "0xachieveclaim");
+      for (let i = 0; i < 10; i++) await recordAchievementProgress(pool, account.id, "win_total", 1);
+      const result = await claimAchievement(pool, account.id, "win_10");
+      expect(result.coinsEarned).toBe(300);
+      expect(result.balance).toBe(300);
+      expect(await getBalance(pool, account.id)).toBe(300);
+
+      await expect(claimAchievement(pool, account.id, "win_10")).rejects.toThrow(AchievementAlreadyClaimedError);
+      expect(await getBalance(pool, account.id)).toBe(300); // unchanged — no double-credit
+    });
+
+    it("rejects claiming an incomplete or unknown achievement", async () => {
+      const account = await findOrCreateAccount(pool, "0xachieveincomplete");
+      await expect(claimAchievement(pool, account.id, "win_10")).rejects.toThrow(AchievementNotCompleteError);
+      await expect(claimAchievement(pool, account.id, "not_a_real_achievement")).rejects.toThrow(UnknownAchievementError);
+    });
+
+    it("advances craft_legendary only when the crafted template is actually Legendary", async () => {
+      const legendaryId = Object.values(CARD_POOL).find((t) => t.rarity === "Legendary" && !t.token)!.id;
+      const nonLegendaryId = Object.values(CARD_POOL).find((t) => t.rarity === "Rare" && !t.token)!.id;
+
+      const account = await findOrCreateAccount(pool, "0xachievecraft");
+      // craftCard doesn't require owning a copy first — just enough Dust; give plenty directly
+      // rather than round-tripping through disenchant.
+      await pool.query("update accounts set dust_balance = 5000 where id = $1", [account.id]);
+
+      await craftCard(pool, account.id, nonLegendaryId);
+      let achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "craft_legendary")!.progress).toBe(0);
+
+      await craftCard(pool, account.id, legendaryId);
+      achievements = await getMyAchievements(pool, account.id);
+      expect(achievements.find((a) => a.id === "craft_legendary")!.progress).toBe(1);
+    });
+  });
+
+  describe("ranked progression", () => {
+    it("awards points per match outcome and derives the right tier", async () => {
+      const account = await findOrCreateAccount(pool, "0xrankbasic");
+      await awardRankPoints(pool, account.id, "win");
+      await awardRankPoints(pool, account.id, "win");
+      await awardRankPoints(pool, account.id, "loss");
+      // 20 + 20 - 10 = 30 points — still Bronze (min 0), below Silver's 150.
+      const status = await getMyRank(pool, account.id);
+      expect(status.points).toBe(30);
+      expect(status.tier.name).toBe("Bronze");
+      expect(status.nextTier?.name).toBe("Silver");
+      expect(status.pointsToNextTier).toBe(150 - 30);
+    });
+
+    it("floors a net-negative points total at 0 rather than going negative", async () => {
+      const account = await findOrCreateAccount(pool, "0xranknegative");
+      await awardRankPoints(pool, account.id, "loss");
+      await awardRankPoints(pool, account.id, "loss");
+      const status = await getMyRank(pool, account.id);
+      expect(status.points).toBe(0);
+      expect(status.tier.name).toBe("Bronze");
+    });
+
+    it("reaches the top tier and reports no next tier", async () => {
+      const account = await findOrCreateAccount(pool, "0xranktop");
+      const topTier = RANK_TIERS[RANK_TIERS.length - 1];
+      for (let i = 0; i < Math.ceil(topTier.minPoints / 20); i++) await awardRankPoints(pool, account.id, "win");
+      const status = await getMyRank(pool, account.id);
+      expect(status.tier.name).toBe(topTier.name);
+      expect(status.nextTier).toBeNull();
+      expect(status.pointsToNextTier).toBeNull();
+    });
+
+    it("ranks accounts on the public board by points, and omits an account with no ranked history", async () => {
+      const a = await findOrCreateAccount(pool, "0xrankboarda");
+      const b = await findOrCreateAccount(pool, "0xrankboardb");
+      const c = await findOrCreateAccount(pool, "0xrankboardc");
+      await awardRankPoints(pool, a.id, "win");
+      await awardRankPoints(pool, a.id, "win");
+      await awardRankPoints(pool, b.id, "win");
+      // c never plays a ranked match — should never appear on this board.
+
+      const top = await getTopRank(pool);
+      const aEntry = top.find((e) => e.walletAddress === "0xrankboarda");
+      const bEntry = top.find((e) => e.walletAddress === "0xrankboardb");
+      expect(aEntry?.points).toBe(40);
+      expect(bEntry?.points).toBe(20);
+      expect(aEntry!.rank).toBeLessThan(bEntry!.rank);
+      expect(top.some((e) => e.walletAddress === "0xrankboardc")).toBe(false);
+
+      const cStatus = await getMyRank(pool, c.id);
+      expect(cStatus.rank).toBeNull();
+      expect(cStatus.points).toBe(0);
+    });
+  });
+
+  describe("events", () => {
+    it("returns null when no event is active", async () => {
+      expect(await getActiveEvent(pool)).toBeNull();
+    });
+
+    it("upserts and reports an event active right now, and applies its Coins multiplier to a match reward", async () => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 60_000).toISOString();
+      const end = new Date(now.getTime() + 60_000).toISOString();
+      await upsertEvent(pool, {
+        id: "test_double_coins",
+        name: "Test Double Coins",
+        description: "A test event.",
+        coinMultiplier: 2,
+        startsAt: start,
+        endsAt: end,
+      });
+
+      const active = await getActiveEvent(pool);
+      expect(active?.id).toBe("test_double_coins");
+      expect(active?.coinMultiplier).toBe(2);
+
+      const account = await findOrCreateAccount(pool, "0xeventmultiplier");
+      const result = await awardMatchResult(pool, account.id, "win");
+      expect(result.amount).toBe(MATCH_WIN_COINS * 2);
+      expect(await getBalance(pool, account.id)).toBe(MATCH_WIN_COINS * 2);
+    });
+
+    it("ignores an event outside its date range", async () => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 120_000).toISOString();
+      const end = new Date(now.getTime() - 60_000).toISOString(); // ended a minute ago
+      await upsertEvent(pool, {
+        id: "test_expired",
+        name: "Test Expired",
+        description: "Already over.",
+        coinMultiplier: 3,
+        startsAt: start,
+        endsAt: end,
+      });
+      expect(await getActiveEvent(pool)).toBeNull();
+
+      const account = await findOrCreateAccount(pool, "0xeventexpired");
+      const result = await awardMatchResult(pool, account.id, "win");
+      expect(result.amount).toBe(MATCH_WIN_COINS); // no multiplier applied
+    });
+
+    it("deleteEvent removes a row and getActiveEvent stops reporting it", async () => {
+      const now = new Date();
+      await upsertEvent(pool, {
+        id: "test_delete_me",
+        name: "Delete Me",
+        description: "Should go away.",
+        coinMultiplier: 2,
+        startsAt: new Date(now.getTime() - 1000).toISOString(),
+        endsAt: new Date(now.getTime() + 60_000).toISOString(),
+      });
+      expect((await getActiveEvent(pool))?.id).toBe("test_delete_me");
+      expect(await deleteEvent(pool, "test_delete_me")).toBe(true);
+      expect(await getActiveEvent(pool)).toBeNull();
+      expect(await deleteEvent(pool, "test_delete_me")).toBe(false); // already gone
+    });
+  });
 });
+
+/** Test-only mirror of weeklyRepo.ts's private isoWeekOf — same ISO-8601 week algorithm, needed
+ * here to compute a legal "last week"/"two weeks ago" string for the streak-gap tests above. */
+function isoWeekOfForTest(date: Date): string {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}

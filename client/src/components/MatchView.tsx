@@ -7,6 +7,7 @@ import { BoardRow } from "./BoardRow.js";
 import { HandRow } from "./HandRow.js";
 import { LogPanel } from "./LogPanel.js";
 import { MatchResultOverlay } from "./MatchResultOverlay.js";
+import { OpponentHandRow } from "./OpponentHandRow.js";
 import { PlayerHeader } from "./PlayerHeader.js";
 import { VolatilityMeter } from "./VolatilityMeter.js";
 
@@ -197,6 +198,13 @@ export function MatchView({
   return (
     <>
       <main className={flashing ? "table table--market-event-flash" : "table"}>
+        {/*
+          Face-down, count-only — the server never sends this client the
+          opponent's real hand contents (shared/src/index.ts's serializeState),
+          so this can only ever render a count, matching the "🔒 N" Secrets
+          badge in PlayerHeader below for the same reason.
+        */}
+        <OpponentHandRow count={state.players[opponentId].hand.length} />
         <PlayerHeader
           name={opponentLabel}
           player={state.players[opponentId]}

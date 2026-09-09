@@ -1,13 +1,15 @@
 import { CARD_POOL, PlayerId, TargetRef } from "@cryptoclash/engine";
-import { ClientMessage, NetworkMatchState, ServerMessage } from "@cryptoclash/protocol";
+import { ClientMessage, HIDDEN_CARD_ID, NetworkMatchState, ServerMessage } from "@cryptoclash/protocol";
 import { Pool } from "pg";
 import { WebSocket } from "ws";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
+import { getMyAchievements } from "../src/achievementsRepo.js";
 import { issueSessionToken } from "../src/auth.js";
 import { getBalance } from "../src/coinsRepo.js";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
+import { getMyRank } from "../src/rankRepo.js";
 import { getTodayQuests } from "../src/questsRepo.js";
 import { getOrCreateReferralCode, getReferralStats, recordReferralSignup } from "../src/referralsRepo.js";
 
@@ -23,9 +25,9 @@ afterEach(async () => {
   await server.close();
 });
 
-function connect(): Promise<WebSocket> {
+function connect(targetUrl: string = url): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(targetUrl);
     socket.once("open", () => resolve(socket));
     socket.once("error", reject);
   });
@@ -268,15 +270,252 @@ describe("in-match play", () => {
     bSocket.close();
   });
 
-  it("notifies the remaining player when their opponent disconnects", async () => {
+  it("holds the match open (grace period, not an immediate end) when their opponent's socket drops unexpectedly", async () => {
     const { aSocket, bSocket } = await setUpMatch();
 
     aSocket.close();
-    const leftMsg = await nextMessage(bSocket);
-    expect(leftMsg).toEqual({ type: "opponentLeft" });
+    // Not an immediate opponentLeft anymore — the seat is held open for reconnection first.
+    const disconnectedMsg = await nextMessage(bSocket);
+    expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: expect.any(Number) });
 
     bSocket.close();
   });
+
+  it("forfeits the match to the opponent immediately on an intentional leave (no grace period, no forfeit timer)", async () => {
+    const { aSocket, bSocket, bPlayerId } = await setUpMatch();
+
+    send(aSocket, { type: "leave" });
+    // A real, decided-winner state broadcast right away — no waiting on any grace timer, and
+    // the client's existing win/lose overlay is all that's needed to convey it (see forfeit()).
+    const stateMsg = await nextMessage(bSocket);
+    expect(stateMsg.type).toBe("state");
+    if (stateMsg.type !== "state") throw new Error("unreachable");
+    expect(stateMsg.state.winner).toBe(bPlayerId);
+
+    aSocket.close();
+    bSocket.close();
+  });
+});
+
+describe("reconnect", () => {
+  it(
+    "lets the same player resume an in-progress match with a fresh socket after an unexpected disconnect, and the match still reaches a real conclusion",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch();
+      if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+      const aReconnectToken = foundA.reconnectToken;
+      expect(aReconnectToken).toEqual(expect.any(String));
+
+      // Simulate a's connection dropping mid-match (before either side has made a move).
+      aSocket.close();
+      const disconnectedMsg = await nextMessage(bSocket);
+      expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: expect.any(Number) });
+
+      // A brand-new socket, presenting the token handed out at matchFound — no accountId
+      // involved, so this is the anonymous-play reconnect path.
+      const aSocket2 = await connect();
+      send(aSocket2, { type: "reconnect", reconnectToken: aReconnectToken });
+      const [reconnectedMsg, reconnectedNotice] = await Promise.all([nextMessage(aSocket2), nextMessage(bSocket)]);
+      expect(reconnectedNotice).toEqual({ type: "opponentReconnected" });
+      expect(reconnectedMsg.type).toBe("reconnected");
+      if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+      expect(reconnectedMsg.playerId).toBe(aPlayerId);
+      expect(reconnectedMsg.state.turnNumber).toBe(foundA.state.turnNumber);
+      expect(reconnectedMsg.state.players.A.hand.length).toBe(foundA.state.players.A.hand.length);
+
+      // The match continues correctly over the new socket and reaches a real, engine-decided end.
+      const { winner } = await playMatchToConclusion(aSocket2, bSocket, aPlayerId, bPlayerId, reconnectedMsg.state, 15000);
+      expect(["A", "B", "Draw"]).toContain(winner);
+
+      aSocket2.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "forfeits the match to the remaining player if the disconnect grace period fully lapses with no reconnect",
+    async () => {
+      // A short grace period so this test doesn't need to wait out the real ~45s default.
+      const shortServer = await createMatchServer(0, { graceMs: 300 });
+      try {
+        const shortUrl = `ws://localhost:${shortServer.port}`;
+        const a = await connect(shortUrl);
+        const b = await connect(shortUrl);
+        send(a, { type: "findMatch", cards: AGGRO_DECK });
+        await nextMessage(a); // queued
+        send(b, { type: "findMatch", cards: AGGRO_DECK });
+        const [foundA, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+        if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+
+        a.close();
+        const disconnectedMsg = await nextMessage(b);
+        expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: 300 });
+
+        // The forfeit fires a normal state broadcast with the winner now decided — the client's
+        // existing win/lose overlay is enough to convey it, same as a real engine-decided win.
+        const stateMsg = await nextMessage(b, 3000);
+        expect(stateMsg.type).toBe("state");
+        if (stateMsg.type !== "state") throw new Error("unreachable");
+        expect(stateMsg.state.winner).toBe(foundB.playerId);
+
+        // The forfeited player can still reconnect within the post-match hold window and see the
+        // real final state (rather than landing on a dead screen) — the token stays valid for
+        // this short grace period after conclusion so a late reconnect doesn't just fail outright.
+        const aSocket2 = await connect(shortUrl);
+        send(aSocket2, { type: "reconnect", reconnectToken: foundA.reconnectToken });
+        const reconnectedMsg = await nextMessage(aSocket2, 3000);
+        expect(reconnectedMsg.type).toBe("reconnected");
+        if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+        expect(reconnectedMsg.state.winner).toBe(foundB.playerId);
+
+        aSocket2.close();
+        b.close();
+      } finally {
+        await shortServer.close();
+      }
+    },
+    20000,
+  );
+});
+
+/**
+ * A legal 30-card deck (3x the one Secret template + 3x each of 9 no-target,
+ * board-slot-free filler spells) built specifically so a scripted player can
+ * always play whatever it draws immediately (keeping its hand small, so a
+ * full-hand discard — draw.ts's MAX_HAND_SIZE — can never eat the Secret
+ * before it's seen) while guaranteeing, by the pigeonhole principle, that
+ * the Secret is drawn within the deck's first 28 cards (only 27 non-Secret
+ * cards exist in this 30-card list).
+ */
+const SECRET_TEST_FILLERS = [
+  "pump_signal",
+  "cool_down",
+  "seed_round",
+  "first_aid",
+  "chaos_croak",
+  "venture_capital",
+  "pack_rush",
+  "ember_curse",
+  "technical_debt",
+];
+const SECRET_TEST_DECK = [
+  ...Array(3).fill("short_position"),
+  ...SECRET_TEST_FILLERS.flatMap((id) => Array(3).fill(id)),
+];
+
+async function setUpSecretMatch() {
+  const a = await connect();
+  const b = await connect();
+  send(a, { type: "findMatch", cards: SECRET_TEST_DECK });
+  await nextMessage(a); // queued
+  send(b, { type: "findMatch", cards: AGGRO_DECK });
+  const [foundA, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+  if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+  return { aSocket: a, bSocket: b, aPlayerId: foundA.playerId, bPlayerId: foundB.playerId, foundA, foundB };
+}
+
+/**
+ * Drives real turns over the live sockets — A plays "Short Position" the
+ * instant it's in hand, otherwise dumps any affordable filler (keeping its
+ * hand small) or ends turn; B just ends turn every time, since nothing about
+ * B's play matters for this test. Returns the single state broadcast pair
+ * (as seen by A, and separately as seen by B) from the exact intent that
+ * armed the Secret, so the test can compare both viewers' copies of the
+ * same real event.
+ */
+async function driveUntilSecretArmed(
+  aSocket: WebSocket,
+  bSocket: WebSocket,
+  aPlayerId: PlayerId,
+  bPlayerId: PlayerId,
+  initialAState: NetworkMatchState,
+  maxSteps = 200,
+): Promise<{ stateAsSeenByA: NetworkMatchState; stateAsSeenByB: NetworkMatchState }> {
+  let stateForA = initialAState;
+  for (let step = 0; step < maxSteps; step++) {
+    if (stateForA.winner) throw new Error("match ended before the Secret was ever played");
+
+    if (stateForA.activePlayer === aPlayerId) {
+      const player = stateForA.players[aPlayerId];
+      const secretIndex = player.hand.findIndex((id) => id === "short_position");
+      if (secretIndex !== -1 && player.energy >= CARD_POOL["short_position"].cost) {
+        send(aSocket, { type: "intent", intent: { kind: "playCard", playerId: aPlayerId, handIndex: secretIndex } });
+        const [nextA, nextB] = await Promise.all([nextMessage(aSocket), nextMessage(bSocket)]);
+        if (nextA.type !== "state" || nextB.type !== "state") {
+          throw new Error("expected a real state broadcast to both sockets after arming the Secret");
+        }
+        return { stateAsSeenByA: nextA.state, stateAsSeenByB: nextB.state };
+      }
+      const fillerIndex = player.hand.findIndex((id) => CARD_POOL[id].cost <= player.energy);
+      const handIndex = fillerIndex !== -1 ? fillerIndex : undefined;
+      send(
+        aSocket,
+        handIndex !== undefined
+          ? { type: "intent", intent: { kind: "playCard", playerId: aPlayerId, handIndex } }
+          : { type: "intent", intent: { kind: "endTurn", playerId: aPlayerId } },
+      );
+    } else {
+      send(bSocket, { type: "intent", intent: { kind: "endTurn", playerId: bPlayerId } });
+    }
+    const [nextA] = await Promise.all([nextMessage(aSocket), nextMessage(bSocket)]);
+    if (nextA.type === "state") stateForA = nextA.state;
+  }
+  throw new Error(`never drew "Short Position" within ${maxSteps} steps`);
+}
+
+describe("wire redaction (Secrets/hand/deck)", () => {
+  it(
+    "gives each player their own real hand/deck while hiding the opponent's as counts-only",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch();
+
+      // Each socket's own player entry round-trips for real — never the placeholder.
+      expect(foundA.state.players[aPlayerId].hand.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[aPlayerId].deck.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+      expect(foundB.state.players[bPlayerId].hand.every((id) => id !== HIDDEN_CARD_ID)).toBe(true);
+
+      // A's copy of B is fully redacted — real counts, placeholder identities.
+      expect(foundA.state.players[bPlayerId].hand.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[bPlayerId].hand.length).toBe(foundB.state.players[bPlayerId].hand.length);
+      expect(foundA.state.players[bPlayerId].deck.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundA.state.players[bPlayerId].deck.length).toBe(foundB.state.players[bPlayerId].deck.length);
+
+      // Symmetric the other way — B's copy of A is redacted the same way.
+      expect(foundB.state.players[aPlayerId].hand.every((id) => id === HIDDEN_CARD_ID)).toBe(true);
+      expect(foundB.state.players[aPlayerId].hand.length).toBe(foundA.state.players[aPlayerId].hand.length);
+
+      aSocket.close();
+      bSocket.close();
+    },
+    10000,
+  );
+
+  it(
+    "hides an armed Secret's real identity from the opponent (count-only) while the owner still sees it",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpSecretMatch();
+
+      const { stateAsSeenByA, stateAsSeenByB } = await driveUntilSecretArmed(
+        aSocket,
+        bSocket,
+        aPlayerId,
+        bPlayerId,
+        foundA.state,
+      );
+
+      // A's own broadcast: the Secret it just armed is really "short_position."
+      expect(stateAsSeenByA.players[aPlayerId].secrets).toEqual(["short_position"]);
+      // The exact same event, from B's socket: a real count (one Secret armed)
+      // but never the real identity.
+      expect(stateAsSeenByB.players[aPlayerId].secrets.length).toBe(1);
+      expect(stateAsSeenByB.players[aPlayerId].secrets[0]).toBe(HIDDEN_CARD_ID);
+
+      aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
 });
 
 describe("match rewards (Coins)", () => {
@@ -343,6 +582,27 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
     throw new Error(`quest ${questId} never reached progress ${atLeast} for account ${accountId}`);
   }
 
+  /** Same best-effort/no-message-to-await reasoning as waitForQuestProgress above, for the
+   * achievements/ranked hooks (achievementsRepo.ts/rankRepo.ts) matchRoom.ts also fires here. */
+  async function waitForAchievementProgress(accountId: string, achievementId: string, atLeast: number): Promise<number> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const achievements = await getMyAchievements(pool, accountId);
+      const progress = achievements.find((a) => a.id === achievementId)?.progress ?? 0;
+      if (progress >= atLeast) return progress;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`achievement ${achievementId} never reached progress ${atLeast} for account ${accountId}`);
+  }
+
+  async function waitForRankPoints(accountId: string, atLeast: number): Promise<number> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const status = await getMyRank(pool, accountId);
+      if (status.points >= atLeast) return status.points;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`rank points for account ${accountId} never reached ${atLeast}`);
+  }
+
   it(
     "credits real Postgres Coins to both wallet-linked accounts, more to the winner than the loser, and reports the true balance",
     async () => {
@@ -367,6 +627,10 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         // the other half of the Coins-earn loop (questsRepo.ts). No "win" quest on a Draw.
         await waitForQuestProgress(accountFor[aPlayerId].accountId, "play_1", 1);
         await waitForQuestProgress(accountFor[bPlayerId].accountId, "play_1", 1);
+
+        // A draw pays rank points to both sides (DRAW_RANK_POINTS) but advances no achievement.
+        await waitForRankPoints(accountFor[aPlayerId].accountId, 1);
+        await waitForRankPoints(accountFor[bPlayerId].accountId, 1);
       } else {
         const loser = enemyOf(winner);
         const winnerReward = rewardFor(winner);
@@ -386,9 +650,65 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         await waitForQuestProgress(accountFor[winner].accountId, "win_1", 1);
         const loserQuests = await getTodayQuests(pool, accountFor[loser].accountId);
         expect(loserQuests.find((q) => q.id === "win_1")!.progress).toBe(0);
+
+        // Same match also advances the winner's "win_10"/"win_streak_5" achievements
+        // (achievementsRepo.ts) and both sides' ranked points (rankRepo.ts) — a win gains
+        // points, a loss costs some, per the real server-validated match result.
+        await waitForAchievementProgress(accountFor[winner].accountId, "win_10", 1);
+        await waitForAchievementProgress(accountFor[winner].accountId, "win_streak_5", 1);
+        await waitForRankPoints(accountFor[winner].accountId, 1);
+        const winnerRank = await getMyRank(pool, accountFor[winner].accountId);
+        const loserRank = await getMyRank(pool, accountFor[loser].accountId);
+        expect(winnerRank.points).toBeGreaterThan(loserRank.points);
       }
 
       aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "reconnects a wallet-authenticated player by accountId when the reconnectToken itself wasn't presented, and still awards Coins correctly at conclusion",
+    async () => {
+      const accountA = await accountToken("0xreconnecta");
+      const accountB = await accountToken("0xreconnectb");
+
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch({ a: accountA.token, b: accountB.token });
+      if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+
+      // Simulate a's connection dropping — then reconnect from a fresh socket presenting only the
+      // wallet session token (no reconnectToken), the fallback path for an authenticated player
+      // who lost the in-memory token (e.g. a full page reload).
+      aSocket.close();
+      await nextMessage(bSocket); // opponentDisconnected
+
+      const aSocket2 = await connect();
+      send(aSocket2, { type: "reconnect", token: accountA.token });
+      const [reconnectedMsg, reconnectedNotice] = await Promise.all([nextMessage(aSocket2), nextMessage(bSocket)]);
+      expect(reconnectedNotice).toEqual({ type: "opponentReconnected" });
+      expect(reconnectedMsg.type).toBe("reconnected");
+      if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+      expect(reconnectedMsg.playerId).toBe(aPlayerId);
+
+      const { winner, messages } = await playMatchToConclusion(aSocket2, bSocket, aPlayerId, bPlayerId, reconnectedMsg.state, 15000);
+      expect(["A", "B", "Draw"]).toContain(winner);
+
+      const accountFor: Record<PlayerId, { accountId: string; token: string }> = {
+        [aPlayerId]: accountA,
+        [bPlayerId]: accountB,
+      } as Record<PlayerId, { accountId: string; token: string }>;
+      // Rewards still land correctly on the accounts that actually started the match in each
+      // seat, even though player A's final socket is a different connection than the one the
+      // match began on.
+      if (winner !== "Draw") {
+        const winnerReward = messages.find((m) => m.playerId === winner && m.message.type === "matchReward")?.message;
+        expect(winnerReward?.type).toBe("matchReward");
+        if (winnerReward?.type !== "matchReward") throw new Error("unreachable");
+        expect(await getBalance(pool, accountFor[winner].accountId)).toBe(winnerReward.balance);
+      }
+
+      aSocket2.close();
       bSocket.close();
     },
     20000,
