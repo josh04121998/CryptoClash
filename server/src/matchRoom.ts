@@ -22,15 +22,16 @@ export class MatchRoom implements RoomHandle {
   }
 
   start() {
-    const state = serializeState(this.state);
-    this.send("A", { type: "matchFound", playerId: "A", state });
-    this.send("B", { type: "matchFound", playerId: "B", state });
+    // Per-viewer redaction (shared/src/index.ts) means A and B no longer get
+    // an identical payload — each has to be serialized from its own vantage
+    // point so the *other* player's hand/deck/secrets come across hidden.
+    this.send("A", { type: "matchFound", playerId: "A", state: serializeState(this.state, "A") });
+    this.send("B", { type: "matchFound", playerId: "B", state: serializeState(this.state, "B") });
   }
 
   private broadcastState() {
-    const state = serializeState(this.state);
-    this.send("A", { type: "state", state });
-    this.send("B", { type: "state", state });
+    this.send("A", { type: "state", state: serializeState(this.state, "A") });
+    this.send("B", { type: "state", state: serializeState(this.state, "B") });
   }
 
   private playerIdFor(sessionId: string): PlayerId | null {

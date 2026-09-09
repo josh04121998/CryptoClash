@@ -18,9 +18,38 @@ export type NetworkMatchState = Omit<MatchState, "players" | "rng"> & {
   players: Record<PlayerId, NetworkPlayerState>;
 };
 
-export function serializeState(state: MatchState): NetworkMatchState {
-  const mapPlayer = (player: PlayerState): NetworkPlayerState => ({
+/**
+ * Placeholder template id substituted into a redacted zone (an opponent's
+ * hand, deck order, or armed Secrets — see `serializeState` below). Never a
+ * real `CARD_POOL` key, so any code that forgets to special-case it (e.g. a
+ * naive `CARD_POOL[id]` lookup) fails safe with an undefined-template error
+ * rather than silently rendering/leaking real card data.
+ */
+export const HIDDEN_CARD_ID = "__hidden__";
+
+function redactZone(zone: string[]): string[] {
+  return zone.map(() => HIDDEN_CARD_ID);
+}
+
+/**
+ * Per-viewer serialization: `viewerId` is whichever player the resulting
+ * payload is about to be sent to. That player's own hand/deck/secrets ride
+ * along in full (needed to actually play the game); the *other* player's
+ * hand, deck order, and armed Secrets are replaced with same-length arrays
+ * of `HIDDEN_CARD_ID` — real counts (so e.g. PlayerHeader's "🔒 N" Secrets
+ * badge and a "Deck: N" readout still work), never real identities. Board
+ * state is always public (both players can already see it) and isn't
+ * touched. Previously this sent one identical, fully-unredacted payload to
+ * both sockets — a real information leak relative to the game's own design
+ * intent (a Secret is supposed to be a surprise; an opponent's hand isn't
+ * meant to be readable at all) — see card-schema.md Section 8.2.
+ */
+export function serializeState(state: MatchState, viewerId: PlayerId): NetworkMatchState {
+  const mapPlayer = (player: PlayerState, isViewer: boolean): NetworkPlayerState => ({
     ...player,
+    hand: isViewer ? player.hand : redactZone(player.hand),
+    deck: isViewer ? player.deck : redactZone(player.deck),
+    secrets: isViewer ? player.secrets : redactZone(player.secrets),
     board: player.board.map((creature) =>
       creature
         ? { ...creature, keywords: Array.from(creature.keywords), tempKeywords: Array.from(creature.tempKeywords) }
@@ -28,7 +57,13 @@ export function serializeState(state: MatchState): NetworkMatchState {
     ),
   });
   const { rng, ...rest } = state;
-  return { ...rest, players: { A: mapPlayer(state.players.A), B: mapPlayer(state.players.B) } };
+  return {
+    ...rest,
+    players: {
+      A: mapPlayer(state.players.A, viewerId === "A"),
+      B: mapPlayer(state.players.B, viewerId === "B"),
+    },
+  };
 }
 
 export function deserializeState(net: NetworkMatchState): MatchState {

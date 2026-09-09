@@ -282,6 +282,36 @@ button {
   padding-top: 0.25rem;
 }
 
+.hand-row--opponent {
+  padding-top: 0;
+  padding-bottom: 0.25rem;
+}
+
+/*
+ * Face-down opponent hand slot — count-only, never a real CardTemplate (the
+ * server redacts the identities before they ever reach this client, see
+ * shared/src/index.ts's serializeState). A quiet diagonal ticker-stripe
+ * pattern rather than the usual faction-colored border, so it reads as
+ * "unknown card" at a glance instead of looking like a broken CardFace.
+ */
+.card-face--back {
+  background: repeating-linear-gradient(135deg, var(--panel-alt), var(--panel-alt) 6px, var(--panel) 6px, var(--panel) 12px);
+  border-color: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.card-face--back::after {
+  content: "CC";
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  color: var(--border-bright);
+}
+
 .end-turn-btn {
   margin-top: 0.4rem;
   background: var(--accent);
