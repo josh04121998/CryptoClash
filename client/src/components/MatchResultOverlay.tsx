@@ -5,6 +5,10 @@ export interface MatchResultOverlayProps {
   winner: PlayerId | "Draw";
   myPlayerId: PlayerId;
   onDismiss: () => void;
+  /** tutorial_v1 exit variant */
+  tutorialExit?: boolean;
+  onPracticeAi?: () => void;
+  onMainMenu?: () => void;
 }
 
 interface Strip {
@@ -27,21 +31,27 @@ function makeStrips(count: number): Strip[] {
   }));
 }
 
-/**
- * A blocking-but-dismissible celebration moment on match end — "ticker tape
- * parade" confetti (thin falling strips, not round dots) for a win, since
- * that's a literal real Wall Street victory tradition and ties directly into
- * the "the floor is the battlefield" identity (branding.md). No confetti on
- * a loss — celebrating that would read as mocking the player.
- */
-export function MatchResultOverlay({ winner, myPlayerId, onDismiss }: MatchResultOverlayProps) {
+export function MatchResultOverlay({
+  winner,
+  myPlayerId,
+  onDismiss,
+  tutorialExit,
+  onPracticeAi,
+  onMainMenu,
+}: MatchResultOverlayProps) {
   const outcome: "win" | "loss" | "draw" = winner === "Draw" ? "draw" : winner === myPlayerId ? "win" : "loss";
   const strips = useMemo(() => (outcome !== "loss" ? makeStrips(outcome === "win" ? 60 : 30) : []), [outcome]);
 
-  const title = outcome === "win" ? "YOU WIN" : outcome === "loss" ? "YOU LOSE" : "DRAW";
+  const title = tutorialExit
+    ? "You've got the basics."
+    : outcome === "win"
+      ? "YOU WIN"
+      : outcome === "loss"
+        ? "YOU LOSE"
+        : "DRAW";
 
   return (
-    <div className="match-result__backdrop" onClick={onDismiss}>
+    <div className="match-result__backdrop" onClick={tutorialExit ? undefined : onDismiss}>
       {strips.map((s, i) => (
         <span
           key={i}
@@ -57,9 +67,20 @@ export function MatchResultOverlay({ winner, myPlayerId, onDismiss }: MatchResul
       ))}
       <div className={`match-result__card match-result__card--${outcome}`} onClick={(e) => e.stopPropagation()}>
         <span className="match-result__title">{title}</span>
-        <button type="button" onClick={onDismiss}>
-          Continue
-        </button>
+        {tutorialExit ? (
+          <div className="match-result__tutorial-actions">
+            <button type="button" onClick={onPracticeAi}>
+              Practice vs AI
+            </button>
+            <button type="button" onClick={onMainMenu}>
+              Main menu
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={onDismiss}>
+            Continue
+          </button>
+        )}
       </div>
     </div>
   );

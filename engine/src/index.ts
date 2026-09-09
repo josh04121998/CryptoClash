@@ -14,6 +14,7 @@ export {
 export type { DeckDefinition } from "./cards.js";
 export { DECK_SIZE, MAX_COPIES_PER_CARD, validateDeck } from "./deckRules.js";
 export { createMatch, applyIntent } from "./engine.js";
+export type { CreateMatchOptions } from "./engine.js";
 export { mulberry32 } from "./rng.js";
 export type { RNG } from "./rng.js";
 export { getEffectiveAttack } from "./stats.js";
@@ -21,3 +22,4 @@ export { takeBotTurn } from "./bot.js";
 export { applyVolatilityChange, triggerMarketEvent } from "./marketEvents.js";
 export type { MarketEventType } from "./marketEvents.js";
 export { targetsFriendlyCreature } from "./util.js";
+export { injectCard, forceDraw, injectCreature, ensureMinHp } from "./tutorial.js";

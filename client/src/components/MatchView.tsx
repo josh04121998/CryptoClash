@@ -1,6 +1,7 @@
 import { CARD_POOL, Intent, MatchState, PlayerId, targetsFriendlyCreature } from "@cryptoclash/engine";
 import { useEffect, useRef, useState } from "react";
 import { playClickSound, playErrorSound, playEndTurnSound, playSelectSound } from "../sound.js";
+import type { SpotlightTarget } from "../tutorial/beats.js";
 import { useAttackAnimations } from "../useAttackAnimations.js";
 import { useMatchSounds } from "../useMatchSounds.js";
 import { BoardRow } from "./BoardRow.js";
@@ -32,13 +33,14 @@ export interface MatchViewProps {
   opponentTurnLabel: string;
   logOpen: boolean;
   onCloseLog: () => void;
+  /** tutorial_v1 */
+  spotlight?: SpotlightTarget;
+  tutorialMode?: boolean;
+  tutorialBeatsComplete?: boolean;
+  onTutorialPracticeAi?: () => void;
+  onTutorialMainMenu?: () => void;
 }
 
-/**
- * The board/hand/interaction UI, generalized over which side is "me" — the
- * same view drives both the local vs-bot practice mode and online PvP; only
- * where state/dispatch come from differs (see useMatch vs useOnlineMatch).
- */
 export function MatchView({
   state,
   myPlayerId,
@@ -49,6 +51,11 @@ export function MatchView({
   opponentTurnLabel,
   logOpen,
   onCloseLog,
+  spotlight = { kind: "none" },
+  tutorialMode = false,
+  tutorialBeatsComplete = false,
+  onTutorialPracticeAi,
+  onTutorialMainMenu,
 }: MatchViewProps) {
   const opponentId: PlayerId = myPlayerId === "A" ? "B" : "A";
   const [selection, setSelection] = useState<Selection>({ type: "none" });
@@ -195,15 +202,23 @@ export function MatchView({
 
   const winnerText = state.winner ? (state.winner === "Draw" ? "Draw!" : state.winner === myPlayerId ? "You win!" : "You lose.") : null;
 
+  const mySpotlightSlot = spotlight.kind === "emptySlot" || spotlight.kind === "ownCreature" ? spotlight.slot : undefined;
+  const enemySpotlightGuard = spotlight.kind === "enemyGuard";
+  const spotlightEnergy = spotlight.kind === "energy";
+  const spotlightPortrait = spotlight.kind === "enemyPortrait";
+  const spotlightEndTurn = spotlight.kind === "endTurn";
+  const handSpotlight =
+    spotlight.kind === "handCard"
+      ? spotlight.templateId
+      : spotlight.kind === "energy" || spotlight.kind === "emptySlot"
+        ? "steady_hand"
+        : undefined;
+
+  const showTutorialResult = Boolean(tutorialMode && state.winner && tutorialBeatsComplete);
+
   return (
     <>
       <main className={flashing ? "table table--market-event-flash" : "table"}>
-        {/*
-          Face-down, count-only — the server never sends this client the
-          opponent's real hand contents (shared/src/index.ts's serializeState),
-          so this can only ever render a count, matching the "🔒 N" Secrets
-          badge in PlayerHeader below for the same reason.
-        */}
         <OpponentHandRow count={state.players[opponentId].hand.length} />
         <PlayerHeader
           name={opponentLabel}
@@ -211,6 +226,7 @@ export function MatchView({
           isActive={state.activePlayer === opponentId}
           targetable={enemyTargetable}
           onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
+          spotlightPortrait={spotlightPortrait}
         />
         <BoardRow
           state={state}
@@ -219,6 +235,7 @@ export function MatchView({
           attackingSlots={attackingSlots}
           attackDirection="down"
           onSlotClick={onEnemySlotClick}
+          spotlightGuard={enemySpotlightGuard}
         />
 
         <VolatilityMeter volatility={state.volatility} />
@@ -243,14 +260,26 @@ export function MatchView({
           attackingSlots={attackingSlots}
           attackDirection="up"
           onSlotClick={onOwnSlotClick}
+          spotlightSlot={mySpotlightSlot}
         />
-        <PlayerHeader name={myLabel} player={me} isActive={state.activePlayer === myPlayerId} />
+        <PlayerHeader
+          name={myLabel}
+          player={me}
+          isActive={state.activePlayer === myPlayerId}
+          spotlightEnergy={spotlightEnergy}
+        />
 
-        <HandRow player={me} selectedIndex={selection.type === "hand" ? selection.handIndex : undefined} interactive={canAct} onCardClick={onHandCardClick} />
+        <HandRow
+          player={me}
+          selectedIndex={selection.type === "hand" ? selection.handIndex : undefined}
+          interactive={canAct}
+          onCardClick={onHandCardClick}
+          spotlightTemplateId={handSpotlight}
+        />
 
         <button
           type="button"
-          className="end-turn-btn"
+          className={["end-turn-btn", spotlightEndTurn ? "end-turn-btn--spotlight" : ""].filter(Boolean).join(" ")}
           disabled={!canAct}
           onClick={() => {
             playEndTurnSound();
@@ -264,7 +293,14 @@ export function MatchView({
       <LogPanel log={state.log} open={logOpen} onClose={onCloseLog} />
 
       {state.winner && !resultDismissed && (
-        <MatchResultOverlay winner={state.winner} myPlayerId={myPlayerId} onDismiss={() => setResultDismissed(true)} />
+        <MatchResultOverlay
+          winner={state.winner}
+          myPlayerId={myPlayerId}
+          onDismiss={() => setResultDismissed(true)}
+          tutorialExit={showTutorialResult}
+          onPracticeAi={onTutorialPracticeAi}
+          onMainMenu={onTutorialMainMenu}
+        />
       )}
     </>
   );

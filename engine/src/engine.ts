@@ -10,8 +10,8 @@ import { enemyOf } from "./util.js";
 
 const OPENING_HAND_SIZE = 4;
 
-function createPlayer(id: PlayerId, deckList: string[], rng: () => number): PlayerState {
-  const shuffled = shuffle(deckList, rng);
+function createPlayer(id: PlayerId, deckList: string[], rng: () => number, preserveOrder = false): PlayerState {
+  const shuffled = preserveOrder ? [...deckList] : shuffle(deckList, rng);
   return {
     id,
     hp: MAX_PLAYER_HP,
@@ -124,12 +124,23 @@ function endTurn(state: MatchState, intent: Extract<Intent, { kind: "endTurn" }>
   startTurn(state);
 }
 
-export function createMatch(deckA: string[], deckB: string[], seed: number): MatchState {
+export interface CreateMatchOptions {
+  /** Enables tutorial-only helpers (injectCard, forceDraw, …). Never set for ranked/online. */
+  tutorial?: boolean;
+  /** Keep deck list order (no shuffle). Requires tutorial: true. */
+  preserveDeckOrder?: boolean;
+}
+
+export function createMatch(deckA: string[], deckB: string[], seed: number, options: CreateMatchOptions = {}): MatchState {
+  if (options.preserveDeckOrder && !options.tutorial) {
+    throw new Error("preserveDeckOrder requires tutorial: true");
+  }
   const rng = mulberry32(seed);
+  const preserve = Boolean(options.tutorial && options.preserveDeckOrder);
   const state: MatchState = {
     players: {
-      A: createPlayer("A", deckA, rng),
-      B: createPlayer("B", deckB, rng),
+      A: createPlayer("A", deckA, rng, preserve),
+      B: createPlayer("B", deckB, rng, preserve),
     },
     activePlayer: "A",
     turnNumber: 1,
@@ -141,6 +152,7 @@ export function createMatch(deckA: string[], deckB: string[], seed: number): Mat
     activeBurns: [],
     pendingEnergyPenalty: { A: 0, B: 0 },
     pendingDeathrattles: [],
+    tutorial: options.tutorial || undefined,
   };
   startTurn(state);
   return state;

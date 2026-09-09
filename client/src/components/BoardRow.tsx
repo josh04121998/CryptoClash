@@ -11,13 +11,27 @@ export interface BoardRowProps {
   /** Which physical direction "toward the enemy" is for this row — MatchView renders the opponent's row above mine, so this differs per call site. */
   attackDirection?: "up" | "down";
   onSlotClick: (slot: number) => void;
+  /** tutorial_v1 pulsing ring on a slot */
+  spotlightSlot?: number;
+  /** tutorial_v1 — spotlight any Guard on this row */
+  spotlightGuard?: boolean;
 }
 
 function allKeywords(creature: BoardCreature): string[] {
   return Array.from(new Set([...creature.keywords, ...creature.tempKeywords]));
 }
 
-export function BoardRow({ state, playerId, selectedSlot, targetable = false, attackingSlots, attackDirection, onSlotClick }: BoardRowProps) {
+export function BoardRow({
+  state,
+  playerId,
+  selectedSlot,
+  targetable = false,
+  attackingSlots,
+  attackDirection,
+  onSlotClick,
+  spotlightSlot,
+  spotlightGuard,
+}: BoardRowProps) {
   const board = state.players[playerId].board;
 
   return (
@@ -25,18 +39,26 @@ export function BoardRow({ state, playerId, selectedSlot, targetable = false, at
       {Array.from({ length: BOARD_SIZE }, (_, slot) => {
         const creature = board[slot];
         if (!creature) {
+          const spotEmpty = spotlightSlot === slot;
           return (
             <button
               key={slot}
               type="button"
-              className="board-slot board-slot--empty"
+              className={["board-slot", "board-slot--empty", spotEmpty ? "board-slot--spotlight" : ""]
+                .filter(Boolean)
+                .join(" ")}
               onClick={() => onSlotClick(slot)}
             />
           );
         }
         const template = CARD_POOL[creature.templateId];
+        const isGuard = Boolean(creature.keywords.has("Guard") || creature.tempKeywords.has("Guard"));
+        const spotOcc = spotlightSlot === slot || Boolean(spotlightGuard && isGuard);
         return (
-          <div key={slot} className="board-slot">
+          <div
+            key={slot}
+            className={["board-slot", spotOcc ? "board-slot--spotlight" : ""].filter(Boolean).join(" ")}
+          >
             <CardFace
               template={template}
               attack={getEffectiveAttack(state, playerId, slot)}

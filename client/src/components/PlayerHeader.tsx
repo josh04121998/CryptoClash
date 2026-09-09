@@ -7,12 +7,19 @@ export interface PlayerHeaderProps {
   isActive: boolean;
   targetable?: boolean;
   onClick?: () => void;
+  spotlightEnergy?: boolean;
+  spotlightPortrait?: boolean;
 }
 
-export function PlayerHeader({ name, player, isActive, targetable = false, onClick }: PlayerHeaderProps) {
-  // Same one-shot "just took damage" pattern as CardFace: diff this render's
-  // HP against last render's to detect a hit, rather than reacting to every
-  // re-render while HP happens to be below max. Also covers a heal (HP rising).
+export function PlayerHeader({
+  name,
+  player,
+  isActive,
+  targetable = false,
+  onClick,
+  spotlightEnergy,
+  spotlightPortrait,
+}: PlayerHeaderProps) {
   const [justHit, setJustHit] = useState(false);
   const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
   const prevHpRef = useRef(player.hp);
@@ -42,6 +49,7 @@ export function PlayerHeader({ name, player, isActive, targetable = false, onCli
         isActive ? "player-header--active" : "",
         targetable ? "player-header--targetable" : "",
         justHit ? "player-header--hit" : "",
+        spotlightPortrait ? "player-header--spotlight" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -49,18 +57,28 @@ export function PlayerHeader({ name, player, isActive, targetable = false, onCli
       disabled={!onClick}
     >
       <span className="player-header__name">{name}</span>
-      <span className={`player-header__hp ${justHit ? "player-header__hp--hit" : ""}`}>❤ {player.hp}</span>
-      <span className="player-header__energy">
+      <span className={`player-header__hp ${justHit ? "player-header__hp--hit" : ""}`}>♥ {player.hp}</span>
+      <span
+        className={
+          spotlightEnergy ? "player-header__energy player-header__energy--spotlight" : "player-header__energy"
+        }
+      >
         ⚡ {player.energy}/{player.maxEnergy}
       </span>
       <span className="player-header__deck">Deck: {player.deck.length}</span>
       {player.secrets.length > 0 && (
-        <span className="player-header__secrets" title={`${player.secrets.length} Secret${player.secrets.length > 1 ? "s" : ""} armed`}>
+        <span
+          className="player-header__secrets"
+          title={`${player.secrets.length} Secret${player.secrets.length > 1 ? "s" : ""} armed`}
+        >
           🔒 {player.secrets.length}
         </span>
       )}
       {popup && (
-        <span key={popup.key} className={`player-header__popup ${popup.heal ? "player-header__popup--heal" : "player-header__popup--damage"}`}>
+        <span
+          key={popup.key}
+          className={`player-header__popup ${popup.heal ? "player-header__popup--heal" : "player-header__popup--damage"}`}
+        >
           {popup.heal ? "+" : "-"}
           {popup.amount}
         </span>
