@@ -4,10 +4,12 @@ import { Pool } from "pg";
 import { WebSocket } from "ws";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
+import { getMyAchievements } from "../src/achievementsRepo.js";
 import { issueSessionToken } from "../src/auth.js";
 import { getBalance } from "../src/coinsRepo.js";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
+import { getMyRank } from "../src/rankRepo.js";
 import { getTodayQuests } from "../src/questsRepo.js";
 import { getOrCreateReferralCode, getReferralStats, recordReferralSignup } from "../src/referralsRepo.js";
 
@@ -343,6 +345,27 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
     throw new Error(`quest ${questId} never reached progress ${atLeast} for account ${accountId}`);
   }
 
+  /** Same best-effort/no-message-to-await reasoning as waitForQuestProgress above, for the
+   * achievements/ranked hooks (achievementsRepo.ts/rankRepo.ts) matchRoom.ts also fires here. */
+  async function waitForAchievementProgress(accountId: string, achievementId: string, atLeast: number): Promise<number> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const achievements = await getMyAchievements(pool, accountId);
+      const progress = achievements.find((a) => a.id === achievementId)?.progress ?? 0;
+      if (progress >= atLeast) return progress;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`achievement ${achievementId} never reached progress ${atLeast} for account ${accountId}`);
+  }
+
+  async function waitForRankPoints(accountId: string, atLeast: number): Promise<number> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const status = await getMyRank(pool, accountId);
+      if (status.points >= atLeast) return status.points;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`rank points for account ${accountId} never reached ${atLeast}`);
+  }
+
   it(
     "credits real Postgres Coins to both wallet-linked accounts, more to the winner than the loser, and reports the true balance",
     async () => {
@@ -367,6 +390,10 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         // the other half of the Coins-earn loop (questsRepo.ts). No "win" quest on a Draw.
         await waitForQuestProgress(accountFor[aPlayerId].accountId, "play_1", 1);
         await waitForQuestProgress(accountFor[bPlayerId].accountId, "play_1", 1);
+
+        // A draw pays rank points to both sides (DRAW_RANK_POINTS) but advances no achievement.
+        await waitForRankPoints(accountFor[aPlayerId].accountId, 1);
+        await waitForRankPoints(accountFor[bPlayerId].accountId, 1);
       } else {
         const loser = enemyOf(winner);
         const winnerReward = rewardFor(winner);
@@ -386,6 +413,16 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         await waitForQuestProgress(accountFor[winner].accountId, "win_1", 1);
         const loserQuests = await getTodayQuests(pool, accountFor[loser].accountId);
         expect(loserQuests.find((q) => q.id === "win_1")!.progress).toBe(0);
+
+        // Same match also advances the winner's "win_10"/"win_streak_5" achievements
+        // (achievementsRepo.ts) and both sides' ranked points (rankRepo.ts) — a win gains
+        // points, a loss costs some, per the real server-validated match result.
+        await waitForAchievementProgress(accountFor[winner].accountId, "win_10", 1);
+        await waitForAchievementProgress(accountFor[winner].accountId, "win_streak_5", 1);
+        await waitForRankPoints(accountFor[winner].accountId, 1);
+        const winnerRank = await getMyRank(pool, accountFor[winner].accountId);
+        const loserRank = await getMyRank(pool, accountFor[loser].accountId);
+        expect(winnerRank.points).toBeGreaterThan(loserRank.points);
       }
 
       aSocket.close();

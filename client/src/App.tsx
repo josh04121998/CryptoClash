@@ -1,10 +1,12 @@
 import { SAMPLE_DECK } from "@cryptoclash/engine";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "./api.js";
+import { AchievementsScreen } from "./components/AchievementsScreen.js";
 import { CollectionScreen } from "./components/CollectionScreen.js";
 import { CraftingScreen } from "./components/CraftingScreen.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
+import { EventBanner } from "./components/EventBanner.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
 import { LandingPage } from "./components/LandingPage.js";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
@@ -30,6 +32,7 @@ type Mode =
   | "collection"
   | "crafting"
   | "quests"
+  | "achievements"
   | "leaderboard"
   | "referral";
 
@@ -112,6 +115,17 @@ export default function App() {
     );
   }
 
+  if (mode === "achievements" && wallet.token) {
+    return (
+      <AchievementsScreen
+        token={wallet.token}
+        balance={coinsBalance}
+        onBalanceChange={setCoinsBalance}
+        onBack={() => setMode("menu")}
+      />
+    );
+  }
+
   if (mode === "referral" && wallet.token) {
     return <ReferralScreen token={wallet.token} onBack={() => setMode("menu")} />;
   }
@@ -168,6 +182,9 @@ export default function App() {
               <button type="button" onClick={() => setMode("quests")}>
                 Quests
               </button>
+              <button type="button" onClick={() => setMode("achievements")}>
+                Achievements
+              </button>
               <button type="button" onClick={() => setMode("packs")}>
                 Packs
               </button>
@@ -209,6 +226,7 @@ export default function App() {
         />
       )}
       <main className="menu">
+        <EventBanner />
         <button type="button" className="menu__option" onClick={() => setMode("pick-local")}>
           <span className="menu__option-title">Play vs AI</span>
           <span className="menu__option-desc">Practice offline against a bot opponent. No connection required.</span>

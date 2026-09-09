@@ -7,7 +7,7 @@ export interface LeaderboardScreenProps {
   onBack: () => void;
 }
 
-type Category = "wins" | "win-rate" | "coins-earned";
+type Category = "wins" | "win-rate" | "coins-earned" | "rank";
 
 interface RankedEntry {
   walletAddress: string;
@@ -24,6 +24,14 @@ interface WinRateEntry extends RankedEntry {
   games: number;
   winRate: number;
 }
+interface RankTierInfo {
+  name: string;
+  minPoints: number;
+}
+interface RankEntry extends RankedEntry {
+  points: number;
+  tierName: string;
+}
 
 interface WinsResponse {
   entries: WinsEntry[];
@@ -37,11 +45,23 @@ interface WinRateResponse {
   entries: WinRateEntry[];
   mine: { wins: number; games: number; winRate: number; rank: number | null; minGames: number } | null;
 }
+interface MyRank {
+  points: number;
+  tier: RankTierInfo;
+  nextTier: RankTierInfo | null;
+  pointsToNextTier: number | null;
+  rank: number | null;
+}
+interface RankResponse {
+  entries: RankEntry[];
+  mine: MyRank | null;
+}
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "wins", label: "Most Wins" },
   { id: "win-rate", label: "Win Rate" },
   { id: "coins-earned", label: "Coins Earned" },
+  { id: "rank", label: "Ranked" },
 ];
 
 function shortAddress(address: string): string {
@@ -53,6 +73,7 @@ export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
   const [wins, setWins] = useState<WinsResponse | null>(null);
   const [winRate, setWinRate] = useState<WinRateResponse | null>(null);
   const [coinsEarned, setCoinsEarned] = useState<CoinsEarnedResponse | null>(null);
+  const [rank, setRank] = useState<RankResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,10 +81,11 @@ export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
     setLoading(true);
     setError(null);
     const path = `/api/leaderboard/${category}`;
-    apiFetch<WinsResponse | WinRateResponse | CoinsEarnedResponse>(path, token ? { token } : {})
+    apiFetch<WinsResponse | WinRateResponse | CoinsEarnedResponse | RankResponse>(path, token ? { token } : {})
       .then((res) => {
         if (category === "wins") setWins(res as WinsResponse);
         else if (category === "win-rate") setWinRate(res as WinRateResponse);
+        else if (category === "rank") setRank(res as RankResponse);
         else setCoinsEarned(res as CoinsEarnedResponse);
       })
       .catch((e) => setError((e as Error).message))
@@ -199,6 +221,51 @@ export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
             {token && coinsEarned.mine && (
               <p className="leaderboard-screen__mine">
                 You're ranked #{coinsEarned.mine.rank} with 🪙 {coinsEarned.mine.coinsEarned} earned.
+              </p>
+            )}
+          </>
+        )}
+
+        {!loading && !error && category === "rank" && rank && (
+          <>
+            <p className="crafting__intro">
+              A placeholder points system (win +{20}/loss -{10}/draw +{5} per match, first design pass) mapped to
+              Bronze/Silver/Gold/Platinum/Diamond tiers — not skill-based matchmaking, just a progression display.
+            </p>
+            <table className="leaderboard-screen__table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Player</th>
+                  <th>Tier</th>
+                  <th>Points</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rank.entries.map((e) => (
+                  <tr key={e.walletAddress}>
+                    <td>{e.rank}</td>
+                    <td>{shortAddress(e.walletAddress)}</td>
+                    <td>{e.tierName}</td>
+                    <td>{e.points}</td>
+                  </tr>
+                ))}
+                {rank.entries.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="leaderboard-screen__empty">
+                      Nobody's played a ranked match yet — be the first.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {token && rank.mine && (
+              <p className="leaderboard-screen__mine">
+                {rank.mine.rank ? `You're ranked #${rank.mine.rank} — ` : "You're "}
+                {rank.mine.tier.name} ({rank.mine.points} pts)
+                {rank.mine.nextTier
+                  ? `, ${rank.mine.pointsToNextTier} to ${rank.mine.nextTier.name}.`
+                  : " — top tier."}
               </p>
             )}
           </>

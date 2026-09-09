@@ -1,6 +1,7 @@
 import { CARD_POOL, mulberry32, Rarity } from "@cryptoclash/engine";
 import { randomInt } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
+import { recordAchievementProgress } from "./achievementsRepo.js";
 import { applyCoinDeltaOnClient } from "./coinsRepo.js";
 import { grantCardInstances, PackCard } from "./collectionRepo.js";
 
@@ -138,7 +139,10 @@ export interface PackOpenResult {
  * coinsSpent = the pack's cost) and a free grant (referralsRepo's viral-invite
  * rewards, coinsSpent = 0 — a real audit-log row, not a special case, so a
  * free pack is just as reproducible/auditable as a paid one). Takes a
- * `PoolClient` so callers compose it into their own transaction.
+ * `PoolClient` so callers compose it into their own transaction. Also advances the
+ * "pack_opened_total" achievement (achievementsRepo.ts) by one per call — this is the one shared
+ * path both a paid open and a free grant (referralsRepo.ts's viral-invite rewards) go through,
+ * so hooking it here covers both without a second tracking call site.
  */
 export async function rollGrantAndLog(client: PoolClient, accountId: string, packType: string, coinsSpent: number): Promise<PackCard[]> {
   const def = PACK_DEFINITIONS[packType];
@@ -151,6 +155,7 @@ export async function rollGrantAndLog(client: PoolClient, accountId: string, pac
     `insert into pack_openings (account_id, pack_type, coins_spent, cards, seed) values ($1, $2, $3, $4, $5)`,
     [accountId, packType, coinsSpent, JSON.stringify(cards), seed],
   );
+  await recordAchievementProgress(client, accountId, "pack_opened_total", 1);
   return cards;
 }
 
