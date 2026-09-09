@@ -4,18 +4,28 @@ Real-time match server — the networking layer from `../architecture.md` Sectio
 
 ## What it does
 
-FIFO matchmaking (first player queued gets matched with the next to join) · one `MatchState` per room, owned server-side · rejects any intent submitted for a player other than the socket that sent it · broadcasts the resulting state to both sockets after every legal action · notifies the remaining player on opponent disconnect.
+FIFO matchmaking (first player queued gets matched with the next to join) · one `MatchState` per room, owned server-side · rejects any intent submitted for a player other than the socket that sent it · broadcasts the resulting state to both sockets after every legal action · holds a match open across an unexpected disconnect (reconnect grace period, see below) rather than ending it immediately.
 
 Also serves a small REST API (`/api/*`, same HTTP server, no separate deploy) for the collectible-foundation stage (`architecture.md` Section 6, step 1-2): wallet-based accounts (Sign-In with Ethereum) and saved custom decks. See "Accounts & decks API" below.
 
-Not yet implemented: skill-based matchmaking, reconnection to an in-progress match, more than one match server instance (state is in-process memory, so this doesn't horizontally scale yet — fine for the current player counts, worth revisiting before real load).
+Not yet implemented: skill-based matchmaking, more than one match server instance (state is in-process memory, so this doesn't horizontally scale yet — fine for the current player counts, worth revisiting before real load).
+
+### Reconnecting to an in-progress match
+
+A socket dropping unexpectedly (`matchRoom.ts`) doesn't end the match — the seat is held open for `RECONNECT_GRACE_MS` (45s) during which the same player can reconnect and resume exactly where they left off, rather than ending the match for both players (the old behavior). An intentional "Leave" click skips the grace period entirely and forfeits right away.
+
+- A fresh socket sends `{ type: "reconnect", reconnectToken?, token? }`. `reconnectToken` is a per-seat, per-match secret handed out in `matchFound`/`reconnected` — the primary way to prove "this is the same seat," and it works for anonymous play too, since there's no other persistent identity there. `token` (the wallet session JWT) is a fallback for authenticated players who lost the reconnectToken client-side (e.g. a full page reload) but still have an active held room under the same `accountId`.
+- On success, the server replies `{ type: "reconnected", playerId, state }` — the same authoritative `MatchState` a fresh `matchFound` would carry, so the UI can resume immediately. On failure (unknown/expired token, or the grace period already lapsed), it replies `{ type: "reconnectFailed" }`.
+- The still-connected opponent gets `{ type: "opponentDisconnected", graceMs }` the instant the drop happens, and `{ type: "opponentReconnected" }` if the seat is reoccupied in time.
+- If the grace period lapses with no reconnect, the match is forfeited to the remaining player — a normal `state` broadcast with `winner` set, so the client's existing win/lose result overlay conveys it with no special-cased "opponent left" screen. The room then stays reconnectable for a further `POST_MATCH_HOLD_MS` (30s) so a late-reconnecting player still sees the real final state (and any Coins reward they missed) instead of a dead screen.
+- Client-side (`client/src/useOnlineMatch.ts`): an unexpected socket close (not an intentional "Leave") triggers automatic reconnect attempts, and `OnlineMatch.tsx` shows a transient "reconnecting…" / "opponent disconnected" banner over the still-visible board rather than dropping to a blank screen.
 
 ## Running it
 
 ```
 npm install                        # from the repo root
 npm run migrate --workspace=server # apply DB migrations (needs DATABASE_URL — see below)
-npm run test --workspace=server    # matchmaking / in-match / disconnect integration tests
+npm run test --workspace=server    # matchmaking / in-match / disconnect / reconnect integration tests
 npm run dev --workspace=server     # local dev, watches for changes
 npm run start --workspace=server   # production start command (see Deploying below)
 ```

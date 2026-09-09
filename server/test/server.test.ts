@@ -23,9 +23,9 @@ afterEach(async () => {
   await server.close();
 });
 
-function connect(): Promise<WebSocket> {
+function connect(targetUrl: string = url): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(targetUrl);
     socket.once("open", () => resolve(socket));
     socket.once("error", reject);
   });
@@ -268,15 +268,113 @@ describe("in-match play", () => {
     bSocket.close();
   });
 
-  it("notifies the remaining player when their opponent disconnects", async () => {
+  it("holds the match open (grace period, not an immediate end) when their opponent's socket drops unexpectedly", async () => {
     const { aSocket, bSocket } = await setUpMatch();
 
     aSocket.close();
-    const leftMsg = await nextMessage(bSocket);
-    expect(leftMsg).toEqual({ type: "opponentLeft" });
+    // Not an immediate opponentLeft anymore — the seat is held open for reconnection first.
+    const disconnectedMsg = await nextMessage(bSocket);
+    expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: expect.any(Number) });
 
     bSocket.close();
   });
+
+  it("forfeits the match to the opponent immediately on an intentional leave (no grace period, no forfeit timer)", async () => {
+    const { aSocket, bSocket, bPlayerId } = await setUpMatch();
+
+    send(aSocket, { type: "leave" });
+    // A real, decided-winner state broadcast right away — no waiting on any grace timer, and
+    // the client's existing win/lose overlay is all that's needed to convey it (see forfeit()).
+    const stateMsg = await nextMessage(bSocket);
+    expect(stateMsg.type).toBe("state");
+    if (stateMsg.type !== "state") throw new Error("unreachable");
+    expect(stateMsg.state.winner).toBe(bPlayerId);
+
+    aSocket.close();
+    bSocket.close();
+  });
+});
+
+describe("reconnect", () => {
+  it(
+    "lets the same player resume an in-progress match with a fresh socket after an unexpected disconnect, and the match still reaches a real conclusion",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch();
+      if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+      const aReconnectToken = foundA.reconnectToken;
+      expect(aReconnectToken).toEqual(expect.any(String));
+
+      // Simulate a's connection dropping mid-match (before either side has made a move).
+      aSocket.close();
+      const disconnectedMsg = await nextMessage(bSocket);
+      expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: expect.any(Number) });
+
+      // A brand-new socket, presenting the token handed out at matchFound — no accountId
+      // involved, so this is the anonymous-play reconnect path.
+      const aSocket2 = await connect();
+      send(aSocket2, { type: "reconnect", reconnectToken: aReconnectToken });
+      const [reconnectedMsg, reconnectedNotice] = await Promise.all([nextMessage(aSocket2), nextMessage(bSocket)]);
+      expect(reconnectedNotice).toEqual({ type: "opponentReconnected" });
+      expect(reconnectedMsg.type).toBe("reconnected");
+      if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+      expect(reconnectedMsg.playerId).toBe(aPlayerId);
+      expect(reconnectedMsg.state.turnNumber).toBe(foundA.state.turnNumber);
+      expect(reconnectedMsg.state.players.A.hand.length).toBe(foundA.state.players.A.hand.length);
+
+      // The match continues correctly over the new socket and reaches a real, engine-decided end.
+      const { winner } = await playMatchToConclusion(aSocket2, bSocket, aPlayerId, bPlayerId, reconnectedMsg.state, 15000);
+      expect(["A", "B", "Draw"]).toContain(winner);
+
+      aSocket2.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "forfeits the match to the remaining player if the disconnect grace period fully lapses with no reconnect",
+    async () => {
+      // A short grace period so this test doesn't need to wait out the real ~45s default.
+      const shortServer = await createMatchServer(0, { graceMs: 300 });
+      try {
+        const shortUrl = `ws://localhost:${shortServer.port}`;
+        const a = await connect(shortUrl);
+        const b = await connect(shortUrl);
+        send(a, { type: "findMatch", cards: AGGRO_DECK });
+        await nextMessage(a); // queued
+        send(b, { type: "findMatch", cards: AGGRO_DECK });
+        const [foundA, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+        if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+
+        a.close();
+        const disconnectedMsg = await nextMessage(b);
+        expect(disconnectedMsg).toEqual({ type: "opponentDisconnected", graceMs: 300 });
+
+        // The forfeit fires a normal state broadcast with the winner now decided — the client's
+        // existing win/lose overlay is enough to convey it, same as a real engine-decided win.
+        const stateMsg = await nextMessage(b, 3000);
+        expect(stateMsg.type).toBe("state");
+        if (stateMsg.type !== "state") throw new Error("unreachable");
+        expect(stateMsg.state.winner).toBe(foundB.playerId);
+
+        // The forfeited player can still reconnect within the post-match hold window and see the
+        // real final state (rather than landing on a dead screen) — the token stays valid for
+        // this short grace period after conclusion so a late reconnect doesn't just fail outright.
+        const aSocket2 = await connect(shortUrl);
+        send(aSocket2, { type: "reconnect", reconnectToken: foundA.reconnectToken });
+        const reconnectedMsg = await nextMessage(aSocket2, 3000);
+        expect(reconnectedMsg.type).toBe("reconnected");
+        if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+        expect(reconnectedMsg.state.winner).toBe(foundB.playerId);
+
+        aSocket2.close();
+        b.close();
+      } finally {
+        await shortServer.close();
+      }
+    },
+    20000,
+  );
 });
 
 describe("match rewards (Coins)", () => {
@@ -389,6 +487,52 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
       }
 
       aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "reconnects a wallet-authenticated player by accountId when the reconnectToken itself wasn't presented, and still awards Coins correctly at conclusion",
+    async () => {
+      const accountA = await accountToken("0xreconnecta");
+      const accountB = await accountToken("0xreconnectb");
+
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA, foundB } = await setUpMatch({ a: accountA.token, b: accountB.token });
+      if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+
+      // Simulate a's connection dropping — then reconnect from a fresh socket presenting only the
+      // wallet session token (no reconnectToken), the fallback path for an authenticated player
+      // who lost the in-memory token (e.g. a full page reload).
+      aSocket.close();
+      await nextMessage(bSocket); // opponentDisconnected
+
+      const aSocket2 = await connect();
+      send(aSocket2, { type: "reconnect", token: accountA.token });
+      const [reconnectedMsg, reconnectedNotice] = await Promise.all([nextMessage(aSocket2), nextMessage(bSocket)]);
+      expect(reconnectedNotice).toEqual({ type: "opponentReconnected" });
+      expect(reconnectedMsg.type).toBe("reconnected");
+      if (reconnectedMsg.type !== "reconnected") throw new Error("unreachable");
+      expect(reconnectedMsg.playerId).toBe(aPlayerId);
+
+      const { winner, messages } = await playMatchToConclusion(aSocket2, bSocket, aPlayerId, bPlayerId, reconnectedMsg.state, 15000);
+      expect(["A", "B", "Draw"]).toContain(winner);
+
+      const accountFor: Record<PlayerId, { accountId: string; token: string }> = {
+        [aPlayerId]: accountA,
+        [bPlayerId]: accountB,
+      } as Record<PlayerId, { accountId: string; token: string }>;
+      // Rewards still land correctly on the accounts that actually started the match in each
+      // seat, even though player A's final socket is a different connection than the one the
+      // match began on.
+      if (winner !== "Draw") {
+        const winnerReward = messages.find((m) => m.playerId === winner && m.message.type === "matchReward")?.message;
+        expect(winnerReward?.type).toBe("matchReward");
+        if (winnerReward?.type !== "matchReward") throw new Error("unreachable");
+        expect(await getBalance(pool, accountFor[winner].accountId)).toBe(winnerReward.balance);
+      }
+
+      aSocket2.close();
       bSocket.close();
     },
     20000,

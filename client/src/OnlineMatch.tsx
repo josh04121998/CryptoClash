@@ -11,7 +11,7 @@ export interface OnlineMatchProps {
 }
 
 export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
-  const { status, playerId, state, dispatch, connect, disconnect, lastError, reward } = useOnlineMatch();
+  const { status, playerId, state, dispatch, connect, disconnect, lastError, reward, opponentConnected } = useOnlineMatch();
   const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
@@ -50,18 +50,30 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
         </div>
       </header>
 
-      {status === "in-match" && state && playerId ? (
-        <MatchView
-          state={state}
-          myPlayerId={playerId}
-          dispatch={dispatch}
-          lastError={lastError}
-          myLabel="You"
-          opponentLabel="Opponent"
-          opponentTurnLabel="Waiting for opponent…"
-          logOpen={logOpen}
-          onCloseLog={() => setLogOpen(false)}
-        />
+      {(status === "in-match" || status === "reconnecting") && state && playerId ? (
+        <>
+          <MatchView
+            state={state}
+            myPlayerId={playerId}
+            dispatch={dispatch}
+            lastError={lastError}
+            myLabel="You"
+            opponentLabel="Opponent"
+            opponentTurnLabel="Waiting for opponent…"
+            logOpen={logOpen}
+            onCloseLog={() => setLogOpen(false)}
+          />
+          {status === "reconnecting" && (
+            <div className="reconnect-banner" role="status">
+              Connection dropped — reconnecting…
+            </div>
+          )}
+          {status === "in-match" && !opponentConnected && (
+            <div className="reconnect-banner" role="status">
+              Opponent disconnected — waiting for them to reconnect…
+            </div>
+          )}
+        </>
       ) : (
         <main className="connect-status">
           {status === "connecting" && <p>Connecting to the match server…</p>}

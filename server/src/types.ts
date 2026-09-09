@@ -18,5 +18,8 @@ export interface Session {
  */
 export interface RoomHandle {
   handleIntent(sessionId: string, intent: Intent): void;
+  /** An unexpected socket close — the seat is held open for a reconnect grace period rather than ending the match immediately. */
   handleDisconnect(sessionId: string): void;
+  /** An intentional "Leave" click — ends the match for the opponent right away, no grace period. */
+  handleLeave(sessionId: string): void;
 }

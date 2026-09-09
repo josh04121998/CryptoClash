@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { createServer, Server as HttpServer } from "node:http";
-import { DEFAULT_DECK_ID, getDeck, validateDeck } from "@cryptoclash/engine";
-import { ClientMessage } from "@cryptoclash/protocol";
+import { DEFAULT_DECK_ID, getDeck, PlayerId, validateDeck } from "@cryptoclash/engine";
+import { ClientMessage, ServerMessage } from "@cryptoclash/protocol";
 import { WebSocket, WebSocketServer } from "ws";
 import { verifySessionToken } from "./auth.js";
 import { getPool } from "./db.js";
 import { handleApiRequest } from "./httpApi.js";
-import { MatchRoom } from "./matchRoom.js";
+import { MatchRoom, MatchRoomOptions } from "./matchRoom.js";
 import { Session } from "./types.js";
 
 export interface MatchServerHandle {
@@ -15,9 +15,42 @@ export interface MatchServerHandle {
   close: () => Promise<void>;
 }
 
+export interface MatchServerOptions {
+  /** Overrides MatchRoom's disconnect-grace/forfeit timeout — production leaves this unset (RECONNECT_GRACE_MS). Only meant for tests that need a short grace period to exercise the forfeit path quickly. */
+  graceMs?: number;
+}
+
 /** Boots the HTTP + WebSocket match server. Exported as a factory (rather than run-on-import) so tests can start/stop isolated instances on ephemeral ports. */
-export function createMatchServer(port = 0): Promise<MatchServerHandle> {
+export function createMatchServer(port = 0, options: MatchServerOptions = {}): Promise<MatchServerHandle> {
   const queue: Session[] = [];
+
+  // Held-room registries, so a fresh socket presenting a `reconnect` can find its way back to
+  // the still-live MatchRoom it dropped from. Two lookup paths (see shared/src/index.ts's
+  // `reconnect` message docs): the reconnectToken every match seat gets on matchFound (works for
+  // anonymous play too, since there's no other persistent identity there), and a wallet-linked
+  // accountId as a fallback for authenticated players who lost the token client-side. Entries are
+  // removed via each MatchRoom's onEnded callback once it fully tears down, so these stay bounded.
+  const reconnectIndex = new Map<string, { room: MatchRoom; playerId: PlayerId }>();
+  const accountRoomIndex = new Map<string, { room: MatchRoom; playerId: PlayerId }>();
+
+  function registerRoom(room: MatchRoom) {
+    for (const playerId of ["A", "B"] as PlayerId[]) {
+      reconnectIndex.set(room.reconnectTokenFor(playerId), { room, playerId });
+      const accountId = room.accountIdFor(playerId);
+      if (accountId) accountRoomIndex.set(accountId, { room, playerId });
+    }
+  }
+
+  function unregisterRoom(room: MatchRoom) {
+    for (const playerId of ["A", "B"] as PlayerId[]) {
+      const token = room.reconnectTokenFor(playerId);
+      if (reconnectIndex.get(token)?.room === room) reconnectIndex.delete(token);
+      const accountId = room.accountIdFor(playerId);
+      if (accountId && accountRoomIndex.get(accountId)?.room === room) accountRoomIndex.delete(accountId);
+    }
+  }
+
+  const matchRoomOptions: Pick<MatchRoomOptions, "graceMs" | "onEnded"> = { graceMs: options.graceMs, onEnded: unregisterRoom };
 
   const httpServer = createServer((req, res) => {
     if ((req.url ?? "/").startsWith("/api/")) {
@@ -41,11 +74,17 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
 
   const wss = new WebSocketServer({ server: httpServer });
 
-  function cleanupSession(session: Session) {
+  /**
+   * `intentional`: true for an explicit `leave` message (ends the match for
+   * the opponent right away), false for the socket simply closing (starts the
+   * reconnect grace period instead — see MatchRoom.handleDisconnect).
+   */
+  function cleanupSession(session: Session, intentional: boolean) {
     const idx = queue.indexOf(session);
     if (idx !== -1) queue.splice(idx, 1);
     if (session.room) {
-      session.room.handleDisconnect(session.id);
+      if (intentional) session.room.handleLeave(session.id);
+      else session.room.handleDisconnect(session.id);
       session.room = null;
     }
   }
@@ -80,13 +119,14 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
             if (session.room || socket.readyState !== WebSocket.OPEN) return;
             const opponent = queue.shift();
             if (opponent) {
-              const room = new MatchRoom(opponent, session);
+              const room = new MatchRoom(opponent, session, matchRoomOptions);
               opponent.room = room;
               session.room = room;
+              registerRoom(room);
               room.start();
             } else {
               queue.push(session);
-              socket.send(JSON.stringify({ type: "queued" }));
+              socket.send(JSON.stringify({ type: "queued" } satisfies ServerMessage));
             }
           });
           return;
@@ -95,12 +135,37 @@ export function createMatchServer(port = 0): Promise<MatchServerHandle> {
           session.room?.handleIntent(session.id, message.intent);
           return;
         case "leave":
-          cleanupSession(session);
+          cleanupSession(session, true);
           return;
+        case "reconnect": {
+          resolveAccountId(message.token).then((accountId) => {
+            if (socket.readyState !== WebSocket.OPEN) return;
+            let match = message.reconnectToken ? reconnectIndex.get(message.reconnectToken) : undefined;
+            if (!match && accountId) match = accountRoomIndex.get(accountId);
+            if (!match) {
+              socket.send(JSON.stringify({ type: "reconnectFailed" } satisfies ServerMessage));
+              return;
+            }
+            const { room, playerId } = match;
+            // Always the seat's canonical accountId, not whatever the presented token resolved
+            // to — a reconnectToken alone is proof enough of "same seat," and rewards/quest
+            // tracking must stay attributed to whoever actually started the match in that seat.
+            session.accountId = room.accountIdFor(playerId);
+            session.room = room;
+            const state = room.reconnect(playerId, session);
+            if (!state) {
+              session.room = null;
+              socket.send(JSON.stringify({ type: "reconnectFailed" } satisfies ServerMessage));
+              return;
+            }
+            socket.send(JSON.stringify({ type: "reconnected", playerId, state } satisfies ServerMessage));
+          });
+          return;
+        }
       }
     });
 
-    socket.on("close", () => cleanupSession(session));
+    socket.on("close", () => cleanupSession(session, false));
   });
 
   return new Promise((resolve) => {
