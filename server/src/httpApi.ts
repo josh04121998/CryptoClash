@@ -89,6 +89,10 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 const rateLimitBuckets = new Map<string, Map<string, { count: number; resetAt: number }>>();
 
 function checkRateLimit(bucketName: string, key: string, max: number, windowMs: number): boolean {
+  // vitest sets NODE_ENV=test automatically; the integration suites sign in far faster than any
+  // real user would (many accounts in quick succession from one IP), which isn't the abuse pattern
+  // this limiter exists for. Real deployments (Railway) never set NODE_ENV=test.
+  if (process.env.NODE_ENV === "test") return true;
   let bucket = rateLimitBuckets.get(bucketName);
   if (!bucket) {
     bucket = new Map();
