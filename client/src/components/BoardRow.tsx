@@ -44,6 +44,7 @@ export function BoardRow({
             <button
               key={slot}
               type="button"
+              aria-label={`Empty board slot ${slot + 1}`}
               className={["board-slot", "board-slot--empty", spotEmpty ? "board-slot--spotlight" : ""]
                 .filter(Boolean)
                 .join(" ")}

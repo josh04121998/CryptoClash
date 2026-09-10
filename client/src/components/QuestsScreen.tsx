@@ -114,7 +114,7 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">quests</span>
         <div className="app-bar__actions">
-          <span className="app-bar__coins" title="Coins">
+          <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>
             🪙 {balance ?? "…"}
           </span>
           <button type="button" onClick={onBack}>
@@ -130,7 +130,11 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
         </p>
         {error && <p className="deck-picker__empty">Couldn't load quests: {error}</p>}
         {loading && <p className="deck-picker__prompt">Loading…</p>}
-        {actionError && <p className="crafting__error">{actionError}</p>}
+        {actionError && (
+          <p className="crafting__error" role="status" aria-live="polite">
+            {actionError}
+          </p>
+        )}
 
         {!loading && !error && daily && (
           <div className="quests-screen__daily">
@@ -170,7 +174,14 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
                 <div key={quest.id} className="quests-screen__quest">
                   <div className="quests-screen__quest-info">
                     <span className="quests-screen__quest-title">{quest.description}</span>
-                    <div className="quests-screen__progress-bar">
+                    <div
+                      className="quests-screen__progress-bar"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={quest.goal}
+                      aria-valuenow={Math.min(quest.progress, quest.goal)}
+                      aria-label={`${quest.description} progress`}
+                    >
                       <div
                         className="quests-screen__progress-fill"
                         style={{ width: `${Math.min(100, (quest.progress / quest.goal) * 100)}%` }}

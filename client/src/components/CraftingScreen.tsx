@@ -110,7 +110,7 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">crafting</span>
         <div className="app-bar__actions">
-          <span className="app-bar__coins" title="Dust">
+          <span className="app-bar__coins" title="Dust" aria-label={`Dust: ${dust ?? "loading"}`}>
             💠 {dust ?? "…"}
           </span>
           <button type="button" onClick={onBack}>
@@ -126,7 +126,11 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
         </p>
         {error && <p className="deck-picker__empty">Couldn't load crafting: {error}</p>}
         {loading && <p className="deck-picker__prompt">Loading…</p>}
-        {actionError && <p className="crafting__error">{actionError}</p>}
+        {actionError && (
+          <p className="crafting__error" role="status" aria-live="polite">
+            {actionError}
+          </p>
+        )}
 
         {!loading && !error && (
           <div className="crafting__grid">
@@ -150,6 +154,7 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
                   <div className="crafting__disenchant-row">
                     <input
                       type="number"
+                      aria-label={`Quantity of ${template.name} to disenchant`}
                       min={1}
                       max={Math.max(1, ownedCopies)}
                       step={1}

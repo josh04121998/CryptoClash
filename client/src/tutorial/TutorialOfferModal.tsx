@@ -5,9 +5,11 @@ export interface TutorialOfferModalProps {
 
 export function TutorialOfferModal({ onAccept, onSkip }: TutorialOfferModalProps) {
   return (
-    <div className="tutorial-offer__backdrop" role="dialog" aria-modal="true" aria-label="Tutorial offer">
-      <div className="tutorial-offer__card">
-        <h2 className="tutorial-offer__title">Learn the floor (2 min)</h2>
+    <div className="tutorial-offer__backdrop">
+      <div className="tutorial-offer__card" role="dialog" aria-modal="true" aria-labelledby="tutorial-offer-title">
+        <h2 className="tutorial-offer__title" id="tutorial-offer-title">
+          Learn the floor (2 min)
+        </h2>
         <p className="tutorial-offer__body">
           One guided match — Energy, summoning sickness, Rush, Guard, and face damage. Always skippable.
         </p>

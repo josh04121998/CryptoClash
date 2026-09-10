@@ -250,7 +250,11 @@ export function MatchView({
               {state.activePlayer === myPlayerId ? <strong className="table__your-turn">Your move</strong> : opponentTurnLabel}
             </span>
           )}
-          {lastError && <span className="table__error">{lastError}</span>}
+          {lastError && (
+            <span className="table__error" role="status" aria-live="polite">
+              {lastError}
+            </span>
+          )}
         </div>
 
         <BoardRow

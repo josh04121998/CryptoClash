@@ -64,7 +64,7 @@ export function AchievementsScreen({ token, balance, onBalanceChange, onBack }: 
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">achievements</span>
         <div className="app-bar__actions">
-          <span className="app-bar__coins" title="Coins">
+          <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>
             🪙 {balance ?? "…"}
           </span>
           <button type="button" onClick={onBack}>
@@ -79,7 +79,11 @@ export function AchievementsScreen({ token, balance, onBalanceChange, onBack }: 
         </p>
         {error && <p className="deck-picker__empty">Couldn't load achievements: {error}</p>}
         {loading && <p className="deck-picker__prompt">Loading…</p>}
-        {actionError && <p className="crafting__error">{actionError}</p>}
+        {actionError && (
+          <p className="crafting__error" role="status" aria-live="polite">
+            {actionError}
+          </p>
+        )}
 
         {!loading && !error && (
           <div className="quests-screen__list">
@@ -89,7 +93,14 @@ export function AchievementsScreen({ token, balance, onBalanceChange, onBack }: 
                 <div key={a.id} className="quests-screen__quest">
                   <div className="quests-screen__quest-info">
                     <span className="quests-screen__quest-title">{a.description}</span>
-                    <div className="quests-screen__progress-bar">
+                    <div
+                      className="quests-screen__progress-bar"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={a.goal}
+                      aria-valuenow={Math.min(a.progress, a.goal)}
+                      aria-label={`${a.description} progress`}
+                    >
                       <div
                         className="quests-screen__progress-fill"
                         style={{ width: `${Math.min(100, (a.progress / a.goal) * 100)}%` }}

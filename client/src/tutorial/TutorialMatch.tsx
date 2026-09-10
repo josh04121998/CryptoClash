@@ -60,8 +60,10 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
 
       {!ctrl.preMatchAck && (
         <div className="tutorial-offer__backdrop">
-          <div className="tutorial-offer__card">
-            <h2 className="tutorial-offer__title">Goal: take them to 0 HP</h2>
+          <div className="tutorial-offer__card" role="dialog" aria-modal="true" aria-labelledby="tutorial-premtach-title">
+            <h2 className="tutorial-offer__title" id="tutorial-premtach-title">
+              Goal: take them to 0 HP
+            </h2>
             <p className="tutorial-offer__body">One thing at a time. No wallet. Follow the coach tips.</p>
             <div className="tutorial-offer__actions">
               <button type="button" className="tutorial-offer__primary" onClick={ackPreMatch}>
@@ -93,7 +95,7 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
       )}
 
       {ctrl.preMatchAck && ctrl.beatsComplete && !state.winner && (
-        <div className="coach-card coach-card--exit">
+        <div className="coach-card coach-card--exit" role="status" aria-live="polite">
           <div className="coach-card__header">
             <span className="coach-card__title">You've got the basics</span>
           </div>

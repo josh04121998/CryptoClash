@@ -107,7 +107,11 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
             </div>
 
             <div className="collection__filters">
-              <select value={factionFilter} onChange={(e) => setFactionFilter(e.target.value as FactionFilter)}>
+              <select
+                aria-label="Filter by faction"
+                value={factionFilter}
+                onChange={(e) => setFactionFilter(e.target.value as FactionFilter)}
+              >
                 <option value="All">All Factions</option>
                 {FACTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -115,7 +119,11 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
                   </option>
                 ))}
               </select>
-              <select value={rarityFilter} onChange={(e) => setRarityFilter(e.target.value as RarityFilter)}>
+              <select
+                aria-label="Filter by rarity"
+                value={rarityFilter}
+                onChange={(e) => setRarityFilter(e.target.value as RarityFilter)}
+              >
                 <option value="All">All Rarities</option>
                 {rarityStats.map((s) => (
                   <option key={s.rarity} value={s.rarity}>
