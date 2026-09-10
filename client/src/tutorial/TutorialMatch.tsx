@@ -47,7 +47,12 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
           >
             Skip tutorial
           </button>
-          <button type="button" onClick={abandon}>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Leave the tutorial?")) abandon();
+            }}
+          >
             Menu
           </button>
         </div>
@@ -79,7 +84,6 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
         onCloseLog={() => setLogOpen(false)}
         spotlight={spotlight}
         tutorialMode
-        tutorialBeatsComplete={ctrl.beatsComplete}
         onTutorialPracticeAi={() => finish("ai")}
         onTutorialMainMenu={() => finish("menu")}
       />

@@ -4,7 +4,7 @@ import { getEffectiveAttack } from "./stats.js";
 import { BOARD_SIZE, BoardCreature, CardTemplate, Intent, MatchState, MAX_PLAYER_HP, PlayerId, TargetRef } from "./types.js";
 import { enemyOf, firstEmptySlot, getAdjacentSlots, targetsFriendlyCreature } from "./util.js";
 
-function tryIntent(state: MatchState, intent: Intent): boolean {
+export function tryIntent(state: MatchState, intent: Intent): boolean {
   try {
     applyIntent(state, intent);
     return true;

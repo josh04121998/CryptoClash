@@ -271,12 +271,10 @@ export default function App() {
           <span className="menu__option-title">Leaderboard</span>
           <span className="menu__option-desc">Most wins, best win rate, most Coins earned. No wallet required to look.</span>
         </button>
-        {shouldOfferTutorial() && (
-          <button type="button" className="menu__option" onClick={() => setMode("tutorial")}>
-            <span className="menu__option-title">Tutorial</span>
-            <span className="menu__option-desc">Learn the floor in one guided match. No wallet.</span>
-          </button>
-        )}
+        <button type="button" className="menu__option" onClick={() => setMode("tutorial")}>
+          <span className="menu__option-title">Tutorial</span>
+          <span className="menu__option-desc">Learn the floor in one guided match. No wallet.</span>
+        </button>
       </main>
     </div>
   );

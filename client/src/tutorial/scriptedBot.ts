@@ -1,4 +1,4 @@
-import { applyIntent, CARD_POOL, Intent, MatchState, PlayerId } from "@cryptoclash/engine";
+import { CARD_POOL, MatchState, PlayerId, tryIntent } from "@cryptoclash/engine";
 
 /**
  * Scripted Doggos coach bot — fixed intents, NOT the full greedy AI.
@@ -7,15 +7,6 @@ import { applyIntent, CARD_POOL, Intent, MatchState, PlayerId } from "@cryptocla
  *  2nd B turn: play exactly one Guard (shield_pup), soft face poke if legal
  *  Later: play cheap cards only; never lethal the player early
  */
-
-function tryIntent(state: MatchState, intent: Intent): boolean {
-  try {
-    applyIntent(state, intent);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function emptySlot(state: MatchState, playerId: PlayerId): number {
   return state.players[playerId].board.findIndex((c) => c === null);

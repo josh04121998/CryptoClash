@@ -36,7 +36,6 @@ export interface MatchViewProps {
   /** tutorial_v1 */
   spotlight?: SpotlightTarget;
   tutorialMode?: boolean;
-  tutorialBeatsComplete?: boolean;
   onTutorialPracticeAi?: () => void;
   onTutorialMainMenu?: () => void;
 }
@@ -53,7 +52,6 @@ export function MatchView({
   onCloseLog,
   spotlight = { kind: "none" },
   tutorialMode = false,
-  tutorialBeatsComplete = false,
   onTutorialPracticeAi,
   onTutorialMainMenu,
 }: MatchViewProps) {
@@ -211,10 +209,13 @@ export function MatchView({
     spotlight.kind === "handCard"
       ? spotlight.templateId
       : spotlight.kind === "energy" || spotlight.kind === "emptySlot"
-        ? "steady_hand"
+        ? me.hand.find((templateId) => {
+            const template = CARD_POOL[templateId];
+            return template?.type === "Creature" && template.cost === 1;
+          })
         : undefined;
 
-  const showTutorialResult = Boolean(tutorialMode && state.winner && tutorialBeatsComplete);
+  const showTutorialResult = Boolean(tutorialMode && state.winner);
 
   return (
     <>

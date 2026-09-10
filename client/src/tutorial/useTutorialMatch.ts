@@ -19,10 +19,12 @@ import { takeTutorialBotTurn } from "./scriptedBot.js";
 
 const BOT_DELAY_MS = 650;
 
-function ensureRushInHand(state: MatchState) {
+function ensureRushInHand(state: MatchState): boolean {
   if (!state.players.A.hand.includes(TUTORIAL_RUSH_CARD)) {
     injectCard(state, "A", TUTORIAL_RUSH_CARD);
+    return true;
   }
+  return false;
 }
 
 export function useTutorialMatch() {
@@ -97,11 +99,14 @@ export function useTutorialMatch() {
 
   useEffect(() => {
     const state = stateRef.current;
+    let injected = false;
     if (state.activePlayer === "A" && state.turnNumber >= 2 && !state.winner) {
-      ensureRushInHand(state);
+      injected = ensureRushInHand(state);
     }
     if (enemyHasGuard(state) && !ctrl.sawGuard) {
       setCtrl((c) => (c.sawGuard ? c : { ...c, sawGuard: true }));
+    } else if (injected) {
+      bump();
     }
   }, [version, ctrl.sawGuard]);
 
@@ -113,9 +118,6 @@ export function useTutorialMatch() {
       ensureMinHp(stateRef.current, "A", 10);
       const post = afterIntent(ctrlRef.current, stateRef.current);
       if (post) setCtrl((c) => ({ ...c, ...post }));
-      else if (enemyHasGuard(stateRef.current)) {
-        setCtrl((c) => (c.sawGuard ? c : { ...c, sawGuard: true }));
-      }
       setVersion((v) => v + 1);
     }, BOT_DELAY_MS);
     return () => clearTimeout(timer);

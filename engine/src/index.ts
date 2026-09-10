@@ -18,7 +18,7 @@ export type { CreateMatchOptions } from "./engine.js";
 export { mulberry32 } from "./rng.js";
 export type { RNG } from "./rng.js";
 export { getEffectiveAttack } from "./stats.js";
-export { takeBotTurn } from "./bot.js";
+export { takeBotTurn, tryIntent } from "./bot.js";
 export { applyVolatilityChange, triggerMarketEvent } from "./marketEvents.js";
 export type { MarketEventType } from "./marketEvents.js";
 export { targetsFriendlyCreature } from "./util.js";

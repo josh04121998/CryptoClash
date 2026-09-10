@@ -187,6 +187,11 @@ export function gateIntent(
         return { ok: false, feedback: "Attack their HP with a Rush creature before ending." };
       }
       if (intent.kind === "attack") {
+        const attacker = state.players[myId].board[intent.attackerSlot];
+        const isRush = !!attacker && (attacker.keywords.has("Rush") || attacker.tempKeywords.has("Rush"));
+        if (intent.target.type === "player" && !isRush) {
+          return { ok: false, feedback: "That creature can't swing yet. Attack with your Rush creature." };
+        }
         if (enemyHasGuard(state) && intent.target.type === "player") {
           const msg = "Guard is on the desk. Clear it before you hit their HP.";
           return { ok: false, feedback: msg, advance: { beat: 4, step: "primary", feedback: msg, sawGuard: true } };
