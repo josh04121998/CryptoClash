@@ -228,9 +228,27 @@ export default function App() {
               </button>
             </>
           ) : (
-            <button type="button" onClick={handleConnectClick} disabled={wallet.status === "connecting"}>
-              {wallet.status === "connecting" ? "Connecting…" : "Connect Wallet"}
-            </button>
+            <>
+              {/* Collection/Packs/Crafting used to just vanish with no wallet connected, while the
+                  landing page sells "collecting" hard — a real IA gap flagged during the tutorial_v1
+                  handoff's own client walkthrough. Greyed, clickable entries that nudge toward
+                  connecting (rather than a dead disabled button) read as "here, but gated" instead
+                  of invisible, matching this project's "least friction to just play, wallet only
+                  when something needs to persist" principle — the nudge itself is the low-friction
+                  path in. */}
+              <button type="button" className="app-bar__locked" title="Connect a wallet to open Packs" onClick={handleConnectClick}>
+                Packs
+              </button>
+              <button type="button" className="app-bar__locked" title="Connect a wallet to view your Collection" onClick={handleConnectClick}>
+                Collection
+              </button>
+              <button type="button" className="app-bar__locked" title="Connect a wallet to craft cards" onClick={handleConnectClick}>
+                Crafting
+              </button>
+              <button type="button" onClick={handleConnectClick} disabled={wallet.status === "connecting"}>
+                {wallet.status === "connecting" ? "Connecting…" : "Connect Wallet"}
+              </button>
+            </>
           )}
         </div>
       </header>

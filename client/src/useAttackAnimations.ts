@@ -24,6 +24,10 @@ const ANIMATION_MS = 350;
  */
 export function useAttackAnimations(state: MatchState): Set<string> {
   const prevRef = useRef<Record<string, boolean>>({});
+  // False until the first snapshot has been taken — guards against animating creatures that are
+  // already mid-attack-flag the moment we start observing (a fresh reconnect/page-refresh state),
+  // since we never saw their real "before" value.
+  const primedRef = useRef(false);
   const [attacking, setAttacking] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -34,12 +38,18 @@ export function useAttackAnimations(state: MatchState): Set<string> {
         if (!creature) return;
         const key = `${playerId}-${slot}`;
         next[key] = creature.hasAttackedThisTurn;
-        if (creature.hasAttackedThisTurn && prevRef.current[key] === false) {
+        // `!== true` (not `=== false`) so a creature that didn't exist in the previous snapshot
+        // at all still counts as "just attacked" — e.g. Puppy Swarm summoning tokens and Pack
+        // Rush granting them Rush in the same bot turn lets a brand-new creature attack before
+        // this hook ever recorded a `false` baseline for its slot; `=== false` would miss it and
+        // the attack wouldn't visibly resolve (no lunge) even though the damage landed for real.
+        if (primedRef.current && creature.hasAttackedThisTurn && prevRef.current[key] !== true) {
           justAttacked.push(key);
         }
       });
     });
     prevRef.current = next;
+    primedRef.current = true;
 
     if (justAttacked.length > 0) {
       setAttacking((prev) => new Set([...prev, ...justAttacked]));

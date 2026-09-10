@@ -13,12 +13,22 @@ export interface OnlineMatchProps {
 export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   const { status, playerId, state, dispatch, connect, disconnect, lastError, reward, opponentConnected } = useOnlineMatch();
   const [logOpen, setLogOpen] = useState(false);
+  const [queuedSeconds, setQueuedSeconds] = useState(0);
 
   useEffect(() => {
     connect(deckCards, token ?? undefined);
     return () => disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (status !== "queued") {
+      setQueuedSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => setQueuedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
 
   const prevRewardRef = useRef(reward);
   useEffect(() => {
@@ -81,7 +91,19 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
       ) : (
         <main className="connect-status">
           {status === "connecting" && <p>Connecting to the match server…</p>}
-          {status === "queued" && <p>Looking for an opponent…</p>}
+          {status === "queued" && (
+            <>
+              <p>Looking for an opponent…{queuedSeconds > 0 ? ` (${queuedSeconds}s)` : ""}</p>
+              {queuedSeconds >= 20 && (
+                <p className="connect-status__hint">
+                  Nobody's queued right now — try Play vs AI instead, or hang tight and we'll match you the moment someone joins.
+                </p>
+              )}
+              <button type="button" onClick={handleExit}>
+                Cancel
+              </button>
+            </>
+          )}
           {status === "opponent-left" && (
             <>
               <p>Your opponent disconnected.</p>
