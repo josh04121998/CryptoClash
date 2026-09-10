@@ -1,5 +1,6 @@
 import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
 import type { Pool, PoolClient } from "pg";
+import { withTransaction } from "./txHelper.js";
 
 /**
  * Every Common-rarity, non-token template id — the starter set. Recomputed
@@ -31,10 +32,7 @@ export async function grantStartingCollection(pool: Pool, accountId: string): Pr
   const templateIds = starterTemplateIds();
   if (templateIds.length === 0) return;
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  await withTransaction(pool, async (client) => {
     const editionRows = await client.query<{ id: string }>(
       `insert into card_editions (template_id, edition_type)
        select unnest($1::text[]), 'standard'
@@ -65,14 +63,7 @@ export async function grantStartingCollection(pool: Pool, accountId: string): Pr
         [accountId, toInsert],
       );
     }
-
-    await client.query("commit");
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 /** A single card grant: which template, and whether this copy rolled the pack's cosmetic foil chance. */

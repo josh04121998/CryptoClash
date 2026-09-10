@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export class UnknownQuestError extends Error {}
 export class QuestNotCompleteError extends Error {}
@@ -95,9 +96,7 @@ export async function claimQuest(pool: Pool, accountId: string, questId: string)
   if (!def) throw new UnknownQuestError(`Unknown quest: ${questId}`);
   const day = todayUtc();
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     const claimedRow = await client.query(
       `update quest_progress set claimed = true, updated_at = now()
        where account_id = $1 and quest_id = $2 and day = $3 and claimed = false and progress >= $4`,
@@ -114,12 +113,6 @@ export async function claimQuest(pool: Pool, accountId: string, questId: string)
     }
 
     const balance = await applyCoinDeltaOnClient(client, accountId, def.rewardCoins, `quest:${questId}`);
-    await client.query("commit");
     return { coinsEarned: def.rewardCoins, balance };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }

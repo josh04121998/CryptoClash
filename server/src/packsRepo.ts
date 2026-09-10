@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from "pg";
 import { recordAchievementProgress } from "./achievementsRepo.js";
 import { applyCoinDeltaOnClient } from "./coinsRepo.js";
 import { grantCardInstances, PackCard } from "./collectionRepo.js";
+import { withTransaction } from "./txHelper.js";
 
 export interface PackDefinition {
   id: string;
@@ -169,10 +170,7 @@ export async function openPack(pool: Pool, accountId: string, packType: string):
   const def = PACK_DEFINITIONS[packType];
   if (!def) throw new UnknownPackTypeError(`Unknown pack type: ${packType}`);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(pool, async (client) => {
     const balanceRow = await client.query<{ coins_balance: number }>(
       "select coins_balance from accounts where id = $1 for update",
       [accountId],
@@ -185,12 +183,6 @@ export async function openPack(pool: Pool, accountId: string, packType: string):
     // information about rejected rolls through timing/order.
     const cards = await rollGrantAndLog(client, accountId, packType, def.cost);
 
-    await client.query("commit");
     return { cards, balance: balanceAfter };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }

@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { recordAchievementProgress } from "./achievementsRepo.js";
 import { grantCardInstances } from "./collectionRepo.js";
 import { applyDustDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export class InsufficientDustError extends Error {}
 export class InvalidTemplateError extends Error {}
@@ -106,9 +107,7 @@ export async function disenchantCards(pool: Pool, accountId: string, templateId:
   if (count <= 0) throw new Error("count must be positive.");
   const template = craftableTemplate(templateId);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     await client.query("select 1 from accounts where id = $1 for update", [accountId]);
 
     const instanceRows = await client.query<{ id: string }>(
@@ -132,14 +131,8 @@ export async function disenchantCards(pool: Pool, accountId: string, templateId:
     const dustEarned = DISENCHANT_VALUE[template.rarity!]! * count;
     const balance = await applyDustDeltaOnClient(client, accountId, dustEarned, `disenchant:${templateId}`);
 
-    await client.query("commit");
     return { dustEarned, balance };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export interface CraftResult {
@@ -155,10 +148,7 @@ export async function craftCard(pool: Pool, accountId: string, templateId: strin
   const template = craftableTemplate(templateId);
   const cost = CRAFT_COST[template.rarity!]!;
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(pool, async (client) => {
     const balanceRow = await client.query<{ dust_balance: number }>(
       "select dust_balance from accounts where id = $1 for update",
       [accountId],
@@ -172,12 +162,6 @@ export async function craftCard(pool: Pool, accountId: string, templateId: strin
     // packsRepo.ts's rollGrantAndLog tracks "pack_opened_total" at its own real event.
     if (template.rarity === "Legendary") await recordAchievementProgress(client, accountId, "craft_legendary", 1);
 
-    await client.query("commit");
     return { balance: balanceAfter };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
