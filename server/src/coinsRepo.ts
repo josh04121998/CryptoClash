@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { getActiveEvent } from "./eventsRepo.js";
 import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export { applyCoinDeltaOnClient };
 
@@ -26,18 +27,7 @@ export async function getBalance(pool: Pool, accountId: string): Promise<number>
  * inline against their own `PoolClient` instead of calling this.
  */
 async function applyCoinDelta(pool: Pool, accountId: string, amount: number, reason: string): Promise<number> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const balance = await applyCoinDeltaOnClient(client, accountId, amount, reason);
-    await client.query("commit");
-    return balance;
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  return withTransaction(pool, (client) => applyCoinDeltaOnClient(client, accountId, amount, reason));
 }
 
 export async function creditCoins(pool: Pool, accountId: string, amount: number, reason: string): Promise<number> {

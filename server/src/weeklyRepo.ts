@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export class AlreadyClaimedThisWeekError extends Error {}
 
@@ -86,9 +87,7 @@ export interface WeeklyClaimResult {
  * dailyRepo.ts's claimDaily.
  */
 export async function claimWeekly(pool: Pool, accountId: string): Promise<WeeklyClaimResult> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     const result = await client.query<AccountWeeklyRow>(
       "select last_weekly_claim_week, weekly_streak from accounts where id = $1 for update",
       [accountId],
@@ -104,12 +103,6 @@ export async function claimWeekly(pool: Pool, accountId: string): Promise<Weekly
     const balance = await applyCoinDeltaOnClient(client, accountId, reward, "weekly_login");
     await client.query("update accounts set last_weekly_claim_week = $1, weekly_streak = $2 where id = $3", [week, streak, accountId]);
 
-    await client.query("commit");
     return { coinsEarned: reward, streak, balance };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }

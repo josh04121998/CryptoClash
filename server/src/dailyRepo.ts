@@ -1,5 +1,6 @@
 import type { Pool } from "pg";
 import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export class AlreadyClaimedTodayError extends Error {}
 
@@ -71,9 +72,7 @@ export interface DailyClaimResult {
  * packsRepo.ts's openPack.
  */
 export async function claimDaily(pool: Pool, accountId: string): Promise<DailyClaimResult> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     const result = await client.query<AccountDailyRow>(
       "select last_daily_claim_day, daily_streak from accounts where id = $1 for update",
       [accountId],
@@ -89,12 +88,6 @@ export async function claimDaily(pool: Pool, accountId: string): Promise<DailyCl
     const balance = await applyCoinDeltaOnClient(client, accountId, reward, "daily_login");
     await client.query("update accounts set last_daily_claim_day = $1, daily_streak = $2 where id = $3", [today, streak, accountId]);
 
-    await client.query("commit");
     return { coinsEarned: reward, streak, balance };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }

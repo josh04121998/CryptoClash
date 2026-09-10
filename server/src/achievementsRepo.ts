@@ -1,5 +1,6 @@
 import type { Pool, PoolClient } from "pg";
 import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 export class UnknownAchievementError extends Error {}
 export class AchievementNotCompleteError extends Error {}
@@ -154,9 +155,7 @@ export async function claimAchievement(pool: Pool, accountId: string, achievemen
   const def = ACHIEVEMENT_BY_ID.get(achievementId);
   if (!def) throw new UnknownAchievementError(`Unknown achievement: ${achievementId}`);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     const claimedRow = await client.query(
       `update achievement_progress set claimed = true, updated_at = now()
        where account_id = $1 and achievement_id = $2 and claimed = false and progress >= $3`,
@@ -173,12 +172,6 @@ export async function claimAchievement(pool: Pool, accountId: string, achievemen
     }
 
     const balance = await applyCoinDeltaOnClient(client, accountId, def.rewardCoins, `achievement:${achievementId}`);
-    await client.query("commit");
     return { coinsEarned: def.rewardCoins, balance };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }

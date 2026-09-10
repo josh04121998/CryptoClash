@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import { PackCard } from "./collectionRepo.js";
 import { rollGrantAndLog } from "./packsRepo.js";
+import { withTransaction } from "./txHelper.js";
 
 /**
  * Referral / invite system (viral growth lever — added directly at the
@@ -85,9 +86,7 @@ export async function recordReferralSignup(pool: Pool, referredAccountId: string
   const referrerId = referrer.rows[0]?.id;
   if (!referrerId || referrerId === referredAccountId) return null;
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     // referred_id is unique — this can only ever succeed once per account, first-sign-in-only
     // by construction (isNew), but `on conflict do nothing` is the real backstop.
     const inserted = await client.query(
@@ -96,19 +95,13 @@ export async function recordReferralSignup(pool: Pool, referredAccountId: string
        returning id`,
       [referrerId, referredAccountId],
     );
-    if (inserted.rows.length === 0) {
-      await client.query("rollback");
-      return null;
-    }
+    // Nothing was written (`on conflict do nothing` — 0 rows), so committing this empty
+    // transaction is equivalent to rolling it back; no need to special-case it.
+    if (inserted.rows.length === 0) return null;
+
     const cards = await rollGrantAndLog(client, referredAccountId, "standard", 0);
-    await client.query("commit");
     return { referrerId, cards };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export interface ReferrerRewardResult {
@@ -125,27 +118,19 @@ export interface ReferrerRewardResult {
  * and is a silent no-op (null) for every other account and every later match.
  */
 export async function rewardReferrerIfPending(pool: Pool, referredAccountId: string): Promise<ReferrerRewardResult | null> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(pool, async (client) => {
     const flipped = await client.query<{ referrer_id: string }>(
       `update referrals set status = 'rewarded', rewarded_at = now()
        where referred_id = $1 and status = 'pending'
        returning referrer_id`,
       [referredAccountId],
     );
-    if (flipped.rows.length === 0) {
-      await client.query("commit");
-      return null;
-    }
+    // Nothing matched the `where`, so this update was a no-op — the outer commit below covers
+    // this branch too, same reasoning as recordReferralSignup's on-conflict-do-nothing above.
+    if (flipped.rows.length === 0) return null;
+
     const referrerId = flipped.rows[0].referrer_id;
     const cards = await rollGrantAndLog(client, referrerId, "standard", 0);
-    await client.query("commit");
     return { referrerId, cards };
-  } catch (e) {
-    await client.query("rollback");
-    throw e;
-  } finally {
-    client.release();
-  }
+  });
 }
