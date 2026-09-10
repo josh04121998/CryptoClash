@@ -98,7 +98,7 @@ Rough order, per the user's direction (2026-09-08):
 1. ~~This doc~~ — done.
 2. **Social assets** — PFP done, in its final photorealistic style (see Section 8), after two prior attempts (a rejected animal-mascot direction, then a flat-vector human trader — see Section 5). **Banner needs redoing to match the photoreal PFP, and stickers still aren't generated at all** — blocked on Pixa credits (8 left, below every model's per-image floor) as of this session. Next up once there's more credit budget: regenerate the banner using `pfp.jpg` as an image-to-image reference (see Section 5's note on why a fresh text prompt won't reproduce the same face), then 3-4 retro-trading-themed sticker poses/expressions, same technique.
 3. **Website assets** — a real hero illustration for the landing page (currently CSS/SVG-only), possibly faction icons. Not started.
-4. **Card art** — illustrated art for the 60 card templates. Last, and the biggest lift — not started.
+4. **Card art** — illustrated art for the 71 card templates. Last, and the biggest lift. **Style guide + a per-card visual spec for all 71 written up 2026-09-10 (Section 9)** — generation itself not started, and will be a slow background process (Grok generation limits), not a single session's work.
 
 ---
 
@@ -122,4 +122,161 @@ Files in `branding/assets/`:
 
 ---
 
-*Last updated: 2026-09-08. PFP upgraded to a user-supplied photorealistic render, adopted as the primary social identity — the banner and stickers still need to catch up to this render style. See `STATUS.md` for the session writeup.*
+## 9. Card Art
+
+Written 2026-09-10, from a real reference the user generated (via Grok — a Moon Dog illustration, plus rarity/edition frame mockups labeled "Floor Wars — Rarity System v1"). The user has hit Grok's generation limits, so this is meant to be worked through slowly in the background over many separate sessions — write the prompt, generate, move to the next card, no rush. `spec.md` §13's Rarity table and `engine/src/cards.ts` are the source of truth for what exists; this section is purely the visual brief.
+
+### 9.1 What to actually generate — read this before prompting anything
+
+**Generate the illustration only — never the card.** `CardFace.tsx` (the component that renders every card in the app) has an empty `.card-face__portrait` div waiting for art — right now it's just a CSS glow placeholder. Name, cost, Attack/Health, rarity gem, faction ticker, keywords, and rules text are **all separate UI elements the app draws on top**, not part of the image. So every generated asset should be:
+
+- A character/scene illustration **with no text, numbers, logos, card border, or UI chrome baked in** — not even the card name.
+- Portrait-oriented, roughly **4:5** (the live card frame itself is ~0.74:1 w:h, but the art window is only the upper portion of that, after cost/ticker/name-plate/stats/text-box take their share — a touch wider than the whole card reads better once cropped).
+- Composed with the subject centered and readable **small** — cards render as small as ~52×76px on a crowded mobile board, so one clear silhouette/pose beats fine detail that will just vanish. Generate at full resolution regardless (collection-screen/full-art views will show it large) — this is a composition note, not a resolution one.
+- **Rarity is not shown in the art itself** — no special glow/background/frame-tier baked in. That's the rarity-colored border + gem, already handled by CSS (`rarityColor.ts`). What can reasonably scale with rarity is ambition of *composition* (a Legendary earning a more dynamic pose/setting than a Common) — a soft guideline, not a rule; every card still gets full illustrative effort.
+
+### 9.2 Rendering style
+
+Anchored on the Moon Dog reference: semi-realistic/detailed illustrated character art (anime-adjacent rendering, real lighting/shading) — **not** this doc's flat-vector or photorealistic-human mascot style (Section 5), which stays reserved for social/PFP use only. Card art is its own register, closer to a modern illustrated-TCG look than either of the brand's other two styles.
+
+- Work the brand's existing motifs (Section 4) into the backdrop where the card's flavor allows — the lit skyline, a monitor-glow grid floor, gold/green neon — so the world feels continuous with the site, not generic fantasy backdrops. Moon Dog's space/moon backdrop is a flavor-specific exception (the card's name/ability is literally about the moon), not the default setting for every card.
+- Sample color accents from the brand palette (Section 2) and the relevant faction color (Section 2's faction table) rather than inventing new hues — a Doggos card's accent lighting should read gold/amber, a Frogs card green, etc.
+- No watermarks, no signatures, no incidental readable text anywhere in the scene (a monitor in the background showing gibberish numbers is fine; showing actual English words is not, since it reads as a UI mistake).
+
+### 9.3 Editions — what needs separate generation vs. what doesn't
+
+- **Standard** — the base illustration described here. Generate this first, for every card, before anything else.
+- **Foil** — needs **no separate generation**. It's a pure CSS shimmer already implemented (`card-face--foil`, a rainbow-gradient border trick) applied at render time over a card's existing Standard art. Never generate a "foil version" of an image.
+- **Full Art / 1st Edition** (the not-yet-named Limited Set tier, `spec.md` §14) — these genuinely need their own generation later: real TCG Full Art means the illustration bleeds across the whole card rather than sitting in a small window, so it's a wider/more elaborate re-composition of the same character, not a crop of the Standard art. **Lowest priority** — the client doesn't even have a slot to render this yet, and the tier still needs a real name. Don't spend generation budget here until Standard art exists for the roster.
+
+### 9.4 Faction identity
+
+The visual "species" for each faction's creatures, reasoned from the faction's existing name/flavor/signature mechanic (`spec.md` §6, `cards.ts`) — keep every card within its faction visually consistent with this:
+
+| Faction | Species / archetype | Tone |
+|---|---|---|
+| Doggos | Dogs (breed varies by card) in trading-floor attire — suits, ties, badges | Confident, loyal, pack-minded. Moon Dog is the established reference: tailored, composed, a little smug. |
+| Frogs | Frogs/toads, often with a glitch/warped visual edge | Chaotic, mischievous, degenerate-energy — "Frogs love chaos" is the literal flavor text on Chaos Croak. |
+| Builders | Human engineers/coders, and robots/constructs they've built | Hoodie-and-hard-hat dev culture — earnest, a little frazzled, DIY/jury-rigged where the card's flavor calls for it. |
+| Degens | Human traders (an ape/gorilla motif is fine and on-theme for Degen Ape specifically, per crypto culture's own "ape in" slang — not the default for the whole faction) | Reckless, high-stakes, gambler energy — chips, neon, wrecked or triumphant, never calm. |
+| Crypto Bros | Human VC/finance bros | Smug, flashy, gym-meets-boardroom — sunglasses, chains, oversized confidence. |
+| Normies | Ordinary human office workers | Deliberately plain and unremarkable — the visual contrast against every other faction's chaos *is* the point; a Normie card should look calm even when everything around it (Degens, Frogs) doesn't. |
+| Neutral (Items/Spells/Secrets) | **Objects, not characters** — a whetstone, boots, a ledger, a sealed order | Trading-floor gadgets/artifacts, not portraits. Keep the same lighting/palette language as the creature cards so they don't feel like a different game. |
+
+### 9.5 Per-card visual specs
+
+One line per card — terse and prompt-ready, not a full paragraph brief. Grouped by faction, in `cards.ts` order. `Puppy`/`Tadpole` (summon-only tokens, never in a pack) are included last, lowest priority.
+
+**Doggos**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Fast Fang | Common | Lean, fast-breed dog (whippet/greyhound) mid-sprint lunge, aggressive momentum |
+| Pup Scout | Common | Small scrappy pup, alert stance, binoculars or a lookout posture |
+| Shield Pup | Uncommon | Sturdy dog holding a makeshift riot-shield/badge, standing firm |
+| Puppy Swarm | Uncommon | A tumbling pile of excitable puppies |
+| Pack Rush | Uncommon | A pack of dogs charging forward together, motion-blurred |
+| Moon Dog | Rare | **Already established** — pinstripe suit, collar, standing on the moon with Earth visible, confident smirk. Use the existing approved reference. |
+| Guard Dog | Rare | Broad-chested guard-breed (mastiff/rottweiler) in a security blazer, arms crossed, stern |
+| Loyal Hound | Legendary | Noble, dignified hound in a tailored suit — calm, trusted "senior partner" presence |
+| Alpha Dog | Legendary | The pack leader — imposing dog in a power suit, puppies at its heels, executive dominance |
+| Shadow Pup | Common | Dark-coated dog blending into shadow, sleek and watchful |
+
+**Frogs**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Leap Frog | Common | Frog mid-leap, dynamic jump pose |
+| Warty Lookout | Common | Camouflaged warty toad, watching from shadow |
+| Frog Swarm | Uncommon | A cluster of tiny tadpoles in murky water |
+| Sticky Tongue | Common | A frog's tongue whipping toward a glowing stock-ticker screen |
+| Mimic Frog | Uncommon | Frog mid-transformation, reflective/mirror-like skin shimmer |
+| Chaos Croak | Common | Frog surrounded by warping/glitching visual static, wild grin |
+| Glitch Toad | Rare | Toad with a digital-glitch skin texture, pixel-fragment distortion |
+| Warty Prince | Epic | A regal toad wearing a torn/mismatched dog collar like a crown — a wry nod to "legend says he was a Doggo once," otherwise a faded royal trading-floor coat |
+| Copycat | Rare | Frog with a mirror/chameleon shimmer, visibly splitting into two |
+| Deep Croak | Legendary | Large ancient bullfrog emerging from deep water, rippling echo-reflections implying duplication |
+| Primordial Croak | Legendary | Colossal, ancient swamp-god frog — the oldest/biggest of the Frogs, chaotic energy crackling around it |
+
+**Builders**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Junior Dev | Common | Young coder at a laptop, hoodie, hard hat slightly too big, eager |
+| Blueprint | Uncommon | A glowing holographic schematic unrolled in mid-air |
+| Scaffold Bot | Uncommon | A construction robot built from scaffolding parts, standing guard |
+| Efficient Engineer | Uncommon | Focused engineer, tool belt, checking a tablet |
+| Rapid Prototype | Uncommon | A jury-rigged, duct-taped robot sprinting, sparking and half-falling-apart — "built fast, breaks fast" |
+| Technical Debt | Uncommon | A crumbling, over-patched server tower held together with tape and warning signs |
+| Modular Frame | Rare | A robot built from interlocking modular blocks, another modular bot nearby |
+| Iteration Cycle | Epic | Engineer/robot inside a spinning-gear loop motif |
+| Crunch Time | Rare | An exhausted, energy-drink-fueled coder pulling an all-nighter, manic energy, glowing screens |
+| Full Stack Titan | Legendary | A massive titan built from stacked tech layers — server racks, cabling, hardware |
+| Unicorn Startup | Legendary | A literal unicorn in a startup hoodie and lanyard, knowing grin, glowing horn like a tiny rocket — the visual pun is deliberate |
+
+**Degens**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Degen Ape | Common | A reckless ape/gorilla trader, chest-thumping, chaotic grin — the crypto-culture "ape in" reference |
+| Margin Call | Uncommon | A trader mid-panic on a phone call, sweat, red warning screens behind |
+| Rug Pull | Uncommon | A literal rug yanked out from under a trader mid-fall — betrayal, chaos |
+| Leverage Trade | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
+| YOLO All-In | Uncommon | A trader diving headfirst into a swirling, chaotic market chart |
+| Blown Account | Rare | A trader with an empty wallet, dazed grin, scattered chips/coins — "high reward, paper hands" |
+| Liquidated Ledger | Epic | A trader engulfed in a wall of red liquidation numbers, still standing defiant |
+| Diamond Hands | Epic | A trader with glowing diamond-textured hands gripping a falling chart, unshaken |
+| Moonshot | Legendary | A trader riding a literal rocket trajectory, reckless triumphant grin, chaos trailing |
+| Exit Liquidity | Legendary | A trader cashing out smugly at the peak as everyone else crashes behind them — the dark crypto-culture irony is the point |
+| Short Position | Rare | A shadowy, hooded figure betting against the crowd, face obscured — matches its hidden/Secret nature |
+
+**Crypto Bros**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Seed Round | Common | A confident handshake sealing an early deal, sunglasses |
+| HODL Wallet | Common | A bro gripping a hardware wallet tightly like a lifeline, chain jewelry, unshaken stance |
+| Angel Investor | Uncommon | A slick investor with a subtle wing motif, tailored suit, offering a check |
+| Venture Capital | Uncommon | A boardroom pitch moment — a bro presenting a hockey-stick growth chart |
+| Bull Run | Rare | A bro riding/wrangling a Wall-Street bull, chaotic momentum, other bros nearby |
+| To The Moon | Rare | A bro launching a rocket-shaped trophy/drink skyward, over-the-top hype pose |
+| Whale Wallet | Epic | A bro dwarfed by a massive whale silhouette looming behind him, signifying huge holdings |
+| Compound Interest | Legendary | An older, seasoned bro radiating quiet accumulated wealth — calm, smug, stacking-coin motifs subtly worked into the scene |
+| Unicorn Exit | Legendary | A triumphant bro atop a peak beside a golden unicorn statue — "the ramp was worth it," ultimate payoff pose, guarding it |
+
+**Normies**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Steady Hand | Common | A plain, calm office-worker trader, unremarkable clothes, steady stance |
+| First Aid | Common | A Normie handing over a bandage/first-aid kit, caring gesture |
+| Safe Harbor | Uncommon | A Normie standing by a small literal harbor/anchor, dependable |
+| Rainy Day Fund | Uncommon | A Normie holding an umbrella over a piggy bank in the rain — prepared, sensible |
+| Adaptive Trader | Rare | A Normie calmly adjusting amid chaos, other Normies nearby, unfazed |
+| Old Reliable | Rare | An older, weathered Normie, arms crossed, unbothered — "keep it simple" |
+| Community Shield | Epic | A Normie standing in front of a small group of others, shielding them |
+| Steadfast Normie | Legendary | An unshaken Normie standing firm against a chaotic crashing-chart backdrop while everyone else panics — "never panic sells" |
+
+**Neutral — Items, Spells, Secrets (objects, not characters — see 9.4)**
+
+| Card | Rarity | Concept |
+|---|---|---|
+| Spark Bolt | Uncommon | A jagged bolt of electric-green energy crackling across a trading-floor monitor |
+| Sharpening Stone | Common | A glowing whetstone etched with faint ticker symbols |
+| Rocket Boots | Common | A pair of sleek rocket-thruster boots, gold/green exhaust glow |
+| Reinforced Plating | Uncommon | Industrial armored plating/riot-vest, trading-floor styled |
+| Bodyguard Badge | Uncommon | A security badge/shield emblem with a holographic seal |
+| Power Core | Rare | A glowing energy core/battery, pulsing gold-green light |
+| Audit Trail | Uncommon | A ledger/scroll stamped with glowing audit seals — a redacted-document aesthetic |
+| Stop-Loss Order | Rare | A sealed order document with an ominous red "stop-loss" stamp — hidden/face-down, matching its Secret nature |
+
+**Tokens (lowest priority — summon-only, never pulled from a pack)**
+
+| Card | Concept |
+|---|---|
+| Puppy | A plain, wide-eyed small puppy, no gear yet |
+| Tadpole | A plain small tadpole in murky water |
+
+---
+
+*Last updated: 2026-09-10. Added Section 9 (Card Art style guide + per-card visual specs for all 71 templates), and corrected Section 7's roadmap line. See `STATUS.md` for the session writeup.*

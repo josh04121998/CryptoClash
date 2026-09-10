@@ -349,6 +349,27 @@ Initial rarity structure:
 
 Exact supply will be determined for each collection.
 
+## Pack odds retuned to a real chase curve, anchored to actual Pokémon TCG data — resolved 2026-09-10 (session 20)
+
+Two passes this session. The first pack-odds pass (2026-09-07) put Legendary at ~1-in-26 packs — closer to a Rare than a grail — so the user asked for Legendary to feel like a genuine chase pull, floating "1 in 1000 or more" as a target. A same-session second pass replaced that flat round number (the user's own call: "that's not legit") with odds anchored to real, sourced Pokémon TCG pull-rate data (Pokémon never publishes official odds; these are large community-measured samples): Illustration Rare ≈7.52%/pack (~1-in-13), Hyper Rare (the real "secret rare" chase tier) ≈1.85%/pack (~1-in-54) — and critically, a *specific* Hyper Rare card is only ~1-in-324, because roughly a dozen real cards split that tier's odds. "1 in 1000" had flattened away exactly that tier-vs-specific-card distinction.
+
+Mapped onto this game's ladder: Epic ≈ the Illustration-Rare analog, Legendary ≈ the Hyper-Rare analog (Mythic/Genesis stay non-pack — see below). Retuned in `packsRepo.ts` (`NORMAL_ODDS`/`LAST_SLOT_ODDS` — full math and sourcing in that file's comment). Blended across a pack, against today's 71-template pool (17 Common/23 Uncommon/14 Rare/6 Epic/11 Legendary): Epic ≈8.5%/pack any (~1-in-70 for one specific of the 6), Legendary ≈1.8%/pack any (~1-in-611 for one specific of the 11) — both landing within the same order of magnitude as their real Pokémon analog on *both* the "any card of this tier" and "one specific card" numbers. Rare/Uncommon/Common are close to the first pass's values — Pokémon's own Rare-tier odds are already generous per pack, consistent with this game's existing "guaranteed Uncommon+ last slot" mechanic, so there was no precedent-driven reason to tighten them. Mythic/Genesis stay non-pack (Section 17's reasoning still holds: a random pack outcome would erode "permanently capped").
+
+Still a first real design pass, not a final tuned economy — revisit once there's actual play telemetry. The user flagged, correctly, that this shouldn't turn into repeated re-tuning of constants with zero players yet to tune against; treat this table as settled until real data says otherwise.
+
+## Every card also has a common, guaranteed-access form — resolved 2026-09-10 (session 20)
+
+Direct answer to the "does the common version come from a different pack/set, like Pokémon?" question: **yes.** Two genuinely different things were getting conflated under "rarity," and separating them resolves it:
+
+* **Pull rarity** (this section, Section 17) — how hard a specific *print* is to hit via pack RNG. This is what just got retuned above.
+* **Access rarity** — whether a card is ever *playable* without RNG at all.
+
+**Correction, same session:** the shipped game's version of this (`grantStartingCollection` giving every account a full set of *every faction's* Commons, refreshed on every sign-in, forever) turned out to be more generous than intended once discussed further — the user wants a real Hearthstone-style "must be earned" bar instead: **not** every faction's full Common set for free, just one faction's basic set as a guaranteed baseline, everything else (other factions, Uncommon+, other prints) earned via packs/crafting like normal. This does **not** touch Play vs AI / Play Online, which always offer every faction's premade sample deck regardless of ownership (spec.md's Section 0 "least possible friction to just play" principle is unaffected) — it's specifically about what a wallet-connected account's real, ownable collection starts with. **Decided in direction, not yet implemented** — `collectionRepo.ts`'s `grantStartingCollection` still reflects the old all-factions behavior as of this writing, and the exact mechanism (does the player choose their starting faction, or is it fixed/random?) is still open.
+
+The part that *is* new: applying the same split to a card's *premium* prints, not just its baseline one. A card like Moon Dog should be able to exist simultaneously as: an Uncommon pulled from any standard pack (playable, unremarkable presentation), and a Full Art / 1st Edition / serial-numbered version that's exclusive to a specific limited print run or Set — genuinely hard to get, but never gating the card's *gameplay* availability, since the Uncommon print plays identically. This is exactly Section 12's stated principle ("create extremely rare cards without automatically creating extreme pay-to-win problems") applied concretely, and it's how real Pokémon does it — a card's playable rarity in a Theme Deck or common pack pull is decoupled from its rarest alt-art/secret-rare printing in one specific set. See Section 14's new "Sets" subsection for how this maps onto packs/products.
+
+Open naming question, not resolved here: the doc doesn't yet have a "Sets" concept distinct from the Genesis *rarity* tier (Section 16) — calling the first product "the Genesis Set" would collide confusingly with "a Genesis-rarity card." Needs a real name from the user before this goes further than the concept level.
+
 ---
 
 # 14. Editions
@@ -384,6 +405,18 @@ The editions can differ in:
 * Provenance
 
 Gameplay stats can remain identical.
+
+## Sets — where each edition comes from — resolved 2026-09-10 (session 20)
+
+Resolves Section 13's "how does the common form differ from the chase form" question by giving editions a *source*, not just a cosmetic description. Three product tiers, each gating a different edition tier:
+
+* **Starter decks** (free, no RNG) — guarantee the Standard edition of a card. This is what makes a card genuinely playable for free; no player is ever locked out of a card's *gameplay*, only its fancier prints.
+* **Standard packs** (Section 17, Coins or cash-shop) — roll Standard-edition prints across the full Rarity curve (Common through Legendary), plus the independent Foil roll (Section 17). This is the existing shipped pack.
+* **Limited Sets** (not yet named or built — see the open question below) — the only source of First Edition / Full Art / serial-numbered prints of a card. Time-boxed (Section 17 already establishes First Edition as print-run-based, not a pack RNG outcome), separate product from the ongoing Standard packs, so a card's collectible ceiling can keep growing (new Sets, new premium prints of old cards) without ever touching whether that card is playable today.
+
+This only works if a card's *gameplay* identity (Section 12) stays anchored to its cheapest available print — a Full Art Moon Dog from a Limited Set must have the exact same stats as the Standard-pack Moon Dog, or this collapses back into pay-to-win.
+
+**Open, not resolved here:** no name exists yet for "Limited Set" as a real in-game concept, and it needs one that doesn't collide with the Genesis *rarity* tier (Section 16) — raise with the user before building anything on top of this.
 
 ---
 
@@ -537,6 +570,20 @@ Coins are spent on:
 Coins are initially off-chain and non-transferable.
 
 Packs can also be purchased directly with real money or stablecoin, as a separate path alongside earning Coins — the industry-standard cash-shop lever (Hearthstone, Pokémon TCG Live, MTG Arena all do this). This deliberately never routes through the external token: pack pricing stays stable in real terms and isn't exposed to token price volatility. This is the game's accepted "pay for more shots at rares" lever — not stat-boosted cards, which stay unpurchasable at any price (Section 29's rule).
+
+## Anti-farming redesign of the match-reward loop — resolved 2026-09-10 (session 20)
+
+Raised by the user: a flat per-match Coin payout — including a flat *loss* payout — pays a bot for doing nothing. Traced the actual live exploit in `matchRoom.ts` before proposing a fix: `handleLeave` calls `forfeit()` with **zero grace period and zero minimum-engagement check**, and `forfeit()` unconditionally fires the full reward stack — Coins, both daily "play" quests, referral credit (the "friend completed a real match" gate from session 9), achievements, and rank points. So `findMatch` → immediately click Leave → full rewards, repeatable in seconds, script-able with no game logic needed at all. This is a bigger problem than the 25-Coin number itself.
+
+**Two changes, not one:**
+
+1. **Structural fix, modeled on how Hearthstone actually works:** Hearthstone's normal Play mode has no flat per-match gold at all — gold comes only from daily quests and capped win-streak bonuses, which by construction can't be farmed past their daily cap no matter how many extra games get played. CryptoClash already has the equivalent machinery (Section 21's Quests: Play 1/Play 3/Win 1, Daily Login, Weekly) sitting unused as a *second* income source alongside the flat per-match Coins. Proposal: **remove `MATCH_WIN_COINS`/`MATCH_LOSS_COINS`/`MATCH_DRAW_COINS` entirely** and let the already-capped quest/daily/weekly system be the only Coins-from-matches path. A normal player's first win of the day still nets 100 Coins (the `win_1` quest) — it just can't be repeated by playing match #50. Rank-ladder progression (already built, not Coins-based) remains the reason to keep playing once the day's quests are done, same role Hearthstone's ranked stars play.
+2. **Engagement gate + asymmetric penalty, for what's still per-match-triggered** (quest "play"/"win" progress, referral credit, achievement/rank points — these can't be fully quest-capped away since quests themselves need *something* to count toward): void those specifically for whichever player forfeits before the match reaches meaningful play (proposed threshold: `state.turn >= 3`, so each side got at least one real turn — `MatchState.turn` already exists for this). Critically, this must be **asymmetric**: only the player who leaves early gets nothing. The opponent who stayed and queued in good faith still gets full win credit regardless of when the other side quit — voiding *both* sides (the first version of this idea) would punish the honest player for someone else's abuse, which defeats the purpose.
+
+**Decision, made explicitly by the user rather than assumed:** ship change 1 now, defer change 2. Deleting the flat reward already shrinks the exploitable surface from "unbounded, any number of instant leaves" down to "at most one day's capped quest value per account" — judged enough for now, in exchange for not yet touching `matchRoom.ts`'s more invasive engagement-gating logic. **Change 1 is implemented** (`coinsRepo.ts`, `matchRoom.ts`, session 20): `MATCH_WIN_COINS`/`MATCH_LOSS_COINS`/`MATCH_DRAW_COINS` are gone; `awardMatchResult` now only logs a zero-amount `coin_transactions` audit row (reason `match_win`/`match_loss`/`match_draw`) so `leaderboardRepo.ts`'s Most Wins/Win Rate aggregates keep working off real match outcomes — a match itself credits zero Coins either way. **Change 2 (the `turn >= 3` engagement gate + asymmetric leave penalty) is still not built** — quest "play"/"win" progress, referral credit, and rank/achievement points still fire immediately on any forfeit, including an instant Leave, so those remain farmable up to their daily/one-time caps. Revisit change 2 if that residual surface ever turns out to matter in practice.
+
+**Explicitly not solved by either change, flagged rather than glossed over:** two accounts colluding to both stay past `turn >= 3` and simply trade wins can still clear the (now-capped) daily quests/rank points for both accounts — reward-threshold tricks can't distinguish a colluding pair from two real opponents who both happen to play a few real turns. The fix above bounds the *damage* to one day's capped quest value per account instead of unbounded per-match farming, which is the practical mitigation available today — but real Sybil resistance (proof of unique humanity/stake, anomaly detection on suspiciously reciprocal win/loss patterns) is a materially bigger, deferred problem. Worth taking more seriously than a typical F2P game would, specifically because this game's end state has real tradeable NFT value riding on the same accounts (Section 24) — unlike Hearthstone gold, farmed Coins/collection progress here won't stay a purely in-game concern forever.
+
 
 ---
 
