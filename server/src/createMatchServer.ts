@@ -3,7 +3,7 @@ import { createServer, Server as HttpServer } from "node:http";
 import { DEFAULT_DECK_ID, getDeck, PlayerId, validateDeck } from "@cryptoclash/engine";
 import { ClientMessage, ServerMessage } from "@cryptoclash/protocol";
 import { WebSocket, WebSocketServer } from "ws";
-import { verifySessionToken } from "./auth.js";
+import { pruneExpiredNonces, verifySessionToken } from "./auth.js";
 import { getPool } from "./db.js";
 import { handleApiRequest } from "./httpApi.js";
 import { MatchRoom, MatchRoomOptions } from "./matchRoom.js";
@@ -168,6 +168,13 @@ export function createMatchServer(port = 0, options: MatchServerOptions = {}): P
     socket.on("close", () => cleanupSession(session, false));
   });
 
+  // Sweeps auth.ts's pendingNonces map every minute so abandoned sign-in attempts (nonce issued,
+  // never consumed) can't grow it unbounded — nonces themselves expire after NONCE_TTL_MS (5 min),
+  // this just reclaims the memory. `unref()` so this timer alone never keeps the process alive;
+  // cleared in `close()` below so tests that start/stop the server repeatedly don't leak intervals.
+  const noncePruneInterval = setInterval(pruneExpiredNonces, 60_000);
+  noncePruneInterval.unref();
+
   return new Promise((resolve) => {
     httpServer.listen(port, () => {
       const address = httpServer.address();
@@ -177,6 +184,7 @@ export function createMatchServer(port = 0, options: MatchServerOptions = {}): P
         port: boundPort,
         close: () =>
           new Promise((res, rej) => {
+            clearInterval(noncePruneInterval);
             wss.close();
             httpServer.close((err) => (err ? rej(err) : res()));
           }),

@@ -47,15 +47,71 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(payload);
 }
 
+// Every real JSON body this API receives is tiny (SIWE messages, 30-card-id deck lists, template
+// ids) — a much larger body is either a mistake or an attempt to exhaust memory in this single
+// long-lived process that also holds all live match state (see matchRoom.ts/createMatchServer.ts).
+const MAX_JSON_BODY_BYTES = 1_000_000; // 1MB
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Request body too large.");
+    this.name = "PayloadTooLargeError";
+  }
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let total = 0;
+  for await (const chunk of req) {
+    total += (chunk as Buffer).length;
+    // Throwing here (rather than reading to the end and rejecting after) stops the for-await loop,
+    // which destroys the underlying request stream and its socket read side immediately — we never
+    // buffer past the cap. Node still lets us write a normal response on `res` afterward (verified:
+    // the client receives the 413 below rather than a bare connection reset).
+    if (total > MAX_JSON_BODY_BYTES) throw new PayloadTooLargeError();
+    chunks.push(chunk as Buffer);
+  }
   if (chunks.length === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
   } catch {
     throw new Error("Invalid JSON body.");
   }
+}
+
+/**
+ * Minimal in-memory per-IP rate limiter — same "single Railway process" reasoning as auth.ts's
+ * pendingNonces store (no Redis/library needed for one process). Fixed-window: at most `max`
+ * requests per `windowMs` per IP, tracked per named bucket so e.g. nonce-issuance and verify can
+ * have independent budgets. Buckets are swept lazily (on each check) rather than on a timer, since
+ * this map only ever holds as many entries as there are distinct IPs hitting these routes.
+ */
+const rateLimitBuckets = new Map<string, Map<string, { count: number; resetAt: number }>>();
+
+function checkRateLimit(bucketName: string, key: string, max: number, windowMs: number): boolean {
+  let bucket = rateLimitBuckets.get(bucketName);
+  if (!bucket) {
+    bucket = new Map();
+    rateLimitBuckets.set(bucketName, bucket);
+  }
+  const now = Date.now();
+  const entry = bucket.get(key);
+  if (!entry || entry.resetAt <= now) {
+    bucket.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= max) return false;
+  entry.count += 1;
+  return true;
+}
+
+/** Railway proxies requests, so prefer the first (client-supplied-but-nearest-hop) x-forwarded-for
+ * entry over the socket address, which would otherwise just be the proxy for every request. */
+function getClientIp(req: IncomingMessage): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0];
+  const ip = first?.trim();
+  return ip || req.socket.remoteAddress || "unknown";
 }
 
 async function requireAccount(req: IncomingMessage): Promise<string | null> {
@@ -82,11 +138,21 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
   try {
     if (req.method === "GET" && url.pathname === "/api/auth/nonce") {
+      // Nonce issuance and verify are the only unauthenticated routes that do real work (crypto
+      // signature checks / DB writes) — worth a floor against a single IP hammering sign-in.
+      if (!checkRateLimit("auth-nonce", getClientIp(req), 30, 60_000)) {
+        sendJson(res, 429, { error: "Too many requests. Please try again shortly." });
+        return true;
+      }
       sendJson(res, 200, { nonce: issueNonce() });
       return true;
     }
 
     if (req.method === "POST" && url.pathname === "/api/auth/verify") {
+      if (!checkRateLimit("auth-verify", getClientIp(req), 20, 60_000)) {
+        sendJson(res, 429, { error: "Too many requests. Please try again shortly." });
+        return true;
+      }
       const body = (await readJsonBody(req)) as { message?: string; signature?: string; referralCode?: string };
       if (!body.message || !body.signature) {
         sendJson(res, 400, { error: "message and signature are required." });
@@ -539,6 +605,10 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     sendJson(res, 404, { error: "Not found." });
     return true;
   } catch (e) {
+    if (e instanceof PayloadTooLargeError) {
+      sendJson(res, 413, { error: e.message });
+      return true;
+    }
     sendJson(res, 500, { error: (e as Error).message });
     return true;
   }
