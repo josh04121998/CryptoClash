@@ -193,4 +193,6 @@ export interface MatchState {
    * the network — one full player action always finishes draining it.
    */
   pendingDeathrattles: { controller: PlayerId; templateId: string; silenced: boolean }[];
+  /** When true, tutorial-only helpers (injectCard, etc.) are allowed. Never set for ranked/online. */
+  tutorial?: boolean;
 }

@@ -17,6 +17,12 @@ import { ReferralScreen } from "./components/ReferralScreen.js";
 import { WalletPicker } from "./components/WalletPicker.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
+import { TutorialMatch } from "./tutorial/TutorialMatch.js";
+import { TutorialOfferModal } from "./tutorial/TutorialOfferModal.js";
+import {
+  markTutorialSkipped,
+  shouldOfferTutorial,
+} from "./tutorialStorage.js";
 import { useWallet } from "./useWallet.js";
 
 type Mode =
@@ -26,6 +32,7 @@ type Mode =
   | "pick-online"
   | "local"
   | "online"
+  | "tutorial"
   | "my-decks"
   | "deck-builder"
   | "packs"
@@ -46,10 +53,9 @@ export default function App() {
   const [editingDeck, setEditingDeck] = useState<SavedDeck | undefined>(undefined);
   const [coinsBalance, setCoinsBalance] = useState<number | null>(null);
   const [showWalletPicker, setShowWalletPicker] = useState(false);
+  const [showTutorialOffer, setShowTutorialOffer] = useState(false);
   const wallet = useWallet();
 
-  // Only worth a picker once there's actually more than one wallet to choose between — with
-  // zero or one installed, connect()/switchWallet() already do the right thing on their own.
   function handleConnectClick() {
     if (wallet.discoveredWallets.length > 1) setShowWalletPicker(true);
     else wallet.connect();
@@ -70,7 +76,21 @@ export default function App() {
     else setCoinsBalance(null);
   }, [wallet.token, refreshCoins]);
 
-  if (mode === "landing") return <LandingPage onEnter={() => setMode("menu")} />;
+  function enterMenuFromLanding() {
+    setMode("menu");
+    if (shouldOfferTutorial()) setShowTutorialOffer(true);
+  }
+
+  if (mode === "landing") return <LandingPage onEnter={enterMenuFromLanding} />;
+
+  if (mode === "tutorial") {
+    return (
+      <TutorialMatch
+        onPracticeAi={() => setMode("pick-local")}
+        onMainMenu={() => setMode("menu")}
+      />
+    );
+  }
 
   if (mode === "local") return <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
   if (mode === "online") return <OnlineMatch deckCards={deckCards} token={wallet.token} onExit={() => setMode("menu")} />;
@@ -225,6 +245,18 @@ export default function App() {
           }}
         />
       )}
+      {showTutorialOffer && (
+        <TutorialOfferModal
+          onAccept={() => {
+            setShowTutorialOffer(false);
+            setMode("tutorial");
+          }}
+          onSkip={() => {
+            markTutorialSkipped();
+            setShowTutorialOffer(false);
+          }}
+        />
+      )}
       <main className="menu">
         <EventBanner />
         <button type="button" className="menu__option" onClick={() => setMode("pick-local")}>
@@ -238,6 +270,10 @@ export default function App() {
         <button type="button" className="menu__option" onClick={() => setMode("leaderboard")}>
           <span className="menu__option-title">Leaderboard</span>
           <span className="menu__option-desc">Most wins, best win rate, most Coins earned. No wallet required to look.</span>
+        </button>
+        <button type="button" className="menu__option" onClick={() => setMode("tutorial")}>
+          <span className="menu__option-title">Tutorial</span>
+          <span className="menu__option-desc">Learn the floor in one guided match. No wallet.</span>
         </button>
       </main>
     </div>
