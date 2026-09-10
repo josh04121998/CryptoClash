@@ -196,7 +196,7 @@ export default function App() {
           <MuteToggle />
           {wallet.status === "connected" && wallet.walletAddress ? (
             <>
-              <span className="app-bar__coins" title="Coins">
+              <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${coinsBalance ?? "loading"}`}>
                 🪙 {coinsBalance ?? "…"}
               </span>
               <button type="button" onClick={() => setMode("quests")}>
@@ -234,7 +234,11 @@ export default function App() {
           )}
         </div>
       </header>
-      {wallet.status === "error" && wallet.error && <p className="wallet-error">{wallet.error}</p>}
+      {wallet.status === "error" && wallet.error && (
+        <p className="wallet-error" role="status" aria-live="polite">
+          {wallet.error}
+        </p>
+      )}
       {showWalletPicker && (
         <WalletPicker
           wallets={wallet.discoveredWallets}

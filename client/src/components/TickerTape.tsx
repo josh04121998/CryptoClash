@@ -7,7 +7,7 @@ export interface TickerItem {
 export function TickerTape({ items }: { items: TickerItem[] }) {
   const doubled = [...items, ...items];
   return (
-    <div className="ticker-tape">
+    <div className="ticker-tape" aria-hidden="true">
       <div className="ticker-tape__track">
         {doubled.map((item, i) => (
           <span

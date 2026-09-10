@@ -74,7 +74,7 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
         <h1>CRYPTO CLASH</h1>
         <span className="app-bar__subtitle">packs</span>
         <div className="app-bar__actions">
-          <span className="app-bar__coins" title="Coins">
+          <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>
             🪙 {balance ?? "…"}
           </span>
           <button type="button" onClick={onBack}>
@@ -108,7 +108,7 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
 
         {revealedCards && (
           <>
-            <div className="pack-reveal">
+            <div className="pack-reveal" role="status" aria-live="polite" aria-label={`Revealing pack: ${revealedCount} of ${revealedCards.length} cards shown`}>
               {revealedCards.map((card, i) => (
                 <div key={`${card.templateId}-${i}`} className="pack-reveal__slot">
                   {i < revealedCount ? (

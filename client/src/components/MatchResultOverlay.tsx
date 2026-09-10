@@ -65,8 +65,16 @@ export function MatchResultOverlay({
           }}
         />
       ))}
-      <div className={`match-result__card match-result__card--${outcome}`} onClick={(e) => e.stopPropagation()}>
-        <span className="match-result__title">{title}</span>
+      <div
+        className={`match-result__card match-result__card--${outcome}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="match-result-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="match-result__title" id="match-result-title">
+          {title}
+        </span>
         {tutorialExit ? (
           <div className="match-result__tutorial-actions">
             <button type="button" onClick={onPracticeAi}>

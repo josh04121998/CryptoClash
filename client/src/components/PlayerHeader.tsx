@@ -41,9 +41,23 @@ export function PlayerHeader({
     prevHpRef.current = player.hp;
   }, [player.hp]);
 
+  const accessibleLabel = [
+    name,
+    `${player.hp} HP`,
+    `${player.energy} of ${player.maxEnergy} Energy`,
+    `${player.deck.length} cards left in deck`,
+    player.secrets.length > 0
+      ? `${player.secrets.length} Secret${player.secrets.length > 1 ? "s" : ""} armed`
+      : undefined,
+    isActive ? "active turn" : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <button
       type="button"
+      aria-label={accessibleLabel}
       className={[
         "player-header",
         isActive ? "player-header--active" : "",

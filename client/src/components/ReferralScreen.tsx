@@ -62,7 +62,7 @@ export function ReferralScreen({ token, onBack }: ReferralScreenProps) {
           <>
             <div className="referral-screen__link-row">
               <code className="referral-screen__link">{link}</code>
-              <button type="button" onClick={copyLink}>
+              <button type="button" aria-live="polite" onClick={copyLink}>
                 {copied ? "Copied!" : "Copy Link"}
               </button>
             </div>

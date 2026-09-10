@@ -38,7 +38,11 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
         <span className="app-bar__subtitle">multiplayer</span>
         <div className="app-bar__actions">
           <MuteToggle />
-          {reward && <span className="match-reward">+{reward.coinsEarned} Coins</span>}
+          {reward && (
+            <span className="match-reward" role="status" aria-live="polite">
+              +{reward.coinsEarned} Coins
+            </span>
+          )}
           {status === "in-match" && (
             <button type="button" onClick={() => setLogOpen((o) => !o)}>
               Log

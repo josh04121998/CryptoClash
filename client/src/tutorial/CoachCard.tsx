@@ -8,7 +8,7 @@ export interface CoachCardProps {
 
 export function CoachCard({ content, onSkipTip, showSkipTip }: CoachCardProps) {
   return (
-    <div className="coach-card" role="dialog" aria-label="Tutorial coach">
+    <div className="coach-card" role="dialog" aria-label="Tutorial coach" aria-live="polite">
       <div className="coach-card__header">
         <span className="coach-card__title">{content.title}</span>
         {content.keyword && <span className="coach-card__pill">{content.keyword}</span>}

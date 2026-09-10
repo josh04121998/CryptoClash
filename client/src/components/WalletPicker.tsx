@@ -10,8 +10,16 @@ export interface WalletPickerProps {
 export function WalletPicker({ wallets, onSelect, onClose }: WalletPickerProps) {
   return (
     <div className="wallet-picker__backdrop" onClick={onClose}>
-      <div className="wallet-picker" onClick={(e) => e.stopPropagation()}>
-        <span className="wallet-picker__title">Choose a wallet</span>
+      <div
+        className="wallet-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wallet-picker-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="wallet-picker__title" id="wallet-picker-title">
+          Choose a wallet
+        </span>
         {wallets.map((w) => (
           <button key={w.uuid} type="button" className="wallet-picker__option" onClick={() => onSelect(w.uuid)}>
             <img src={w.icon} alt="" className="wallet-picker__icon" />

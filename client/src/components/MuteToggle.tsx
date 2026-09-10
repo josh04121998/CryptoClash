@@ -9,6 +9,7 @@ export function MuteToggle() {
     <button
       type="button"
       title={muted ? "Unmute sound" : "Mute sound"}
+      aria-label={muted ? "Unmute sound" : "Mute sound"}
       onClick={() => {
         const next = !muted;
         setMuted(next);

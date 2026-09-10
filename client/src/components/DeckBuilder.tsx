@@ -123,6 +123,7 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
         <aside className="deck-builder__sidebar">
           <input
             className="deck-builder__name-input"
+            aria-label="Deck name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Deck name"
@@ -146,13 +147,17 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
           </div>
 
           {errors.length > 0 && (
-            <ul className="deck-builder__errors">
+            <ul className="deck-builder__errors" role="status" aria-live="polite">
               {errors.slice(0, 3).map((e) => (
                 <li key={e}>{e}</li>
               ))}
             </ul>
           )}
-          {saveError && <p className="deck-builder__errors">{saveError}</p>}
+          {saveError && (
+            <p className="deck-builder__errors" role="status" aria-live="polite">
+              {saveError}
+            </p>
+          )}
 
           <button type="button" className="end-turn-btn" disabled={!isLegal || saving} onClick={save}>
             {saving ? "Saving…" : "Save Deck"}

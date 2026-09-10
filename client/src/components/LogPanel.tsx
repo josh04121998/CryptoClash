@@ -15,10 +15,10 @@ export function LogPanel({ log, open, onClose }: LogPanelProps) {
   }, [log.length, open]);
 
   return (
-    <aside className={`log-panel ${open ? "log-panel--open" : ""}`}>
+    <aside className={`log-panel ${open ? "log-panel--open" : ""}`} aria-label="Match log">
       <div className="log-panel__header">
         <span>Match Log</span>
-        <button type="button" className="log-panel__close" onClick={onClose}>
+        <button type="button" className="log-panel__close" aria-label="Close match log" onClick={onClose}>
           ✕
         </button>
       </div>

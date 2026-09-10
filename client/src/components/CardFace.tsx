@@ -58,6 +58,23 @@ export function CardFace({
   const damaged = maxHealth !== undefined && health !== undefined && health < maxHealth;
   const isCreature = template.type === "Creature";
 
+  // A screen-reader user gets nothing meaningful from the visual card frame
+  // (stat gems, faction ticker, rarity gem) on its own — this composes the
+  // same info (name, cost, stats, keywords, rules text) into one readable
+  // accessible name, overriding the button's default name-from-content.
+  const accessibleLabel = [
+    template.name,
+    template.rarity,
+    `cost ${template.cost}`,
+    isCreature ? `${showAttack} attack, ${showHealth} health` : template.type,
+    keywords && keywords.length > 0 ? keywords.join(", ") : undefined,
+    template.text || undefined,
+    foil ? "foil" : undefined,
+    affordable === false ? "not enough energy" : undefined,
+  ]
+    .filter(Boolean)
+    .join(". ");
+
   // "just hit" is a one-shot trigger, distinct from `damaged` above: it fires
   // only on the render where health *drops* from what it was last render,
   // not on every render while the creature happens to be below max health.
@@ -87,6 +104,7 @@ export function CardFace({
   return (
     <button
       type="button"
+      aria-label={accessibleLabel}
       className={[
         "card-face",
         `card-face--${size}`,
