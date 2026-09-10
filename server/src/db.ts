@@ -9,14 +9,13 @@ let pool: Pool | null = null;
  *
  * TLS note: `rejectUnauthorized: false` (the default below) encrypts the connection but never
  * verifies the server's certificate, so it doesn't actually protect against a MITM on the DB
- * connection — it's kept as the default here only because this pool connects to the real,
- * currently-working production Railway Postgres, and flipping cert verification on blind risks
- * breaking that connection outright (e.g. if Railway's managed Postgres doesn't present a
- * publicly-trusted CA cert, or needs a specific CA bundle supplied). Set `DATABASE_SSL_VERIFY=true`
- * to opt into real verification (`rejectUnauthorized: true`) once you've confirmed — against the
- * real production connection string, e.g. via `railway connect Postgres --tunnel-only` — that the
- * cert Railway presents is verifiable as-is, or supply the right CA via `NODE_EXTRA_CA_CERTS`
- * first. Do not flip this default without that confirmation.
+ * connection. **Confirmed directly against production (session 19, 2026-09-10): setting
+ * `DATABASE_SSL_VERIFY=true` breaks every DB-backed endpoint** — Railway's managed Postgres
+ * presents a self-signed certificate, so Node's default trusted-CA store rejects it
+ * (`self-signed certificate in certificate chain`), causing every query to fail. Live-tested by
+ * flipping it on production, watching `/api/leaderboard/wins` start 500ing, and reverting within
+ * minutes. Do not re-enable `DATABASE_SSL_VERIFY` without first supplying Railway's actual CA
+ * certificate via `NODE_EXTRA_CA_CERTS` (or `ssl.ca` directly) — the flag alone does not work.
  */
 export function getPool(): Pool {
   if (!pool) {
