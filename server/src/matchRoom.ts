@@ -56,8 +56,6 @@ export class MatchRoom implements RoomHandle {
   private disconnectTimers: Partial<Record<PlayerId, ReturnType<typeof setTimeout>>> = {};
   private endTimer: ReturnType<typeof setTimeout> | null = null;
   private ended = false;
-  /** Rewards already resolved for a player who was disconnected when they fired — resent on reconnect so a late rejoin doesn't miss the banner. */
-  private lastReward: Partial<Record<PlayerId, { coinsEarned: number; balance: number }>> = {};
 
   constructor(sessionA: Session, sessionB: Session, options: MatchRoomOptions = {}) {
     this.sessions = { A: sessionA, B: sessionB };
@@ -138,8 +136,14 @@ export class MatchRoom implements RoomHandle {
   /**
    * Play Online only — Play vs AI runs entirely client-side with no server
    * validation of the outcome, so it never reaches this class at all. Silently
-   * no-ops (no crash, no matchReward sent) whenever Coins can't be awarded:
-   * DATABASE_URL unconfigured, or a session with no wallet-linked account.
+   * no-ops whenever nothing can be recorded: DATABASE_URL unconfigured, or a
+   * session with no wallet-linked account.
+   *
+   * No Coins are credited here (session 20 — see coinsRepo.ts's
+   * `awardMatchResult` doc comment for why the flat per-match payout was
+   * removed) and no `matchReward` WS message is sent; `awardMatchResult`
+   * still logs a zero-amount audit row purely so leaderboardRepo.ts's
+   * win/loss aggregates keep working.
    */
   private awardMatchRewards(winner: PlayerId | "Draw") {
     let pool;
@@ -152,24 +156,18 @@ export class MatchRoom implements RoomHandle {
       const accountId = this.sessions[playerId].accountId;
       if (!accountId) continue;
       const outcome: MatchOutcome = winner === "Draw" ? "draw" : winner === playerId ? "win" : "loss";
-      awardMatchResult(pool, accountId, outcome)
-        .then(({ amount, balance }) => {
-          this.lastReward[playerId] = { coinsEarned: amount, balance };
-          this.send(playerId, { type: "matchReward", coinsEarned: amount, balance });
-        })
-        .catch(() => {
-          // Best-effort — a Coins award failure shouldn't crash the match or the process.
-        });
-      // Best-effort, same reasoning as the Coins award above — a quest-tracking failure
-      // shouldn't crash the match. "play" always advances; "win" only for the actual winner.
+      // Best-effort throughout — a tracking failure on any one of these shouldn't crash the match.
+      awardMatchResult(pool, accountId, outcome).catch(() => {});
+      // "play" always advances; "win" only for the actual winner. This is the game's real
+      // Coins-from-matches path now (spec.md Section 21) — capped per day by the quest goal
+      // itself, unlike the flat reward this replaced.
       recordQuestProgress(pool, accountId, "play").catch(() => {});
       if (outcome === "win") recordQuestProgress(pool, accountId, "win").catch(() => {});
-      // Best-effort, same reasoning — pays out a referrer's free pack the first time their
-      // referred friend (this account) finishes a real match. A silent no-op for everyone else.
+      // Pays out a referrer's free pack the first time their referred friend (this account)
+      // finishes a real match. A silent no-op for everyone else.
       rewardReferrerIfPending(pool, accountId).catch(() => {});
-      // Best-effort, same reasoning — advances "win_total"/"win_streak" achievements and the
-      // real-money-free ranked ladder (achievementsRepo.ts, rankRepo.ts), both keyed off this
-      // exact server-validated match result.
+      // Advances "win_total"/"win_streak" achievements and the ranked ladder
+      // (achievementsRepo.ts, rankRepo.ts), both keyed off this exact server-validated result.
       recordMatchOutcomeForAchievements(pool, accountId, outcome).catch(() => {});
       awardRankPoints(pool, accountId, outcome).catch(() => {});
     }
@@ -220,8 +218,8 @@ export class MatchRoom implements RoomHandle {
   /**
    * Same-seat reconnection: swaps in the new socket/session, cancels any
    * pending forfeit for that seat, and hands back the authoritative state to
-   * resume from (plus any reward the disconnected player missed). Returns
-   * null if this room is no longer reconnectable (already fully torn down).
+   * resume from. Returns null if this room is no longer reconnectable
+   * (already fully torn down).
    */
   reconnect(playerId: PlayerId, newSession: Session): NetworkMatchState | null {
     if (this.ended) return null;
@@ -229,8 +227,6 @@ export class MatchRoom implements RoomHandle {
     this.sessions[playerId] = newSession;
     newSession.room = this;
     this.send(other(playerId), { type: "opponentReconnected" });
-    const reward = this.lastReward[playerId];
-    if (reward) this.send(playerId, { type: "matchReward", ...reward });
     return serializeState(this.state, playerId);
   }
 

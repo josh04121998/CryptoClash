@@ -13,15 +13,7 @@ import {
   UnknownAchievementError,
 } from "../src/achievementsRepo.js";
 import { getCollectionCounts, getCollectionSummary, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
-import {
-  awardMatchResult,
-  getBalance,
-  grantWelcomeBonus,
-  MATCH_DRAW_COINS,
-  MATCH_LOSS_COINS,
-  MATCH_WIN_COINS,
-  WELCOME_BONUS_COINS,
-} from "../src/coinsRepo.js";
+import { awardMatchResult, getBalance, grantWelcomeBonus, WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "../src/eventsRepo.js";
 import {
@@ -212,31 +204,36 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(await getBalance(pool, b.id)).toBe(0);
     });
 
-    it("awardMatchResult pays a win more than a loss, and tracks balance", async () => {
+    // Session 20: matches no longer pay Coins at all (spec.md Section 21's "Anti-farming
+    // redesign") — awardMatchResult now only logs a zero-amount audit row, kept purely so
+    // leaderboardRepo.ts's win/loss aggregates (which read coin_transactions.reason) still work.
+    it("awardMatchResult logs a zero-amount, correctly-reasoned audit row and never changes the balance", async () => {
       const account = await findOrCreateAccount(pool, "0xmatchplayer");
 
-      const winResult = await awardMatchResult(pool, account.id, "win");
-      expect(winResult.amount).toBe(MATCH_WIN_COINS);
-      expect(winResult.balance).toBe(MATCH_WIN_COINS);
-      expect(await getBalance(pool, account.id)).toBe(MATCH_WIN_COINS);
+      await awardMatchResult(pool, account.id, "win");
+      await awardMatchResult(pool, account.id, "loss");
+      await awardMatchResult(pool, account.id, "draw");
+      expect(await getBalance(pool, account.id)).toBe(0);
 
-      const lossResult = await awardMatchResult(pool, account.id, "loss");
-      expect(lossResult.amount).toBe(MATCH_LOSS_COINS);
-      expect(lossResult.balance).toBe(MATCH_WIN_COINS + MATCH_LOSS_COINS);
-
-      const drawResult = await awardMatchResult(pool, account.id, "draw");
-      expect(drawResult.amount).toBe(MATCH_DRAW_COINS);
-      expect(drawResult.balance).toBe(MATCH_WIN_COINS + MATCH_LOSS_COINS + MATCH_DRAW_COINS);
-
-      expect(MATCH_WIN_COINS).toBeGreaterThan(MATCH_LOSS_COINS);
+      const rows = (
+        await pool.query<{ amount: number; reason: string }>(
+          "select amount, reason from coin_transactions where account_id = $1 order by created_at",
+          [account.id],
+        )
+      ).rows;
+      expect(rows).toEqual([
+        { amount: 0, reason: "match_win" },
+        { amount: 0, reason: "match_loss" },
+        { amount: 0, reason: "match_draw" },
+      ]);
     });
 
-    it("scopes match-reward balance per-account", async () => {
+    it("scopes the match-result audit row per-account", async () => {
       const a = await findOrCreateAccount(pool, "0xmatcha");
       const b = await findOrCreateAccount(pool, "0xmatchb");
       await awardMatchResult(pool, a.id, "win");
-      expect(await getBalance(pool, a.id)).toBe(MATCH_WIN_COINS);
-      expect(await getBalance(pool, b.id)).toBe(0);
+      const bRows = await pool.query("select 1 from coin_transactions where account_id = $1", [b.id]);
+      expect(bRows.rowCount).toBe(0);
     });
   });
 
@@ -874,7 +871,10 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(await getActiveEvent(pool)).toBeNull();
     });
 
-    it("upserts and reports an event active right now, and applies its Coins multiplier to a match reward", async () => {
+    it("upserts and reports an event active right now", async () => {
+      // Session 20: coinMultiplier no longer has anywhere to apply — match rewards were its only
+      // hook point, and those were removed (see coinsRepo.ts's awardMatchResult doc comment).
+      // Retarget this at a different Coins source if events ever get built out for real.
       const now = new Date();
       const start = new Date(now.getTime() - 60_000).toISOString();
       const end = new Date(now.getTime() + 60_000).toISOString();
@@ -890,11 +890,6 @@ d("accounts + decks (integration, real Postgres)", () => {
       const active = await getActiveEvent(pool);
       expect(active?.id).toBe("test_double_coins");
       expect(active?.coinMultiplier).toBe(2);
-
-      const account = await findOrCreateAccount(pool, "0xeventmultiplier");
-      const result = await awardMatchResult(pool, account.id, "win");
-      expect(result.amount).toBe(MATCH_WIN_COINS * 2);
-      expect(await getBalance(pool, account.id)).toBe(MATCH_WIN_COINS * 2);
     });
 
     it("ignores an event outside its date range", async () => {
@@ -910,10 +905,6 @@ d("accounts + decks (integration, real Postgres)", () => {
         endsAt: end,
       });
       expect(await getActiveEvent(pool)).toBeNull();
-
-      const account = await findOrCreateAccount(pool, "0xeventexpired");
-      const result = await awardMatchResult(pool, account.id, "win");
-      expect(result.amount).toBe(MATCH_WIN_COINS); // no multiplier applied
     });
 
     it("deleteEvent removes a row and getActiveEvent stops reporting it", async () => {

@@ -604,10 +604,12 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
   }
 
   it(
-    "credits real Postgres Coins to both wallet-linked accounts, more to the winner than the loser, and reports the true balance",
+    "advances quests, achievements, and rank points for both wallet-linked accounts, and credits no match Coins",
     async () => {
       const accountA = await accountToken("0xplayera");
       const accountB = await accountToken("0xplayerb");
+      const balanceBeforeA = await getBalance(pool, accountA.accountId);
+      const balanceBeforeB = await getBalance(pool, accountB.accountId);
 
       const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpMatch({ a: accountA.token, b: accountB.token });
       const { winner, messages } = await playMatchToConclusion(aSocket, bSocket, aPlayerId, bPlayerId, foundA.state, 15000);
@@ -617,14 +619,13 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         [bPlayerId]: accountB,
       } as Record<PlayerId, { accountId: string; token: string }>;
 
-      const rewardFor = (playerId: PlayerId) => messages.find((m) => m.playerId === playerId && m.message.type === "matchReward")?.message;
+      // Session 20: matches no longer pay Coins at all (spec.md Section 21's "Anti-farming
+      // redesign") — quests/dailies/weeklies are the only Coins-from-matches path now.
+      expect(messages.some((m) => m.message.type === "matchReward")).toBe(false);
 
       if (winner === "Draw") {
-        expect(rewardFor(aPlayerId)?.type).toBe("matchReward");
-        expect(rewardFor(bPlayerId)?.type).toBe("matchReward");
-
-        // Same match also advances the daily-quest "play" track for both participants —
-        // the other half of the Coins-earn loop (questsRepo.ts). No "win" quest on a Draw.
+        // Same match advances the daily-quest "play" track for both participants — the real
+        // Coins-earn loop now (questsRepo.ts). No "win" quest on a Draw.
         await waitForQuestProgress(accountFor[aPlayerId].accountId, "play_1", 1);
         await waitForQuestProgress(accountFor[bPlayerId].accountId, "play_1", 1);
 
@@ -633,18 +634,9 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         await waitForRankPoints(accountFor[bPlayerId].accountId, 1);
       } else {
         const loser = enemyOf(winner);
-        const winnerReward = rewardFor(winner);
-        const loserReward = rewardFor(loser);
-        expect(winnerReward?.type).toBe("matchReward");
-        expect(loserReward?.type).toBe("matchReward");
-        if (winnerReward?.type !== "matchReward" || loserReward?.type !== "matchReward") throw new Error("unreachable");
-        expect(winnerReward.coinsEarned).toBeGreaterThan(loserReward.coinsEarned);
 
-        expect(await getBalance(pool, accountFor[winner].accountId)).toBe(winnerReward.balance);
-        expect(await getBalance(pool, accountFor[loser].accountId)).toBe(loserReward.balance);
-
-        // Same match also advances the daily-quest "play" track for both participants, and
-        // "win" for the actual winner only — the other half of the Coins-earn loop (questsRepo.ts).
+        // Same match advances the daily-quest "play" track for both participants, and "win" for
+        // the actual winner only — the real Coins-earn loop now (questsRepo.ts).
         await waitForQuestProgress(accountFor[winner].accountId, "play_1", 1);
         await waitForQuestProgress(accountFor[loser].accountId, "play_1", 1);
         await waitForQuestProgress(accountFor[winner].accountId, "win_1", 1);
@@ -662,6 +654,10 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         expect(winnerRank.points).toBeGreaterThan(loserRank.points);
       }
 
+      // The zero-amount audit row (kept for leaderboardRepo.ts) never changes the cached balance.
+      expect(await getBalance(pool, accountA.accountId)).toBe(balanceBeforeA);
+      expect(await getBalance(pool, accountB.accountId)).toBe(balanceBeforeB);
+
       aSocket.close();
       bSocket.close();
     },
@@ -669,7 +665,7 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
   );
 
   it(
-    "reconnects a wallet-authenticated player by accountId when the reconnectToken itself wasn't presented, and still awards Coins correctly at conclusion",
+    "reconnects a wallet-authenticated player by accountId when the reconnectToken itself wasn't presented, and still records the match result correctly at conclusion",
     async () => {
       const accountA = await accountToken("0xreconnecta");
       const accountB = await accountToken("0xreconnectb");
@@ -698,14 +694,13 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
         [aPlayerId]: accountA,
         [bPlayerId]: accountB,
       } as Record<PlayerId, { accountId: string; token: string }>;
-      // Rewards still land correctly on the accounts that actually started the match in each
-      // seat, even though player A's final socket is a different connection than the one the
-      // match began on.
+      // Quest/rank progress still lands correctly on the accounts that actually started the
+      // match in each seat, even though player A's final socket is a different connection than
+      // the one the match began on. No matchReward message exists anymore (session 20).
+      expect(messages.some((m) => m.message.type === "matchReward")).toBe(false);
       if (winner !== "Draw") {
-        const winnerReward = messages.find((m) => m.playerId === winner && m.message.type === "matchReward")?.message;
-        expect(winnerReward?.type).toBe("matchReward");
-        if (winnerReward?.type !== "matchReward") throw new Error("unreachable");
-        expect(await getBalance(pool, accountFor[winner].accountId)).toBe(winnerReward.balance);
+        await waitForQuestProgress(accountFor[winner].accountId, "win_1", 1);
+        await waitForRankPoints(accountFor[winner].accountId, 1);
       }
 
       aSocket2.close();

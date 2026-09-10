@@ -35,29 +35,52 @@ type RarityOdds = [Rarity, number][];
 const PACK_ELIGIBLE_RARITIES: ReadonlySet<Rarity> = new Set(["Common", "Uncommon", "Rare", "Epic", "Legendary"]);
 
 /**
- * Real first-pass odds design (2026-09-07), replacing the earlier "everything
- * basically Common" placeholder — see spec.md Section 17. Every slot but the
- * last rolls NORMAL_ODDS; the last rolls the richer LAST_SLOT_ODDS so every
- * pack guarantees at least one Uncommon+ ("guaranteed baseline value").
- * Against today's pool (18 Common / 21 Uncommon / 12 Rare / 6 Epic / 6
- * Legendary), expected Legendary pulls/pack ≈ 0.038 (~1 every 26 packs, i.e.
- * 26,000 Coins) and Epic+ ≈ 0.23/pack (4 × (0.018+0.002) + (0.12+0.03)) — a
- * real long-tail chase curve. Still a
- * first design pass to revisit against actual play telemetry before launch,
- * not final tuned numbers (same caveat as cards.ts's rarity heuristic).
+ * Retuned 2026-09-10 (session 20), second pass — the first pass this same
+ * session (flat "1-in-1000-or-more" on Legendary) was an arbitrary round
+ * number, not a legitimate target; the user asked for a real pass anchored
+ * to actual Pokémon TCG pull-rate data instead. Pulled real, sourced,
+ * community-measured numbers (Pokémon never publishes official odds) from
+ * Scarlet & Violet-era booster data (1,728-pack sample): Illustration Rare
+ * 7.52% per pack (~1-in-13), Special Illustration Rare 3.01% (~1-in-33),
+ * Hyper Rare (the true chase/"secret rare" tier) 1.85% (~1-in-54) — and,
+ * crucially, that these are "any card of this tier" rates; a *specific*
+ * SIR is ~1-in-318 and a specific Hyper Rare ~1-in-324, because ~10-12 real
+ * cards split that tier's odds. That specific/tier split is exactly what
+ * "1 in 1000" flattened away.
+ *
+ * Mapped onto this game's 5 pack-eligible tiers (Mythic/Genesis stay
+ * non-pack — spec.md Section 17): Epic is this game's Illustration-Rare
+ * analog (the "real, exciting pull" tier), Legendary is the Hyper-Rare
+ * analog (the true grail tier). Rare/Uncommon/Common are barely touched
+ * from the first design pass (2026-09-07) — Pokémon's own Rare-tier odds
+ * are already generous (guaranteed-ish per pack), which matches this game's
+ * existing "guaranteed Uncommon+ last slot" baseline-value mechanic, so
+ * there was no real precedent-driven reason to tighten them.
+ *
+ * Every slot but the last rolls NORMAL_ODDS; the last rolls the richer
+ * LAST_SLOT_ODDS so every pack still guarantees at least one Uncommon+.
+ * Blended across all 5 slots, against today's pool (17 Common / 23 Uncommon
+ * / 14 Rare / 6 Epic / 11 Legendary — see cards.ts):
+ *   Epic:      4×0.010  + 0.045 = 0.085 expected/pack  (~8.5%,  ~1-in-11.8 packs any;  ~1-in-70  packs for one specific of the 6)
+ *   Legendary: 4×0.0005 + 0.016 = 0.018 expected/pack  (~1.8%,  ~1-in-55.6 packs any;  ~1-in-611 packs for one specific of the 11)
+ * Both land within the same order of magnitude as their real Pokémon
+ * analog's "any card of this tier" *and* "one specific card" numbers —
+ * legitimate, not round-number theater. Still a first real design pass to
+ * revisit against actual play telemetry before launch (same caveat as
+ * cards.ts's rarity heuristic) — but now a defensible one.
  */
 const NORMAL_ODDS: RarityOdds = [
   ["Common", 0.65],
-  ["Uncommon", 0.25],
-  ["Rare", 0.08],
-  ["Epic", 0.018],
-  ["Legendary", 0.002],
+  ["Uncommon", 0.2645],
+  ["Rare", 0.075],
+  ["Epic", 0.01],
+  ["Legendary", 0.0005],
 ];
 const LAST_SLOT_ODDS: RarityOdds = [
-  ["Uncommon", 0.52],
+  ["Uncommon", 0.609],
   ["Rare", 0.33],
-  ["Epic", 0.12],
-  ["Legendary", 0.03],
+  ["Epic", 0.045],
+  ["Legendary", 0.016],
 ];
 
 for (const odds of [NORMAL_ODDS, LAST_SLOT_ODDS]) {

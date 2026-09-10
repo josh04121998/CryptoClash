@@ -1,5 +1,4 @@
 import type { Pool } from "pg";
-import { getActiveEvent } from "./eventsRepo.js";
 import { applyCoinDeltaOnClient } from "./ledger.js";
 import { withTransaction } from "./txHelper.js";
 
@@ -53,49 +52,42 @@ export const MATCH_REASON: Record<MatchOutcome, string> = { win: "match_win", lo
 export const MATCH_REASONS: string[] = Object.values(MATCH_REASON);
 
 /**
- * Placeholder match-reward economy — spec.md Section 21 lists "playing,
- * winning" as a Coins source but gives no numbers (same "not tuned economy
- * design" caveat as WELCOME_BONUS_COINS above). A win pays more than a loss
- * so the incentive is real, but a loss still pays something so a full match
- * played to completion has *some* value beyond just winning. A Draw sits
- * between the two — the player neither won nor lost, so neither rate fits;
- * this is a first-pass number, not a modeled "how rare are draws" decision.
+ * Removed 2026-09-10 (session 20) — a flat per-match Coins payout, including
+ * a flat payout for *losing*, is exactly what let a bot farm Coins by
+ * queueing and immediately leaving (see spec.md Section 21's "Anti-farming
+ * redesign" writeup for the full incident). Modeled on how Hearthstone's
+ * real economy works: normal Play pays no per-match gold at all — gold comes
+ * only from daily quests and streak bonuses, which are capped by
+ * construction regardless of how many extra matches get played. This
+ * codebase already had that exact capped machinery (questsRepo.ts's
+ * play_1/play_3/win_1, dailyRepo.ts, weeklyRepo.ts) sitting *alongside* the
+ * flat reward below, redundantly — this deletes the redundant, farmable half
+ * rather than the capped one. A win's first-of-the-day value now comes
+ * entirely from the win_1 quest.
  *
- * Only Play Online awards this (see matchRoom.ts) — Play vs AI runs entirely
- * client-side with no server validation of the outcome, so it's deliberately
- * excluded rather than trusting a client-reported win.
+ * `awardMatchResult` still writes a zero-amount `coin_transactions` row per
+ * match (reason `match_win`/`match_loss`/`match_draw`) — not a leftover, a
+ * deliberate compromise: `leaderboardRepo.ts`'s Most Wins/Win Rate tabs are
+ * built entirely as read-side aggregates over exactly these reason strings
+ * (session 7), and breaking that wasn't in scope for this change. A
+ * zero-amount row changes no balance but keeps the leaderboard's audit trail
+ * intact. Correspondingly, no `matchReward` WS message is sent anymore
+ * (there's nothing to notify the player of) — see matchRoom.ts. The
+ * `matchReward` message type/client handling is now unreachable dead code,
+ * left in place rather than torn out across shared/client/tests in this same
+ * change; worth removing (or repurposing — e.g. for a future quest-claimed
+ * banner) in a follow-up. Events' `coin_multiplier` (eventsRepo.ts) also
+ * loses its only hook point here — it had no first event's content decided
+ * anyway (session 17), so this is an extension of an already-flagged gap,
+ * not a new regression; retarget it at a different Coins source if events
+ * ever get built out.
+ *
+ * The turn-threshold/asymmetric-leave anti-abuse gate (same spec.md
+ * subsection) is a deliberately separate, deferred follow-up — the user's
+ * call: cutting the flat reward already shrinks the exploitable surface to
+ * "at most one day's capped quest value," which was judged enough to ship
+ * now without the more invasive `matchRoom.ts` engagement-gating change.
  */
-export const MATCH_WIN_COINS = 100;
-export const MATCH_LOSS_COINS = 25;
-export const MATCH_DRAW_COINS = 50;
-
-function matchRewardAmount(outcome: MatchOutcome): number {
-  switch (outcome) {
-    case "win":
-      return MATCH_WIN_COINS;
-    case "loss":
-      return MATCH_LOSS_COINS;
-    case "draw":
-      return MATCH_DRAW_COINS;
-  }
-}
-
-/**
- * Called once per Play Online match, per participant with a real (wallet-linked) session — see
- * matchRoom.ts. Applies the active event's Coins multiplier, if any (spec.md Section 21's
- * "Events" earn source — see eventsRepo.ts's scope note for why match rewards specifically, and
- * not every Coins credit site). A failure reading the active event degrades to "no event" rather
- * than blocking the reward — the event system is a bonus layer, not something that should ever
- * be able to withhold a match's base reward.
- */
-export async function awardMatchResult(
-  pool: Pool,
-  accountId: string,
-  outcome: MatchOutcome,
-): Promise<{ amount: number; balance: number }> {
-  const base = matchRewardAmount(outcome);
-  const event = await getActiveEvent(pool).catch(() => null);
-  const amount = event ? Math.max(1, Math.floor(base * event.coinMultiplier)) : base;
-  const balance = await creditCoins(pool, accountId, amount, MATCH_REASON[outcome]);
-  return { amount, balance };
+export async function awardMatchResult(pool: Pool, accountId: string, outcome: MatchOutcome): Promise<void> {
+  await applyCoinDelta(pool, accountId, 0, MATCH_REASON[outcome]);
 }
