@@ -533,6 +533,13 @@ button {
   pointer-events: none;
 }
 
+/* Real illustration present (cardArt.ts) — drop the placeholder tint/scanline
+   that otherwise stands in for art, so it doesn't wash out the actual image. */
+.card-face__portrait--art::before,
+.card-face__portrait--art::after {
+  display: none;
+}
+
 .card-face__cost {
   position: absolute;
   top: 3px;

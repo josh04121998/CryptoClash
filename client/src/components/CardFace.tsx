@@ -1,5 +1,6 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { CSSProperties, MouseEvent, useEffect, useRef, useState } from "react";
+import { cardArt } from "../cardArt.js";
 import { factionColor } from "../factionColor.js";
 import { factionTicker } from "../factionTicker.js";
 import { KEYWORD_TOOLTIPS } from "../keywordInfo.js";
@@ -57,6 +58,7 @@ export function CardFace({
   const showHealth = health ?? template.health;
   const damaged = maxHealth !== undefined && health !== undefined && health < maxHealth;
   const isCreature = template.type === "Creature";
+  const art = cardArt(template.id);
 
   // A screen-reader user gets nothing meaningful from the visual card frame
   // (stat gems, faction ticker, rarity gem) on its own — this composes the
@@ -132,7 +134,11 @@ export function CardFace({
     >
       <span className="card-face__stripe" />
 
-      <span className="card-face__portrait" aria-hidden="true">
+      <span
+        className={art ? "card-face__portrait card-face__portrait--art" : "card-face__portrait"}
+        aria-hidden="true"
+        style={art ? { backgroundImage: `url(${art})`, backgroundSize: "cover", backgroundPosition: "top center" } : undefined}
+      >
         <span className="card-face__cost">{template.cost}</span>
         <span className="card-face__ticker" title={template.faction}>
           {factionTicker(template.faction)}
