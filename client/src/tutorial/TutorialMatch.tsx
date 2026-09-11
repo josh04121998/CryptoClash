@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ConfirmModal } from "../components/ConfirmModal.js";
 import { MatchView } from "../components/MatchView.js";
 import { MuteToggle } from "../components/MuteToggle.js";
 import { markTutorialCompleted, markTutorialSkipped } from "../tutorialStorage.js";
@@ -11,9 +12,12 @@ export interface TutorialMatchProps {
   onMainMenu: () => void;
 }
 
+type PendingConfirm = { title: string } | null;
+
 export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) {
   const { state, dispatch, lastError, ctrl, ackPreMatch, skipTip } = useTutorialMatch();
   const [logOpen, setLogOpen] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
 
   const finish = (next: "ai" | "menu") => {
     markTutorialCompleted();
@@ -39,20 +43,10 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
           <button type="button" onClick={() => setLogOpen((o) => !o)}>
             Log
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Jump to free play?")) abandon();
-            }}
-          >
+          <button type="button" onClick={() => setPendingConfirm({ title: "Jump to free play?" })}>
             Skip tutorial
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Leave the tutorial?")) abandon();
-            }}
-          >
+          <button type="button" onClick={() => setPendingConfirm({ title: "Leave the tutorial?" })}>
             Menu
           </button>
         </div>
@@ -109,6 +103,19 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
             </button>
           </div>
         </div>
+      )}
+
+      {pendingConfirm && (
+        <ConfirmModal
+          title={pendingConfirm.title}
+          confirmLabel="Leave"
+          cancelLabel="Stay"
+          onConfirm={() => {
+            setPendingConfirm(null);
+            abandon();
+          }}
+          onCancel={() => setPendingConfirm(null)}
+        />
       )}
     </div>
   );
