@@ -4,6 +4,8 @@ import { CardFace } from "./CardFace.js";
 export interface BoardRowProps {
   state: MatchState;
   playerId: PlayerId;
+  /** Whose board this physically is, for drag-and-drop hit-testing — see MatchView's onCardDragEnd. */
+  side: "own" | "enemy";
   selectedSlot?: number;
   targetable?: boolean;
   /** Keys from useAttackAnimations, `${playerId}-${slot}` — which creatures just attacked. */
@@ -24,6 +26,7 @@ function allKeywords(creature: BoardCreature): string[] {
 export function BoardRow({
   state,
   playerId,
+  side,
   selectedSlot,
   targetable = false,
   attackingSlots,
@@ -45,6 +48,9 @@ export function BoardRow({
               key={slot}
               type="button"
               aria-label={`Empty board slot ${slot + 1}`}
+              data-drop-zone={side === "own" ? "own-slot" : "enemy-slot"}
+              data-slot={slot}
+              data-empty="true"
               className={["board-slot", "board-slot--empty", spotEmpty ? "board-slot--spotlight" : ""]
                 .filter(Boolean)
                 .join(" ")}
@@ -58,6 +64,9 @@ export function BoardRow({
         return (
           <div
             key={slot}
+            data-drop-zone={side === "own" ? "own-slot" : "enemy-slot"}
+            data-slot={slot}
+            data-empty="false"
             className={["board-slot", spotOcc ? "board-slot--spotlight" : ""].filter(Boolean).join(" ")}
           >
             <CardFace

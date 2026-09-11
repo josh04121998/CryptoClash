@@ -23,6 +23,15 @@ function targetsFriendly(templateId: string): boolean {
   return targetsFriendlyCreature(CARD_POOL[templateId]);
 }
 
+/** A drop-zone element under the pointer, resolved via elementFromPoint at drag-end — see onCardDragEnd. */
+function resolveDropZone(clientX: number, clientY: number): { zone: string; slot?: number; empty?: boolean } | null {
+  const el = document.elementFromPoint(clientX, clientY);
+  const zoneEl = el?.closest<HTMLElement>("[data-drop-zone]");
+  if (!zoneEl) return null;
+  const { dropZone, slot, empty } = zoneEl.dataset;
+  return { zone: dropZone!, slot: slot !== undefined ? Number(slot) : undefined, empty: empty === "true" };
+}
+
 export interface MatchViewProps {
   state: MatchState;
   myPlayerId: PlayerId;
@@ -85,7 +94,12 @@ export function MatchView({
     setSelection({ type: "none" });
   };
 
-  function onHandCardClick(index: number) {
+  // A tap always just previews/selects — never commits a play on its own, regardless of card
+  // type. (Previously a non-targeted spell/item dispatched straight from this first click, with
+  // no way to just look at what the card does — a real reported bug.) Creature/targeted-spell
+  // cards commit via a second click on a valid slot/portrait (onOwnSlotClick/onEnemySlotClick/
+  // onEnemyPortraitClick below); a no-target card commits via confirmNoTargetPlay's prompt.
+  function onCardTap(index: number) {
     if (!canAct) return;
     if (selection.type === "hand" && selection.handIndex === index) {
       playClickSound();
@@ -93,13 +107,89 @@ export function MatchView({
       return;
     }
     playSelectSound();
+    setSelection({ type: "hand", handIndex: index });
+  }
+
+  function confirmNoTargetPlay() {
+    if (!canAct || selection.type !== "hand") return;
+    act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex }));
+  }
+
+  function onCardDragStart(index: number) {
+    if (!canAct) return;
+    playSelectSound();
+    setSelection({ type: "hand", handIndex: index });
+  }
+
+  // Drag committed (moved past the threshold and released) — resolve whatever's under the
+  // pointer via data-drop-zone attributes and dispatch the same way a click-driven confirm
+  // would. A drop that lands nowhere valid just cancels the selection, card snaps back to hand.
+  function onCardDragEnd(index: number, clientX: number, clientY: number) {
+    if (!canAct) {
+      setSelection({ type: "none" });
+      return;
+    }
     const templateId = me.hand[index];
     const template = CARD_POOL[templateId];
-    if (template.type !== "Creature" && !needsTarget(templateId)) {
+    const drop = resolveDropZone(clientX, clientY);
+
+    if (template.type === "Creature") {
+      if (drop?.zone === "own-slot" && drop.empty && drop.slot !== undefined) {
+        act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: index, slot: drop.slot }));
+        return;
+      }
+      setSelection({ type: "none" });
+      return;
+    }
+
+    if (needsTarget(templateId)) {
+      if (targetsFriendly(templateId)) {
+        if (drop?.zone === "own-slot" && drop.empty === false && drop.slot !== undefined) {
+          act(() =>
+            dispatch({
+              kind: "playCard",
+              playerId: myPlayerId,
+              handIndex: index,
+              target: { type: "creature", playerId: myPlayerId, slot: drop.slot! },
+            }),
+          );
+          return;
+        }
+      } else {
+        if (drop?.zone === "enemy-slot" && drop.empty === false && drop.slot !== undefined) {
+          act(() =>
+            dispatch({
+              kind: "playCard",
+              playerId: myPlayerId,
+              handIndex: index,
+              target: { type: "creature", playerId: opponentId, slot: drop.slot! },
+            }),
+          );
+          return;
+        }
+        if (drop?.zone === "enemy-portrait") {
+          act(() =>
+            dispatch({
+              kind: "playCard",
+              playerId: myPlayerId,
+              handIndex: index,
+              target: { type: "player", playerId: opponentId },
+            }),
+          );
+          return;
+        }
+      }
+      setSelection({ type: "none" });
+      return;
+    }
+
+    // No target required — any recognized drop zone on the battlefield commits it (see the
+    // data-drop-zone="battlefield" wrapper below, which fills the gaps between slots/portraits).
+    if (drop) {
       act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: index }));
       return;
     }
-    setSelection({ type: "hand", handIndex: index });
+    setSelection({ type: "none" });
   }
 
   function onOwnSlotClick(slot: number) {
@@ -198,6 +288,14 @@ export function MatchView({
   const ownBoardTargetable =
     canAct && selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && targetsFriendly(me.hand[selection.handIndex]);
 
+  // A selected card that needs no target (a spell/item with no requiresTarget effect) has no
+  // slot/portrait to click to confirm — this is the tap-path equivalent of "drop it anywhere
+  // on the battlefield" for drag (see onCardDragEnd's no-target branch).
+  const pendingNoTargetCard =
+    canAct && selection.type === "hand" && !needsTarget(me.hand[selection.handIndex]) && CARD_POOL[me.hand[selection.handIndex]].type !== "Creature"
+      ? CARD_POOL[me.hand[selection.handIndex]]
+      : undefined;
+
   const winnerText = state.winner ? (state.winner === "Draw" ? "Draw!" : state.winner === myPlayerId ? "You win!" : "You lose.") : null;
 
   const mySpotlightSlot = spotlight.kind === "emptySlot" || spotlight.kind === "ownCreature" ? spotlight.slot : undefined;
@@ -220,53 +318,67 @@ export function MatchView({
   return (
     <>
       <main className={flashing ? "table table--market-event-flash" : "table"}>
-        <OpponentHandRow count={state.players[opponentId].hand.length} />
-        <PlayerHeader
-          name={opponentLabel}
-          player={state.players[opponentId]}
-          isActive={state.activePlayer === opponentId}
-          targetable={enemyTargetable}
-          onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
-          spotlightPortrait={spotlightPortrait}
-        />
-        <BoardRow
-          state={state}
-          playerId={opponentId}
-          targetable={enemyTargetable}
-          attackingSlots={attackingSlots}
-          attackDirection="down"
-          onSlotClick={onEnemySlotClick}
-          spotlightGuard={enemySpotlightGuard}
-        />
+        {/* data-drop-zone="battlefield" is the drag-and-drop fallback for the gaps between
+            slots/portraits (the volatility meter, the turn divider, spacing between cards) —
+            BoardRow/PlayerHeader tag their own more specific zones, which `.closest` picks up
+            first when the drop actually lands on one. Deliberately excludes the hand row, my own
+            portrait, and End Turn below, so dropping a card back on itself/those never counts. */}
+        <div data-drop-zone="battlefield">
+          <OpponentHandRow count={state.players[opponentId].hand.length} />
+          <PlayerHeader
+            name={opponentLabel}
+            player={state.players[opponentId]}
+            isActive={state.activePlayer === opponentId}
+            targetable={enemyTargetable}
+            onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
+            spotlightPortrait={spotlightPortrait}
+            isDropZone
+          />
+          <BoardRow
+            state={state}
+            playerId={opponentId}
+            side="enemy"
+            targetable={enemyTargetable}
+            attackingSlots={attackingSlots}
+            attackDirection="down"
+            onSlotClick={onEnemySlotClick}
+            spotlightGuard={enemySpotlightGuard}
+          />
 
-        <VolatilityMeter volatility={state.volatility} />
+          <VolatilityMeter volatility={state.volatility} />
 
-        <div className="table__divider">
-          {winnerText ? (
-            <span className="table__winner">{winnerText}</span>
-          ) : (
-            <span>
-              Turn {state.turnNumber} —{" "}
-              {state.activePlayer === myPlayerId ? <strong className="table__your-turn">Your move</strong> : opponentTurnLabel}
-            </span>
-          )}
-          {lastError && (
-            <span className="table__error" role="status" aria-live="polite">
-              {lastError}
-            </span>
-          )}
+          <div className="table__divider">
+            {winnerText ? (
+              <span className="table__winner">{winnerText}</span>
+            ) : pendingNoTargetCard ? (
+              <button type="button" className="table__play-prompt" onClick={confirmNoTargetPlay}>
+                ▶ Play {pendingNoTargetCard.name}
+              </button>
+            ) : (
+              <span>
+                Turn {state.turnNumber} —{" "}
+                {state.activePlayer === myPlayerId ? <strong className="table__your-turn">Your move</strong> : opponentTurnLabel}
+              </span>
+            )}
+            {lastError && (
+              <span className="table__error" role="status" aria-live="polite">
+                {lastError}
+              </span>
+            )}
+          </div>
+
+          <BoardRow
+            state={state}
+            playerId={myPlayerId}
+            side="own"
+            selectedSlot={selection.type === "attacker" ? selection.slot : undefined}
+            targetable={ownBoardTargetable}
+            attackingSlots={attackingSlots}
+            attackDirection="up"
+            onSlotClick={onOwnSlotClick}
+            spotlightSlot={mySpotlightSlot}
+          />
         </div>
-
-        <BoardRow
-          state={state}
-          playerId={myPlayerId}
-          selectedSlot={selection.type === "attacker" ? selection.slot : undefined}
-          targetable={ownBoardTargetable}
-          attackingSlots={attackingSlots}
-          attackDirection="up"
-          onSlotClick={onOwnSlotClick}
-          spotlightSlot={mySpotlightSlot}
-        />
         <PlayerHeader
           name={myLabel}
           player={me}
@@ -278,7 +390,9 @@ export function MatchView({
           player={me}
           selectedIndex={selection.type === "hand" ? selection.handIndex : undefined}
           interactive={canAct}
-          onCardClick={onHandCardClick}
+          onCardTap={onCardTap}
+          onCardDragStart={onCardDragStart}
+          onCardDragEnd={onCardDragEnd}
           spotlightTemplateId={handSpotlight}
         />
 

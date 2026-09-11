@@ -153,6 +153,17 @@ button {
   overflow-y: auto;
 }
 
+/* The [data-drop-zone="battlefield"] wrapper in MatchView needs the same column layout as
+   .table itself — it exists purely so drag-and-drop hit-testing has a catch-all zone covering
+   the gaps between board slots/portraits, not to change the visual layout. */
+.table > [data-drop-zone="battlefield"] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
 .player-header {
   position: relative;
   display: flex;
@@ -293,6 +304,20 @@ button {
   font-size: 0.75rem;
 }
 
+/* Confirm affordance for a selected no-target spell/item — there's no slot/portrait to click
+   to commit it, so this stands in for one, replacing the turn indicator while it's up. */
+.table__play-prompt {
+  background: var(--accent-2);
+  color: #04140e;
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  animation: pulse 1.2s infinite;
+}
+
 .hand-row {
   display: flex;
   gap: 0.5rem;
@@ -304,6 +329,17 @@ button {
 
 .hand-row > div {
   position: relative;
+  touch-action: none;
+}
+
+/* Actively being dragged — lifted above neighboring cards, pointer-events suppressed so
+   elementFromPoint (MatchView's onCardDragEnd) sees through to whatever's underneath the
+   pointer rather than hitting this card itself. */
+.hand-card--dragging {
+  z-index: 20;
+  pointer-events: none;
+  transition: none;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
 }
 
 /* Fan/overlap hand cards horizontally instead of only relying on wrapping to extra rows once

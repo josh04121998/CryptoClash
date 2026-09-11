@@ -9,6 +9,8 @@ export interface PlayerHeaderProps {
   onClick?: () => void;
   spotlightEnergy?: boolean;
   spotlightPortrait?: boolean;
+  /** Set on the opponent's header only — lets a dragged card be dropped on this portrait. See MatchView's onCardDragEnd. */
+  isDropZone?: boolean;
 }
 
 export function PlayerHeader({
@@ -19,6 +21,7 @@ export function PlayerHeader({
   onClick,
   spotlightEnergy,
   spotlightPortrait,
+  isDropZone = false,
 }: PlayerHeaderProps) {
   const [justHit, setJustHit] = useState(false);
   const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
@@ -58,6 +61,7 @@ export function PlayerHeader({
     <button
       type="button"
       aria-label={accessibleLabel}
+      data-drop-zone={isDropZone ? "enemy-portrait" : undefined}
       className={[
         "player-header",
         isActive ? "player-header--active" : "",

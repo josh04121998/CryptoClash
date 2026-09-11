@@ -1,5 +1,5 @@
 import { CardTemplate } from "@cryptoclash/engine";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, MouseEvent, useEffect, useRef, useState } from "react";
 import { factionColor } from "../factionColor.js";
 import { factionTicker } from "../factionTicker.js";
 import { KEYWORD_TOOLTIPS } from "../keywordInfo.js";
@@ -19,7 +19,7 @@ export interface CardFaceProps {
   size?: "hand" | "board";
   /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
   attackDirection?: "up" | "down";
-  onClick?: () => void;
+  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
