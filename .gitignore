@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .claude/worktrees/
+tools/card-render/_tmp_*.html
+tools/card-render/output/

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #000; }
+  .card {
+    width: 1500px;
+    height: 2100px;
+    position: relative;
+    background: #0b120e;
+    border: 16px solid var(--rarity-color);
+    border-radius: 48px;
+    overflow: hidden;
+    font-family: 'IBM Plex Mono', monospace;
+    color: #dfeee7;
+    box-shadow: 0 0 0 4px #04140e inset;
+  }
+  .art {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1180px;
+    background-size: cover;
+    background-position: top center;
+  }
+  .art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 78%, #0b120e 100%);
+  }
+  .cost, .stat {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    z-index: 3;
+  }
+  .cost {
+    top: 40px; left: 40px;
+    width: 130px; height: 130px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: radial-gradient(circle at 35% 30%, #a5ecff, #29c1ea 60%, #0b6f96 100%);
+    font-size: 68px;
+    color: #051018;
+  }
+  .ticker {
+    position: absolute;
+    top: 48px; right: 48px;
+    background: var(--faction-color);
+    color: #05100a;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: 2px;
+    padding: 12px 26px;
+    border-radius: 10px;
+    z-index: 3;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
+  }
+  .nameplate {
+    position: absolute;
+    top: 1180px; left: 0; right: 0;
+    height: 172px;
+    background: linear-gradient(180deg, #1c2620, #0e1512);
+    border-top: 4px solid var(--rarity-color);
+    border-bottom: 4px solid var(--rarity-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nameplate .gem {
+    position: absolute;
+    top: -24px; left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 48px; height: 48px;
+    background: var(--rarity-color);
+    box-shadow: 0 0 18px var(--rarity-color);
+  }
+  .name {
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 80px;
+    color: #f4f4f0;
+    letter-spacing: 1px;
+  }
+  .textbox {
+    position: absolute;
+    top: 1360px; left: 64px; right: 64px; bottom: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+  .keyword {
+    color: var(--faction-color);
+    font-weight: 700;
+    font-size: 34px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+  .rules {
+    font-size: 42px;
+    line-height: 1.45;
+    color: #dfeee7;
+  }
+  .footer {
+    position: absolute;
+    bottom: 76px;
+    left: 220px; right: 220px;
+    text-align: center;
+    font-size: 26px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #5f7268;
+  }
+  .stat {
+    bottom: 26px;
+    width: 140px; height: 140px;
+    font-size: 76px;
+  }
+  .attack {
+    left: 48px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f2b705 60%, #8a5a00 100%);
+    color: #1a1200;
+  }
+  .health {
+    right: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff9a9a, #e23b3b 60%, #7a0f0f 100%);
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+  <div class="card" style="--rarity-color: {{RARITY_COLOR}}; --faction-color: {{FACTION_COLOR}};">
+    <div class="art" style="background-image: url('{{ART_URL}}');"></div>
+    <div class="cost">{{COST}}</div>
+    <div class="ticker">{{TICKER}}</div>
+    <div class="nameplate">
+      <div class="gem"></div>
+      <div class="name">{{NAME}}</div>
+    </div>
+    <div class="textbox">
+      {{KEYWORD_HTML}}
+      <div class="rules">{{RULES_TEXT}}</div>
+    </div>
+    <div class="footer">{{TYPE}} · {{FACTION}}</div>
+    <div class="stat attack">{{ATTACK}}</div>
+    <div class="stat health">{{HEALTH}}</div>
+  </div>
+</body>
+</html>
