@@ -277,6 +277,22 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Puppy | A plain, wide-eyed small puppy, no gear yet |
 | Tadpole | A plain small tadpole in murky water |
 
+### 9.6 Two rendering pipelines, not one — and a frame-asset brief for the second
+
+Session 21 (2026-09-11) surfaced a real gap: the live in-game card (`CardFace.tsx`, a compact CSS/DOM composite of art + name/stats/text drawn on top — see 9.1) is the right approach for the *game UI* and isn't changing. But it can never be "the NFT image" — marketplaces and token metadata need one static flat file, and a live DOM element can't be pointed at as that file. So there are now two separate rendering pipelines sharing the same underlying art + card data:
+
+1. **In-game (existing, unchanged):** `CardFace.tsx` + `styles.css` — compact, built for a crowded board at ~50-100px.
+2. **High-res flat export (new — `tools/card-render/`):** a Playwright-driven compositor that takes a card's data + its Standard illustration and renders one flattened PNG at 1500×2100 (5:7, the real trading-card print ratio — matches the "Floor Wars" reference mockups' 750×1050 exactly, rendered 2x for crispness). Name/cost/attack/health/rules text are drawn as real typography from the card's data, same principle as pipeline 1 and the same principle Hearthstone uses — **never baked into the AI art**, so a balance-number change never requires a re-generation. This is the pipeline that produces the actual NFT/collectible asset, and it's also the natural source for anything else that wants a big, sharp card image (a "hold to inspect" view, Collection screen detail, marketing). A working prototype exists for Moon Dog (`tools/card-render/render-card.mjs`) — the frame in that prototype is still a refined CSS template, not real illustrated art, which is what this brief is for.
+
+**The frame-asset brief (queued in the same slow Grok background-generation queue as the per-card illustrations in 9.5):** generate one illustrated frame/border template per rarity tier actually in use today — Common, Uncommon, Rare, Epic, Legendary (Mythic/Genesis: no template uses them yet per `STATUS.md`, so lowest priority, do last if at all). Per tier:
+
+- An ornate card border/bezel — corner ornaments, a top ticker-badge frame, a name-plate band, and two stat-gem sockets (hexagon for cost/attack, circle for health) — in this brand's dark trading-floor/gold-green language (`branding.md` §2/§4), with the rarity's own accent color (`rarityColor.ts`: Common `#9ca3af`, Uncommon `#22c55e`, Rare `#3b82f6`, Epic `#a855f7`, Legendary `#f59e0b`) driving the metal/gem tint — a Legendary frame should read as genuinely more ornate/precious than a Common one, the same way Hearthstone's does.
+- Generate it on a **plain, flat dark background matching the card's own background color** (`#0b120e`/`#0e1512`) in the art-window area, not on a random scene — this is a real generation constraint, not a style note: AI image models don't output real alpha transparency, so the only practical way to composite this frame over a card's actual art later (without a manual paint-out/rotoscoping pass) is if the "window" the art shows through is a flat, known color the compositor can key out or simply treat as an overlay. Flag whichever of those two (chroma-key vs. simple top-layer overlay) actually looks acceptable once a real frame comes back — don't over-engineer this until there's a real asset to test against.
+- Same aspect ratio as the render pipeline: 750×1050 (or a clean multiple of it) so it drops into `tools/card-render/` at native resolution.
+- No card-specific content (no name, no particular creature) — this is a reusable shell, one per rarity, applied across every card of that rarity.
+
+Once real frame assets exist, `tools/card-render/template.html`'s CSS-drawn border/gems get replaced with these images — the rest of the pipeline (art placement, text layers, output resolution) stays the same.
+
 ---
 
-*Last updated: 2026-09-10. Added Section 9 (Card Art style guide + per-card visual specs for all 71 templates), and corrected Section 7's roadmap line. See `STATUS.md` for the session writeup.*
+*Last updated: 2026-09-11. Added Section 9.6 — the two-pipeline split (in-game CSS vs. a new high-res flat-PNG export for NFT/collectible use) and a generation brief for illustrated rarity frame templates, following a real prototype render.*
