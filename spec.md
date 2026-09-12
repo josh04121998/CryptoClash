@@ -368,7 +368,7 @@ Direct answer to the "does the common version come from a different pack/set, li
 
 The part that *is* new: applying the same split to a card's *premium* prints, not just its baseline one. A card like Moon Dog should be able to exist simultaneously as: an Uncommon pulled from any standard pack (playable, unremarkable presentation), and a Full Art / 1st Edition / serial-numbered version that's exclusive to a specific limited print run or Set — genuinely hard to get, but never gating the card's *gameplay* availability, since the Uncommon print plays identically. This is exactly Section 12's stated principle ("create extremely rare cards without automatically creating extreme pay-to-win problems") applied concretely, and it's how real Pokémon does it — a card's playable rarity in a Theme Deck or common pack pull is decoupled from its rarest alt-art/secret-rare printing in one specific set. See Section 14's new "Sets" subsection for how this maps onto packs/products.
 
-Open naming question, not resolved here: the doc doesn't yet have a "Sets" concept distinct from the Genesis *rarity* tier (Section 16) — calling the first product "the Genesis Set" would collide confusingly with "a Genesis-rarity card." Needs a real name from the user before this goes further than the concept level.
+**Resolved 2026-09-12 — see `collectibility.md` for the full spec.** The naming collision is fixed there: the print-tier ladder is renamed Standard/First Edition/Full Art/Ultra/Secret Edition (no overlap with Rarity's own words), and "Limited Set" is named **Founders Set**. `collectibility.md` also adds a fifth collectibility axis, **Condition/Floor Grade** (a permanent 1–10 quality roll per instance, blending PSA-style card grading with CS:GO's roll-once-at-creation wear mechanic), and folds in real Pokémon/Yu-Gi-Oh/CS:GO research on what to borrow (and what not to) — treat it as the current source of truth for Sections 13–20 here; this section is left as historical record.
 
 ---
 
@@ -416,7 +416,7 @@ Resolves Section 13's "how does the common form differ from the chase form" ques
 
 This only works if a card's *gameplay* identity (Section 12) stays anchored to its cheapest available print — a Full Art Moon Dog from a Limited Set must have the exact same stats as the Standard-pack Moon Dog, or this collapses back into pay-to-win.
 
-**Open, not resolved here:** no name exists yet for "Limited Set" as a real in-game concept, and it needs one that doesn't collide with the Genesis *rarity* tier (Section 16) — raise with the user before building anything on top of this.
+**Resolved 2026-09-12:** named **Founders Set** — see `collectibility.md` Section 8 for the full product-tier writeup, and Section 10 there for a recommended schema correction (First Edition should be a stackable flag, not a rung on this ladder).
 
 ---
 

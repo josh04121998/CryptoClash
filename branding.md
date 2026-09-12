@@ -145,9 +145,12 @@ Anchored on the Moon Dog reference: semi-realistic/detailed illustrated characte
 
 ### 9.3 Editions — what needs separate generation vs. what doesn't
 
-- **Standard** — the base illustration described here. Generate this first, for every card, before anything else.
+**The full axis system (Rarity/Edition/Foil/Serial/Condition) is now fully specced in `collectibility.md` (2026-09-12)** — this subsection only covers what that means for art generation specifically; see that doc for the resolved naming (Edition tiers are Standard/First Edition/Full Art/Ultra/Secret Edition; "Limited Set" is named **Founders Set**).
+
+- **Standard Edition** — the base illustration described here. Generate this first, for every card, before anything else. **See the new `grok-card-prompts.md` for every card's actual ready-to-paste generation prompt** — 9.4/9.5 below are the design brief those prompts were built from, not themselves prompt text.
 - **Foil** — needs **no separate generation**. It's a pure CSS shimmer already implemented (`card-face--foil`, a rainbow-gradient border trick) applied at render time over a card's existing Standard art. Never generate a "foil version" of an image.
-- **Full Art / 1st Edition** (the not-yet-named Limited Set tier, `spec.md` §14) — these genuinely need their own generation later: real TCG Full Art means the illustration bleeds across the whole card rather than sitting in a small window, so it's a wider/more elaborate re-composition of the same character, not a crop of the Standard art. **Lowest priority** — the client doesn't even have a slot to render this yet, and the tier still needs a real name. Don't spend generation budget here until Standard art exists for the roster.
+- **Condition (Floor Grade)** — also needs **no separate generation**. Purely a cosmetic CSS overlay scaling with grade (`collectibility.md` Section 7), same "no new art asset" treatment as Foil.
+- **Full Art / Ultra / Secret Edition** (Founders Set-only, `collectibility.md` Section 8) — these genuinely need their own generation later: real TCG Full Art means the illustration bleeds across the whole card rather than sitting in a small window, so it's a wider/more elaborate re-composition of the same character, not a crop of the Standard art. **Lowest priority** — the client doesn't even have a slot to render this yet. Don't spend generation budget here until Standard art exists for the roster.
 
 ### 9.4 Faction identity
 
@@ -166,6 +169,8 @@ The visual "species" for each faction's creatures, reasoned from the faction's e
 ### 9.5 Per-card visual specs
 
 One line per card — terse and prompt-ready, not a full paragraph brief. Grouped by faction, in `cards.ts` order. `Puppy`/`Tadpole` (summon-only tokens, never in a pack) are included last, lowest priority.
+
+**Correction 2026-09-12:** this table was missing three real templates that exist in `engine/src/cards.ts` — Ember Curse (Degens), Pump Signal (Crypto Bros), Cool Down (Normies) — found while building `grok-card-prompts.md`. Added below, bringing this table's count to the real 71.
 
 **Doggos**
 
@@ -223,6 +228,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Rug Pull | Uncommon | A literal rug yanked out from under a trader mid-fall — betrayal, chaos |
 | Leverage Trade | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
 | YOLO All-In | Uncommon | A trader diving headfirst into a swirling, chaotic market chart |
+| Ember Curse | Uncommon | A trader with one hand outstretched, a smoldering ember-red curse sigil crackling between his fingers, reckless grin — the mark of a slow-burning hex |
 | Blown Account | Rare | A trader with an empty wallet, dazed grin, scattered chips/coins — "high reward, paper hands" |
 | Liquidated Ledger | Epic | A trader engulfed in a wall of red liquidation numbers, still standing defiant |
 | Diamond Hands | Epic | A trader with glowing diamond-textured hands gripping a falling chart, unshaken |
@@ -243,6 +249,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Whale Wallet | Epic | A bro dwarfed by a massive whale silhouette looming behind him, signifying huge holdings |
 | Compound Interest | Legendary | An older, seasoned bro radiating quiet accumulated wealth — calm, smug, stacking-coin motifs subtly worked into the scene |
 | Unicorn Exit | Legendary | A triumphant bro atop a peak beside a golden unicorn statue — "the ramp was worth it," ultimate payoff pose, guarding it |
+| Pump Signal | Common | A bro holding up a glowing green megaphone/broadcast dish blasting out a hype "pump" signal, an ascending chart arrow rippling out, wide hype grin |
 
 **Normies**
 
@@ -256,6 +263,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Old Reliable | Rare | An older, weathered Normie, arms crossed, unbothered — "keep it simple" |
 | Community Shield | Epic | A Normie standing in front of a small group of others, shielding them |
 | Steadfast Normie | Legendary | An unshaken Normie standing firm against a chaotic crashing-chart backdrop while everyone else panics — "never panic sells" |
+| Cool Down | Common | A Normie calmly placing a steady hand on an overheating, spiking monitor gauge, visibly cooling and settling it, unhurried composed expression |
 
 **Neutral — Items, Spells, Secrets (objects, not characters — see 9.4)**
 
@@ -295,4 +303,6 @@ Once real frame assets exist, `tools/card-render/template.html`'s CSS-drawn bord
 
 ---
 
-*Last updated: 2026-09-11. Added Section 9.6 — the two-pipeline split (in-game CSS vs. a new high-res flat-PNG export for NFT/collectible use) and a generation brief for illustrated rarity frame templates, following a real prototype render.*
+*Last updated: 2026-09-12. Section 9.3 updated for `collectibility.md`'s resolved Edition naming (Founders Set, Full Art/Ultra/Secret Edition) and new Condition/Floor Grade axis; pointed to the new `grok-card-prompts.md` for actual ready-to-paste generation prompts (9.4/9.5 remain the design brief, not prompt text themselves); 9.5's table corrected to include Ember Curse, Pump Signal, and Cool Down, three real `cards.ts` templates it had been missing.*
+
+*Previously: 2026-09-11 — added Section 9.6, the two-pipeline split (in-game CSS vs. a new high-res flat-PNG export for NFT/collectible use) and a generation brief for illustrated rarity frame templates, following a real prototype render.*
