@@ -1,0 +1,534 @@
+<title>Floorwars Litepaper</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f3ea;
+    --bg-raise: #ffffff;
+    --panel: #ffffff;
+    --panel-alt: #f0ece0;
+    --border: #ddd6c2;
+    --border-bright: #c9bf9e;
+    --text: #1c231e;
+    --text-dim: #5c6a5f;
+    --gold: #a87a00;
+    --green: #00875f;
+    --hp: #c2453a;
+    --glow-gold: rgba(168, 122, 0, 0.08);
+    --glow-green: rgba(0, 135, 95, 0.08);
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #050907;
+      --bg-raise: #0a0f0c;
+      --panel: #0d1512;
+      --panel-alt: #101c16;
+      --border: #22322b;
+      --border-bright: #2e5c46;
+      --text: #dfeee7;
+      --text-dim: #7e9389;
+      --gold: #f2b705;
+      --green: #00e28a;
+      --hp: #ff6b62;
+      --glow-gold: rgba(242, 183, 5, 0.14);
+      --glow-green: rgba(0, 226, 138, 0.14);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #050907;
+    --bg-raise: #0a0f0c;
+    --panel: #0d1512;
+    --panel-alt: #101c16;
+    --border: #22322b;
+    --border-bright: #2e5c46;
+    --text: #dfeee7;
+    --text-dim: #7e9389;
+    --gold: #f2b705;
+    --green: #00e28a;
+    --hp: #ff6b62;
+    --glow-gold: rgba(242, 183, 5, 0.14);
+    --glow-green: rgba(0, 226, 138, 0.14);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 12% 0%, var(--glow-green) 0%, transparent 40%),
+      radial-gradient(circle at 88% 8%, var(--glow-gold) 0%, transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--green); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+  /* ---------- top ticker ---------- */
+  .ticker-bar {
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-alt);
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+  }
+  .ticker-track {
+    display: inline-flex;
+    gap: 2.5rem;
+    padding: 0.45rem 0;
+    animation: ticker-scroll 38s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
+  .ticker-track span { display: inline-flex; align-items: center; gap: 0.4em; }
+  .up { color: var(--green); }
+  .down { color: var(--hp); }
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    padding-block: 2.6rem 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.4rem, 7vw, 3.6rem);
+    letter-spacing: 0.01em;
+    margin: 0.3rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  .wordmark .dot { color: var(--gold); }
+  .tagline {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.1rem, 2.6vw, 1.4rem);
+    color: var(--text-dim);
+    margin: 0 0 1.1rem;
+    text-wrap: balance;
+  }
+  .tagline b { color: var(--gold); font-weight: 600; }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .hero-links a {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .hero-links a:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ---------- section nav ---------- */
+  nav.toc {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.toc .wrap {
+    display: flex;
+    gap: 1.1rem;
+    overflow-x: auto;
+    padding-block: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+  }
+  nav.toc a {
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--text-dim);
+  }
+  nav.toc a:hover { color: var(--gold); }
+  nav.toc span.n { color: var(--gold); margin-right: 0.35em; }
+
+  /* ---------- sections ---------- */
+  main { padding-block: 1rem 3rem; }
+  section.doc {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 0 1.4rem;
+    padding-block: 2.2rem;
+    border-bottom: 1px solid var(--border);
+    scroll-margin-top: 3rem;
+  }
+  section.doc:last-of-type { border-bottom: none; }
+  .sec-num {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--gold);
+    padding-top: 0.3rem;
+  }
+  .sec-body { max-width: 65ch; }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.02rem;
+    color: var(--green);
+    margin: 1.4rem 0 0.5rem;
+  }
+  p { margin: 0 0 1rem; color: var(--text); }
+  p.lede { color: var(--text-dim); }
+  strong { color: var(--text); font-weight: 600; }
+  .callout {
+    background: var(--panel);
+    border: 1px solid var(--border-bright);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 0.95rem 1.1rem;
+    margin: 1rem 0;
+    font-size: 0.94rem;
+  }
+  .callout strong { color: var(--gold); }
+
+  /* ---------- faction ledger ---------- */
+  .ledger {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    margin: 0.6rem 0 1.2rem;
+  }
+  .ledger th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border-bright);
+    padding: 0 0.6rem 0.5rem 0;
+  }
+  .ledger td {
+    padding: 0.55rem 0.6rem 0.55rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .ledger tr:last-child td { border-bottom: none; }
+  .faction-name { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+
+  /* ---------- axis rows ---------- */
+  .axis-list { list-style: none; margin: 0.6rem 0 1.2rem; padding: 0; }
+  .axis-list li {
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    gap: 0.2rem 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .axis-list li:last-child { border-bottom: none; }
+  .axis-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--green);
+    padding-top: 0.15rem;
+  }
+  .axis-desc { color: var(--text); font-size: 0.94rem; }
+
+  /* ---------- roadmap ---------- */
+  .phases { list-style: none; margin: 0.6rem 0 0; padding: 0; counter-reset: phase; }
+  .phase {
+    counter-increment: phase;
+    position: relative;
+    padding: 0 0 1.5rem 2rem;
+    border-left: 2px solid var(--border-bright);
+    margin-left: 0.5rem;
+  }
+  .phase:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .phase::before {
+    content: counter(phase);
+    position: absolute;
+    left: -0.85rem;
+    top: 0;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--bg-raise);
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.82rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .phase.done::before { content: "✓"; background: var(--green); border-color: var(--green); color: var(--bg); }
+  .phase-title { font-family: var(--font-display); font-weight: 600; font-size: 1.02rem; margin: 0 0 0.3rem; }
+  .phase-status {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+    margin-bottom: 0.4rem;
+  }
+  .phase-status.live { color: var(--green); border: 1px solid var(--green); }
+  .phase-status.now { color: var(--gold); border: 1px solid var(--gold); }
+  .phase-status.next { color: var(--text-dim); border: 1px solid var(--border-bright); }
+  .phase p { margin: 0; font-size: 0.92rem; color: var(--text-dim); }
+
+  /* ---------- status strip ---------- */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 1rem 0 0.4rem;
+  }
+  .stat {
+    background: var(--panel);
+    padding: 0.85rem 1rem;
+  }
+  .stat .v {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .l {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-block: 1.6rem 2.4rem;
+    text-align: center;
+  }
+  footer .fw {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  footer .fw .dot { color: var(--gold); }
+  footer p { color: var(--text-dim); font-size: 0.82rem; margin: 0.5rem 0 0; }
+
+  @media (max-width: 620px) {
+    section.doc { grid-template-columns: 32px 1fr; gap: 0 0.8rem; }
+    .sec-num { font-size: 0.72rem; }
+    .axis-list li { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+
+<div class="ticker-bar" aria-hidden="true">
+  <div class="ticker-track">
+    <span class="up">▲ 6 FACTIONS LIVE</span>
+    <span>SERVER-AUTHORITATIVE COMBAT</span>
+    <span class="up">▲ FULL FREE COINS LOOP SHIPPED</span>
+    <span>GENESIS SUPPLY: PERMANENTLY CAPPED</span>
+    <span class="down">▼ REWARDS FUNDED BY REVENUE, NEVER EMISSIONS</span>
+    <span>NO WALLET REQUIRED TO PLAY</span>
+    <span class="up">▲ EARLY ACCESS NEXT</span>
+    <span>6 FACTIONS LIVE</span>
+    <span>SERVER-AUTHORITATIVE COMBAT</span>
+    <span class="up">▲ FULL FREE COINS LOOP SHIPPED</span>
+    <span>GENESIS SUPPLY: PERMANENTLY CAPPED</span>
+    <span class="down">▼ REWARDS FUNDED BY REVENUE, NEVER EMISSIONS</span>
+    <span>NO WALLET REQUIRED TO PLAY</span>
+    <span class="up">▲ EARLY ACCESS NEXT</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Litepaper · v1.0 · 2026-09-14</span>
+    <h1 class="wordmark">FLOORWARS<span class="dot">.</span></h1>
+    <p class="tagline">The floor is <b>the battlefield.</b></p>
+    <div class="hero-links">
+      <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">𝕏 @playfloorwars</a>
+      <a href="#economy">Read the token model →</a>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="wrap">
+    <a href="#idea"><span class="n">1</span>The idea</a>
+    <a href="#game"><span class="n">2</span>The game</a>
+    <a href="#collect"><span class="n">3</span>Collect</a>
+    <a href="#economy"><span class="n">4</span>Economy</a>
+    <a href="#token"><span class="n">5</span>Token</a>
+    <a href="#roadmap"><span class="n">6</span>Roadmap</a>
+    <a href="#status"><span class="n">7</span>Status</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section class="doc" id="idea">
+    <div class="sec-num">01</div>
+    <div class="sec-body">
+      <h2>The idea</h2>
+      <p class="lede">Floorwars brings the Pokémon-collectibles experience on-chain. Collecting and chasing rarity is the main draw — not a side layer bolted onto a card game.</p>
+      <p>The battle engine, the six factions, the ranked ladder: all of it is the vehicle. The thing players are meant to get hooked on is owning, showing off, and trading cards that are genuinely theirs.</p>
+      <p>Every faction is trading-culture themed — Doggos, Frogs, Degens, Crypto Bros, Builders, Normies — because the whole identity of the game is a Wall Street trading floor at night, doubling as a battle arena.</p>
+    </div>
+  </section>
+
+  <section class="doc" id="game">
+    <div class="sec-num">02</div>
+    <div class="sec-body">
+      <h2>The game</h2>
+      <p>A deterministic, server-authoritative PvP trading-card battler. Two players, five board slots each, a shared Volatility meter that can trigger a Market Event and flip a match on its head. Six factions, each with a real, distinct signature mechanic:</p>
+      <table class="ledger">
+        <thead><tr><th>Faction</th><th>Signature mechanic</th></tr></thead>
+        <tbody>
+          <tr><td class="faction-name">Doggos</td><td>Swarm — more friends on board, more Attack</td></tr>
+          <tr><td class="faction-name">Frogs</td><td>Copy your best creature and lean into chaos</td></tr>
+          <tr><td class="faction-name">Builders</td><td>Draw cards, chain combos, out-value the board</td></tr>
+          <tr><td class="faction-name">Degens</td><td>Pay your own HP for explosive, above-rate power</td></tr>
+          <tr><td class="faction-name">Crypto Bros</td><td>Ramp your Energy and scale out of control</td></tr>
+          <tr><td class="faction-name">Normies</td><td>Simple, sturdy, defensive — hard to punish</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><strong>Free to play. No wallet required to jump in.</strong> Play vs AI and Play Online both work with zero connection — a wallet is only ever asked for the moment something needs to persist, like a saved deck or a collection. The collecting hook only works if getting to the game itself is instant.</div>
+    </div>
+  </section>
+
+  <section class="doc" id="collect">
+    <div class="sec-num">03</div>
+    <div class="sec-body">
+      <h2>Collect</h2>
+      <p>Every card a player owns is real and independently valuable across five separate axes — not one dial, five. They multiply, not add: a Legendary, Secret Edition, Blue-Chip-graded, foil pull isn't a big number, it's the product of five independent long shots — exactly how a real "only a handful in the world" card gets that way.</p>
+      <ul class="axis-list">
+        <li><span class="axis-name">RARITY</span><span class="axis-desc">How hard the <em>design</em> is to pull at all. Common → Genesis, seven tiers. Genesis is permanently capped around 100 cards, ever — the game's own genesis block.</span></li>
+        <li><span class="axis-name">EDITION</span><span class="axis-desc">The print tier of a specific copy — Standard, First Edition, Full Art, Ultra, Secret. Cosmetic only: no print is ever stronger in a match than any other print of the same card.</span></li>
+        <li><span class="axis-name">FOIL</span><span class="axis-desc">An independent shine roll on any copy, any rarity, any edition — closer to a Pokémon "shiny" than a multiplier stacked on rarity.</span></li>
+        <li><span class="axis-name">SERIAL №</span><span class="axis-desc">A specific numbered copy from a capped print run, e.g. <code>#004 / 250</code>, where that applies.</span></li>
+        <li><span class="axis-name">CONDITION</span><span class="axis-desc">A permanent 1–10 quality roll assigned once at mint — 10 is Blue Chip, 1 is Distressed — in the game's own finance vocabulary, not a grading company's.</span></li>
+      </ul>
+      <div class="callout"><strong>Where on-chain beats the physical original:</strong> a card's Condition is provable from the chain itself the moment it's minted — no third party, no weeks-long turnaround, no risk of a counterfeit slab. And where a grading company sells access to population reports, Floorwars can expose the live, trustless equivalent for free — verifiable by anyone, not just claimed.</div>
+    </div>
+  </section>
+
+  <section class="doc" id="economy">
+    <div class="sec-num">04</div>
+    <div class="sec-body">
+      <h2>The economy</h2>
+      <p>Two paths, deliberately kept apart.</p>
+      <h3>Coins</h3>
+      <p>Free, earn-only, and gate the entire core progression loop — match results, daily and weekly logins, quests, permanent achievements, referrals. Every player has access to this loop regardless of spend, and it's real: fully built today, not a placeholder.</p>
+      <h3>Cash-shop packs</h3>
+      <p>A separate, real-money path for players who want more shots at rares — the industry-standard "whales buy more shots" lever. It never routes through the token, so pack pricing is never exposed to token volatility. The collecting game and the speculative asset stay on separate rails, on purpose.</p>
+      <h3>Duplicate protection</h3>
+      <p>Disenchant a card you don't need into Dust, craft the one you actually want. A real economy, not a grind wall with no exit.</p>
+    </div>
+  </section>
+
+  <section class="doc" id="token">
+    <div class="sec-num">05</div>
+    <div class="sec-body">
+      <h2>The token</h2>
+      <p>An external marketing, community, and staking layer — separate from Coins, riding this cycle's memefi wave, thematically anchored to the Doggos faction. Dogs are the most proven meme-coin lineage there is (Doge → Shiba → Floki → Bonk), and that's not incidental to the choice.</p>
+      <div class="callout"><strong>The commitment that matters most:</strong> any staking rewards or buybacks are funded from real revenue — a cut of cash-shop pack sales and marketplace fees — never from token emissions. This is a direct rejection of the pattern that collapsed Axie Infinity's SLP economy, where emission-funded rewards only held up as long as new-buyer inflow outpaced emission. An emission-funded reward is a promise the token can't keep once growth stalls; a revenue-funded one only pays when the game is actually earning.</div>
+      <p>Leaning toward <strong>self-listing</strong> — an own contract, an own seeded liquidity pool on a real DEX — over a bonding-curve launchpad, because self-listing lets distribution lean on what actually exists: a real playable game, the Doggos faction's built-in meme identity, and an airdrop to early players and holders as day-one distribution. The tradeoff, stated plainly: a launchpad gives automatic proof that liquidity got locked on migration; self-listing has to earn that trust itself. Visibly locking (or burning) liquidity and communicating it clearly is a real requirement here, not optional polish.</p>
+      <p class="lede">What's still open, stated honestly rather than invented for this document: exact supply, allocation, and launch timing. Chain choice currently leans toward an EVM-compatible L2, evaluated against Solana but not locked in — chosen for inheriting an already-shipped, already-tested wallet-connect stack rather than rebuilding one from scratch.</p>
+    </div>
+  </section>
+
+  <section class="doc" id="roadmap">
+    <div class="sec-num">06</div>
+    <div class="sec-body">
+      <h2>Roadmap, in order — and why that order</h2>
+      <p>Floorwars is being built in a deliberate sequence, not because on-chain features aren't wanted, but because building real financial infrastructure — asset custody, a marketplace, minting — on top of a game and an economy that haven't been proven yet is the single most common failure mode in crypto gaming. The order exists specifically to not repeat it.</p>
+      <ol class="phases">
+        <li class="phase done">
+          <span class="phase-status live">Live today</span>
+          <p class="phase-title">The game itself, free and complete</p>
+          <p>Engine, all six factions, deterministic server-authoritative combat, the full free Coins-earn loop.</p>
+        </li>
+        <li class="phase">
+          <span class="phase-status now">In progress</span>
+          <p class="phase-title">Real visual identity and card art</p>
+          <p>Every one of the game's card illustrations, generated and reviewed one at a time.</p>
+        </li>
+        <li class="phase">
+          <span class="phase-status next">Next</span>
+          <p class="phase-title">Early access</p>
+          <p>A real, playable, balanced game a crypto-native audience can actually judge for themselves.</p>
+        </li>
+        <li class="phase">
+          <span class="phase-status next">Then</span>
+          <p class="phase-title">Token launch</p>
+          <p>Self-listed, liquidity visibly locked, an airdrop to early players and holders — launched once there's a real product to point at.</p>
+        </li>
+        <li class="phase">
+          <span class="phase-status next">Then</span>
+          <p class="phase-title">On-chain minting and a marketplace</p>
+          <p>Built once there's a real community actually playing and holding — for demand that's already there, not demand hoped for because the assets exist.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="doc" id="status">
+    <div class="sec-num">07</div>
+    <div class="sec-body">
+      <h2>Where things stand today</h2>
+      <p>Not a promise — a status.</p>
+      <div class="status-grid">
+        <div class="stat"><div class="v">6 / 6</div><div class="l">Factions shipped</div></div>
+        <div class="stat"><div class="v">Live</div><div class="l">Wallet sign-in (SIWE)</div></div>
+        <div class="stat"><div class="v">Full</div><div class="l">Free Coins-earn loop</div></div>
+        <div class="stat"><div class="v">Real</div><div class="l">Packs, foils, crafting</div></div>
+      </div>
+      <p>The battle engine, all six factions, and the entire free Coins-earn loop — matches, daily and weekly rewards, quests, permanent achievements, a public leaderboard, referrals — are built and live. Wallet-connect is the identity layer from day one. Packs, foils, rarity, crafting, and duplicate protection are all real, working systems today, not concepts.</p>
+      <p>What's left before the on-chain layer starts: finishing the game's real illustrated card art, and the early-access push itself.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="fw">FLOORWARS<span class="dot">.</span></div>
+  <p>The floor is the battlefield. · <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a></p>
+</footer>
