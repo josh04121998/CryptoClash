@@ -35,6 +35,8 @@ const COMMUNITY_LINKS = [
   { label: "Telegram" },
 ];
 
+const LITEPAPER_URL = "https://claude.ai/code/artifact/f1bc3a81-2b9b-43e1-9d86-92072afa54e2";
+
 /** A rough skyline silhouette (varied-height rects) — pure inline SVG, no image asset. */
 function SkylineSilhouette() {
   const buildings = [
@@ -115,6 +117,9 @@ export function LandingPage({ onEnter }: LandingPageProps) {
             <button type="button" className="landing__cta" onClick={onEnter}>
               Enter the Arena →
             </button>
+            <a className="landing__cta-secondary" href={LITEPAPER_URL} target="_blank" rel="noopener noreferrer">
+              Read the Litepaper
+            </a>
           </div>
           <div className="landing__factions">
             {FACTIONS.map((f) => (
@@ -145,7 +150,13 @@ export function LandingPage({ onEnter }: LandingPageProps) {
           <div className="landing__community">
             {COMMUNITY_LINKS.map((c) =>
               c.href ? (
-                <a key={c.label} className="landing__community-link" href={c.href} target="_blank" rel="noopener noreferrer">
+                <a
+                  key={c.label}
+                  className="landing__community-link landing__community-link--live"
+                  href={c.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {c.label}
                 </a>
               ) : (

@@ -2353,6 +2353,13 @@ button {
   font-weight: 600;
   font-size: 1rem;
   color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.landing__cta-secondary:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
 }
 
 .landing__factions {
@@ -2451,6 +2458,22 @@ button {
   background: var(--panel);
   cursor: default;
   position: relative;
+  text-decoration: none;
+}
+
+/* A real, clickable link (currently just X) rather than a "Soon" placeholder — reads as live,
+   not just smaller-than-its-neighbors for lacking a badge. */
+.landing__community-link--live {
+  cursor: pointer;
+  color: var(--text);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 16px -6px var(--glow-green);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.landing__community-link--live:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px -4px var(--glow-gold);
 }
 
 .landing__community-badge {
