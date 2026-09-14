@@ -119,6 +119,51 @@ function isSelfDamageTooRisky(state: MatchState, playerId: PlayerId, template: C
   return !wouldBeLethal;
 }
 
+/**
+ * Picks the best friendly creature to aim a buffTarget/grantKeywordTarget
+ * effect at — the Neutral Items (Sharpening Stone, Rocket Boots, Reinforced
+ * Plating, Bodyguard Badge, Power Core), played by every faction. Previously
+ * always hit whichever creature sat in the lowest-numbered occupied board
+ * slot regardless of value, in every single game — wasting a Rush grant on
+ * a creature that could already attack, or a stat buff on the board's
+ * weakest creature instead of its best one.
+ *
+ * - `grantKeywordTarget`: a creature that already has the keyword gains
+ *   nothing from a repeat grant, so it's skipped in favor of one that
+ *   doesn't — unless every creature already has it, in which case the card
+ *   is getting played for nothing regardless of target and any pick is as
+ *   good as another. Rush specifically only unlocks anything for a creature
+ *   still summoning-sick this turn (one that can already attack gains
+ *   nothing from it), so that group is preferred first when it's non-empty.
+ * - `buffTarget` (a permanent stat boost): always the board's current best
+ *   attacker — concentrating value on the strongest threat rather than
+ *   spreading it thin or landing it on a creature about to trade away for
+ *   nothing.
+ * Ties broken by highest current effective attack in all cases.
+ */
+function pickFriendlyTarget(state: MatchState, playerId: PlayerId, template: CardTemplate): number {
+  const board = state.players[playerId].board;
+  const candidates = board
+    .map((c, slot) => ({ c, slot }))
+    .filter((x): x is { c: BoardCreature; slot: number } => x.c !== null);
+
+  const bestByAttack = (list: { c: BoardCreature; slot: number }[]): number =>
+    list.reduce((top, cur) => (getEffectiveAttack(state, playerId, cur.slot) > getEffectiveAttack(state, playerId, top.slot) ? cur : top)).slot;
+
+  const effect = template.effects!.find(
+    (e) => e.trigger === "onPlay" && e.requiresTarget && (e.action.kind === "buffTarget" || e.action.kind === "grantKeywordTarget"),
+  )!;
+  if (effect.action.kind !== "grantKeywordTarget") return bestByAttack(candidates);
+
+  const keyword = effect.action.keyword;
+  const notAlreadyGranted = candidates.filter(({ c }) => !c.keywords.has(keyword) && !c.tempKeywords.has(keyword));
+  const usable = notAlreadyGranted.length > 0 ? notAlreadyGranted : candidates;
+  if (keyword !== "Rush") return bestByAttack(usable);
+
+  const stillSummoningSick = usable.filter(({ c }) => c.summonedOnTurn === state.turnNumber);
+  return bestByAttack(stillSummoningSick.length > 0 ? stillSummoningSick : usable);
+}
+
 function playAffordableCards(state: MatchState, playerId: PlayerId) {
   let progressed = true;
   while (progressed) {
@@ -138,9 +183,8 @@ function playAffordableCards(state: MatchState, playerId: PlayerId) {
       let target: TargetRef | undefined;
       if (template.effects?.some((e) => e.trigger === "onPlay" && e.requiresTarget)) {
         if (targetsFriendlyCreature(template)) {
-          const friendlySlot = player.board.findIndex((c) => c !== null);
-          if (friendlySlot === -1) continue; // nothing to buff yet — try again once something's on board
-          target = { type: "creature", playerId, slot: friendlySlot };
+          if (player.board.every((c) => c === null)) continue; // nothing to buff yet — try again once something's on board
+          target = { type: "creature", playerId, slot: pickFriendlyTarget(state, playerId, template) };
         } else {
           target = { type: "player", playerId: enemyOf(playerId) };
         }

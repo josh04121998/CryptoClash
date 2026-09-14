@@ -622,6 +622,49 @@ describe("bot AI", () => {
     expect(state.players.B.hp).toBe(28); // the surviving fragile creature hit face afterward, instead of dying for nothing
   });
 
+  // Neutral Items (played by every faction) previously always targeted whichever
+  // friendly creature sat in the lowest-numbered occupied slot, regardless of value.
+  it("targets a buffTarget Item at the board's best attacker, not just the first occupied slot", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 31);
+
+    // Slot 0: a weak creature. Slot 1: the board's real threat.
+    const weak = placeCreature(state, "A", 0, "pup_scout");
+    weak.baseAttack = 1;
+    const strong = placeCreature(state, "A", 1, "loyal_hound");
+    strong.baseAttack = 5;
+
+    // Sharpening Stone: +2 Attack to a chosen friendly creature.
+    state.players.A.hand = ["sharpening_stone"];
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+
+    takeBotTurn(state, "A");
+
+    // The old first-occupied-slot bot would've buffed the weak creature instead.
+    expect(getEffectiveAttack(state, "A", 1)).toBe(7); // the strong creature got it: 5 + 2
+    expect(getEffectiveAttack(state, "A", 0)).toBe(1); // the weak one was left alone
+  });
+
+  it("targets a Rush grant at a creature that's actually still summoning-sick, not one that can already attack", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 37);
+
+    // Slot 0: already able to attack (summoned a prior turn) — a Rush grant does nothing for it.
+    placeCreature(state, "A", 0, "pup_scout");
+    // Slot 1: summoned this very turn, no innate Rush — the only creature that actually needs
+    // the grant (loyal_hound is vanilla, unlike fast_fang, which already has Rush natively).
+    const sick = placeCreature(state, "A", 1, "loyal_hound");
+    sick.summonedOnTurn = state.turnNumber;
+
+    // Rocket Boots: grant Rush to a chosen friendly creature, this turn only.
+    state.players.A.hand = ["rocket_boots"];
+    state.players.A.energy = state.players.A.maxEnergy = 10;
+
+    takeBotTurn(state, "A");
+
+    // The old first-occupied-slot bot would've wasted the grant on slot 0, which needed nothing.
+    expect(state.players.A.board[1]?.tempKeywords.has("Rush")).toBe(true);
+    expect(state.players.A.board[0]?.tempKeywords.has("Rush")).toBe(false);
+  });
+
   // Session 16 balance-pass follow-up: the bot previously had no self-damage-risk
   // model at all — it would play a Degens "pay your own HP" card purely for the
   // value/tempo gain, blind to how low that left its own HP. These three cases
