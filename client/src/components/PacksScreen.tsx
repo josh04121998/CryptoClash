@@ -96,9 +96,11 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
                   <span className="deck-picker__card-desc">
                     {pack.cardCount} cards · {pack.cost} Coins
                   </span>
-                  <button type="button" disabled={!affordable || opening} onClick={() => open(pack.id)}>
-                    {opening ? "Opening…" : affordable ? "Open" : "Not enough Coins"}
-                  </button>
+                  <div className="deck-picker__card-actions">
+                    <button type="button" disabled={!affordable || opening} onClick={() => open(pack.id)}>
+                      {opening ? "Opening…" : affordable ? "Open" : "Not enough Coins"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
