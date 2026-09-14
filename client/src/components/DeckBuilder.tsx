@@ -9,13 +9,14 @@ export interface DeckBuilderProps {
   existing?: { id: string; name: string; cards: string[] };
   onSaved: () => void;
   onCancel: () => void;
+  onHome: () => void;
 }
 
 const POOL_CARDS: CardTemplate[] = Object.values(CARD_POOL)
   .filter((t) => !t.token)
   .sort((a, b) => (a.faction === b.faction ? a.cost - b.cost : a.faction.localeCompare(b.faction)));
 
-export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderProps) {
+export function DeckBuilder({ token, existing, onSaved, onCancel, onHome }: DeckBuilderProps) {
   const [name, setName] = useState(existing?.name ?? "New Deck");
   const [cards, setCards] = useState<string[]>(existing?.cards ?? []);
   const [saving, setSaving] = useState(false);
@@ -84,7 +85,9 @@ export function DeckBuilder({ token, existing, onSaved, onCancel }: DeckBuilderP
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">deck builder</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onCancel}>

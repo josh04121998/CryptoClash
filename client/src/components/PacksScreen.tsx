@@ -23,11 +23,12 @@ export interface PacksScreenProps {
   balance: number | null;
   onBalanceChange: (balance: number) => void;
   onBack: () => void;
+  onHome: () => void;
 }
 
 const REVEAL_STEP_MS = 350;
 
-export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksScreenProps) {
+export function PacksScreen({ token, balance, onBalanceChange, onBack, onHome }: PacksScreenProps) {
   const [packs, setPacks] = useState<PackDefinition[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -71,7 +72,9 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack }: PacksSc
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">packs</span>
         <div className="app-bar__actions">
           <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>

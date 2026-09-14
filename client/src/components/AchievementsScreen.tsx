@@ -7,6 +7,7 @@ export interface AchievementsScreenProps {
   balance: number | null;
   onBalanceChange: (balance: number) => void;
   onBack: () => void;
+  onHome: () => void;
 }
 
 interface AchievementStatus {
@@ -24,7 +25,7 @@ interface AchievementStatus {
  * QuestsScreen (reuses its `.quests-screen`/`.quests-screen__quest` CSS classes directly rather
  * than duplicating them), just without the "resets tomorrow" framing.
  */
-export function AchievementsScreen({ token, balance, onBalanceChange, onBack }: AchievementsScreenProps) {
+export function AchievementsScreen({ token, balance, onBalanceChange, onBack, onHome }: AchievementsScreenProps) {
   const [achievements, setAchievements] = useState<AchievementStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +62,9 @@ export function AchievementsScreen({ token, balance, onBalanceChange, onBack }: 
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">achievements</span>
         <div className="app-bar__actions">
           <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>

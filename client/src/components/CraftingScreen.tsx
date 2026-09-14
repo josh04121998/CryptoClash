@@ -10,6 +10,7 @@ export interface CraftingScreenProps {
   /** The account's chosen starting faction — App.tsx never renders this screen until one's chosen, but stays nullable defensively (mirrors craftingRepo.ts's own conservative null handling). */
   startingFaction: Faction | null;
   onBack: () => void;
+  onHome: () => void;
 }
 
 interface CraftRate {
@@ -38,7 +39,7 @@ function isFreeStartingCommon(template: CardTemplate, startingFaction: Faction |
   return template.faction === "Neutral" || startingFaction === null || template.faction === startingFaction;
 }
 
-export function CraftingScreen({ token, startingFaction, onBack }: CraftingScreenProps) {
+export function CraftingScreen({ token, startingFaction, onBack, onHome }: CraftingScreenProps) {
   const CRAFTABLE_CARDS: CardTemplate[] = useMemo(
     () =>
       Object.values(CARD_POOL)
@@ -122,7 +123,9 @@ export function CraftingScreen({ token, startingFaction, onBack }: CraftingScree
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">crafting</span>
         <div className="app-bar__actions">
           <span className="app-bar__coins" title="Dust" aria-label={`Dust: ${dust ?? "loading"}`}>

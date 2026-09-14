@@ -7,6 +7,7 @@ export interface QuestsScreenProps {
   balance: number | null;
   onBalanceChange: (balance: number) => void;
   onBack: () => void;
+  onHome: () => void;
 }
 
 interface DailyStatus {
@@ -30,7 +31,7 @@ interface QuestStatus {
   claimed: boolean;
 }
 
-export function QuestsScreen({ token, balance, onBalanceChange, onBack }: QuestsScreenProps) {
+export function QuestsScreen({ token, balance, onBalanceChange, onBack, onHome }: QuestsScreenProps) {
   const [daily, setDaily] = useState<DailyStatus | null>(null);
   const [weekly, setWeekly] = useState<WeeklyStatus | null>(null);
   const [quests, setQuests] = useState<QuestStatus[]>([]);
@@ -111,7 +112,9 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">quests</span>
         <div className="app-bar__actions">
           <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>

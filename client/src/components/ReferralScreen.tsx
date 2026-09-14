@@ -4,6 +4,7 @@ import { apiFetch } from "../api.js";
 export interface ReferralScreenProps {
   token: string;
   onBack: () => void;
+  onHome: () => void;
 }
 
 interface ReferralStats {
@@ -13,7 +14,7 @@ interface ReferralStats {
   pending: number;
 }
 
-export function ReferralScreen({ token, onBack }: ReferralScreenProps) {
+export function ReferralScreen({ token, onBack, onHome }: ReferralScreenProps) {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,9 @@ export function ReferralScreen({ token, onBack }: ReferralScreenProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">invite friends</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onBack}>

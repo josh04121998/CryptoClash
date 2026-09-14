@@ -7,6 +7,7 @@ import { CardFace } from "./CardFace.js";
 export interface CollectionScreenProps {
   token: string;
   onBack: () => void;
+  onHome: () => void;
 }
 
 const ALL_CARDS: CardTemplate[] = Object.values(CARD_POOL)
@@ -29,7 +30,7 @@ type RarityFilter = Rarity | "All";
  * behind them. Foils are now real (packs roll them — see packsRepo.ts), so
  * this screen surfaces them: a summary count and a per-card badge/filter.
  */
-export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
+export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProps) {
   const [owned, setOwned] = useState<Record<string, number>>({});
   const [foils, setFoils] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,9 @@ export function CollectionScreen({ token, onBack }: CollectionScreenProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">collection</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onBack}>

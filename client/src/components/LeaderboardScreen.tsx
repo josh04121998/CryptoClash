@@ -5,6 +5,7 @@ export interface LeaderboardScreenProps {
   /** null when no wallet is connected — the board itself is public (no login wall to look), only "mine" needs identity. */
   token: string | null;
   onBack: () => void;
+  onHome: () => void;
 }
 
 type Category = "wins" | "win-rate" | "coins-earned" | "rank";
@@ -68,7 +69,7 @@ function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
+export function LeaderboardScreen({ token, onBack, onHome }: LeaderboardScreenProps) {
   const [category, setCategory] = useState<Category>("wins");
   const [wins, setWins] = useState<WinsResponse | null>(null);
   const [winRate, setWinRate] = useState<WinRateResponse | null>(null);
@@ -95,7 +96,9 @@ export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">leaderboard</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onBack}>

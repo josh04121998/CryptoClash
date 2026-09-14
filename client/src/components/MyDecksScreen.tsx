@@ -10,11 +10,12 @@ export interface SavedDeck {
 export interface MyDecksScreenProps {
   token: string;
   onBack: () => void;
+  onHome: () => void;
   onCreateNew: () => void;
   onEdit: (deck: SavedDeck) => void;
 }
 
-export function MyDecksScreen({ token, onBack, onCreateNew, onEdit }: MyDecksScreenProps) {
+export function MyDecksScreen({ token, onBack, onHome, onCreateNew, onEdit }: MyDecksScreenProps) {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,9 @@ export function MyDecksScreen({ token, onBack, onCreateNew, onEdit }: MyDecksScr
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">my decks</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onCreateNew}>

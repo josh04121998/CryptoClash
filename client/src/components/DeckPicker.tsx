@@ -15,9 +15,10 @@ export interface DeckPickerProps {
   token: string | null;
   onPick: (cards: string[]) => void;
   onBack: () => void;
+  onHome: () => void;
 }
 
-export function DeckPicker({ title, token, onPick, onBack }: DeckPickerProps) {
+export function DeckPicker({ title, token, onPick, onBack, onHome }: DeckPickerProps) {
   const [myDecks, setMyDecks] = useState<SavedDeck[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -31,7 +32,9 @@ export function DeckPicker({ title, token, onPick, onBack }: DeckPickerProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>FLOORWARS</h1>
+        <button type="button" className="app-bar__logo-btn" onClick={onHome} title="Back to landing">
+          <h1>FLOORWARS</h1>
+        </button>
         <span className="app-bar__subtitle">{title}</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onBack}>

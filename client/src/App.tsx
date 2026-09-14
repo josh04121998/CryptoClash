@@ -102,6 +102,7 @@ export default function App() {
         title={mode === "pick-local" ? "vs AI — pick your deck" : "online — pick your deck"}
         token={wallet.token}
         onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
         onPick={(cards) => {
           setDeckCards(cards);
           setMode(mode === "pick-local" ? "local" : "online");
@@ -111,7 +112,7 @@ export default function App() {
   }
 
   if (mode === "leaderboard") {
-    return <LeaderboardScreen token={wallet.token} onBack={() => setMode("menu")} />;
+    return <LeaderboardScreen token={wallet.token} onBack={() => setMode("menu")} onHome={() => setMode("landing")} />;
   }
 
   // The one-time starting-faction choice (STATUS.md roadmap item 1) gates only the screens whose
@@ -123,7 +124,13 @@ export default function App() {
     wallet.startingFaction === null &&
     (mode === "collection" || mode === "crafting" || mode === "deck-builder" || mode === "my-decks");
   if (needsStartingFaction) {
-    return <StartingFactionScreen onChoose={(faction) => wallet.chooseStartingFaction(faction)} />;
+    return (
+      <StartingFactionScreen
+        onChoose={(faction) => wallet.chooseStartingFaction(faction)}
+        onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
+      />
+    );
   }
 
   if (mode === "packs" && wallet.token) {
@@ -133,6 +140,7 @@ export default function App() {
         balance={coinsBalance}
         onBalanceChange={setCoinsBalance}
         onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
       />
     );
   }
@@ -144,6 +152,7 @@ export default function App() {
         balance={coinsBalance}
         onBalanceChange={setCoinsBalance}
         onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
       />
     );
   }
@@ -155,20 +164,28 @@ export default function App() {
         balance={coinsBalance}
         onBalanceChange={setCoinsBalance}
         onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
       />
     );
   }
 
   if (mode === "referral" && wallet.token) {
-    return <ReferralScreen token={wallet.token} onBack={() => setMode("menu")} />;
+    return <ReferralScreen token={wallet.token} onBack={() => setMode("menu")} onHome={() => setMode("landing")} />;
   }
 
   if (mode === "collection" && wallet.token) {
-    return <CollectionScreen token={wallet.token} onBack={() => setMode("menu")} />;
+    return <CollectionScreen token={wallet.token} onBack={() => setMode("menu")} onHome={() => setMode("landing")} />;
   }
 
   if (mode === "crafting" && wallet.token) {
-    return <CraftingScreen token={wallet.token} startingFaction={wallet.startingFaction ?? null} onBack={() => setMode("menu")} />;
+    return (
+      <CraftingScreen
+        token={wallet.token}
+        startingFaction={wallet.startingFaction ?? null}
+        onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
+      />
+    );
   }
 
   if (mode === "my-decks" && wallet.token) {
@@ -176,6 +193,7 @@ export default function App() {
       <MyDecksScreen
         token={wallet.token}
         onBack={() => setMode("menu")}
+        onHome={() => setMode("landing")}
         onCreateNew={() => {
           setEditingDeck(undefined);
           setMode("deck-builder");
@@ -195,6 +213,7 @@ export default function App() {
         existing={editingDeck}
         onCancel={() => setMode("my-decks")}
         onSaved={() => setMode("my-decks")}
+        onHome={() => setMode("landing")}
       />
     );
   }
