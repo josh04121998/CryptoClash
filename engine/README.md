@@ -1,6 +1,6 @@
 # @cryptoclash/engine
 
-Headless, deterministic battle engine prototype for CRYPTO CLASH — see `../architecture.md` Section 4 for the design rationale.
+Headless, deterministic battle engine prototype for FLOORWARS — see `../architecture.md` Section 4 for the design rationale.
 
 No rendering, no networking. Takes a `(seed, deck lists)` pair plus a stream of player `Intent`s and produces the resulting `MatchState`, including a human-readable action log.
 

@@ -31,7 +31,7 @@ const PILLARS = [
 
 const COMMUNITY_LINKS = [
   { label: "Discord" },
-  { label: "X / Twitter" },
+  { label: "X", href: "https://x.com/playfloorwars" },
   { label: "Telegram" },
 ];
 
@@ -96,7 +96,7 @@ export function LandingPage({ onEnter }: LandingPageProps) {
 
       <div className="landing__content">
         <nav className="landing__nav">
-          <span className="landing__logo">CRYPTO CLASH</span>
+          <span className="landing__logo">FLOORWARS</span>
           <button type="button" className="landing__nav-enter" onClick={onEnter}>
             Enter the Arena
           </button>
@@ -143,16 +143,22 @@ export function LandingPage({ onEnter }: LandingPageProps) {
         <section className="landing__section">
           <h2 className="landing__section-title">Join the floor</h2>
           <div className="landing__community">
-            {COMMUNITY_LINKS.map((c) => (
-              <span key={c.label} className="landing__community-link" title="Coming soon">
-                {c.label}
-                <span className="landing__community-badge">Soon</span>
-              </span>
-            ))}
+            {COMMUNITY_LINKS.map((c) =>
+              c.href ? (
+                <a key={c.label} className="landing__community-link" href={c.href} target="_blank" rel="noopener noreferrer">
+                  {c.label}
+                </a>
+              ) : (
+                <span key={c.label} className="landing__community-link" title="Coming soon">
+                  {c.label}
+                  <span className="landing__community-badge">Soon</span>
+                </span>
+              ),
+            )}
           </div>
         </section>
 
-        <footer className="landing__footer">CRYPTO CLASH — early access. Balance, odds, and rewards are still first-pass numbers.</footer>
+        <footer className="landing__footer">FLOORWARS — early access. Balance, odds, and rewards are still first-pass numbers.</footer>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-# CryptoClash — Grok Card Art Prompts
+# Floorwars — Grok Card Art Prompts
 
 ### v1.0 — 2026-09-12
 

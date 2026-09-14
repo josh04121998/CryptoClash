@@ -155,7 +155,7 @@ export function useWallet() {
       const siwe = new SiweMessage({
         domain: window.location.host,
         address,
-        statement: "Sign in to CRYPTO CLASH.",
+        statement: "Sign in to FLOORWARS.",
         uri: window.location.origin,
         version: "1",
         chainId: 1,

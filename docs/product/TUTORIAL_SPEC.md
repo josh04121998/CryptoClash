@@ -1,4 +1,4 @@
-# CryptoClash — First-Match Tutorial Spec
+# Floorwars — First-Match Tutorial Spec
 
 **Owner:** TCG (product) → hand to **TCG Eng**  
 **Priority:** Battle-first (Josh, 2026-09-09)  

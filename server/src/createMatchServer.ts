@@ -69,7 +69,7 @@ export function createMatchServer(port = 0, options: MatchServerOptions = {}): P
       return;
     }
     res.writeHead(200, { "content-type": "text/plain" });
-    res.end("CRYPTO CLASH match server\n");
+    res.end("FLOORWARS match server\n");
   });
 
   const wss = new WebSocketServer({ server: httpServer });

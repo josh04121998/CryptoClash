@@ -111,7 +111,7 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack }: Quests
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>CRYPTO CLASH</h1>
+        <h1>FLOORWARS</h1>
         <span className="app-bar__subtitle">quests</span>
         <div className="app-bar__actions">
           <span className="app-bar__coins" title="Coins" aria-label={`Coins: ${balance ?? "loading"}`}>

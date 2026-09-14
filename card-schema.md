@@ -1,4 +1,4 @@
-# CRYPTO CLASH
+# FLOORWARS
 
 ## Card Schema & Effect DSL Reference
 

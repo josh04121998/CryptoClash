@@ -17,7 +17,7 @@ function runMatch(seed: number, maxTurns = 60) {
     takeBotTurn(state, state.activePlayer);
   }
 
-  console.log(`\n=== CRYPTO CLASH engine demo (seed ${seed}) ===\n`);
+  console.log(`\n=== FLOORWARS engine demo (seed ${seed}) ===\n`);
   for (const entry of state.log) {
     console.log(`[T${entry.turn}] ${entry.text}`);
   }

@@ -1,18 +1,18 @@
-# CRYPTO CLASH — Brand Guide
+# FLOORWARS — Brand Guide
 
-A reference for anyone (human or AI) generating visual assets for the game — social media, the website, or eventually card art. Read this before generating anything; it's the single source of truth for "what does Crypto Clash look like," so a new asset stays recognizably on-brand instead of drifting session to session. Update this file when the direction changes, the same way `STATUS.md` tracks build state.
+A reference for anyone (human or AI) generating visual assets for the game — social media, the website, or eventually card art. Read this before generating anything; it's the single source of truth for "what does Floorwars look like," so a new asset stays recognizably on-brand instead of drifting session to session. Update this file when the direction changes, the same way `STATUS.md` tracks build state.
 
 ---
 
 ## 1. Concept
 
-**"The floor is the battlefield."** Crypto Clash's combat identity is a Wall Street trading floor / bullpen at night, doubling as a battle arena — not generic fantasy war-visuals. This is deliberate: the game's cast (Doggos, Frogs, Degens, Crypto Bros, Builders, Normies) is already trading-culture themed, so the visual language should feel like it belongs to the same world as the gameplay, not bolted on.
+**"The floor is the battlefield."** Floorwars' combat identity is a Wall Street trading floor / bullpen at night, doubling as a battle arena — not generic fantasy war-visuals. This is deliberate: the game's cast (Doggos, Frogs, Degens, Crypto Bros, Builders, Normies) is already trading-culture themed, so the visual language should feel like it belongs to the same world as the gameplay, not bolted on.
 
 The palette and typography choices (Section 2/3) land somewhere between a Bloomberg terminal and a retro arcade cabinet — sharp neon-on-black, squared-off "technical" lettering, scanline texture. Think: an exchange-floor monitor wall that's also a fight screen. That retro-terminal/arcade quality is a real, load-bearing part of the identity, not just a side effect of the font choice — lean into it in generated art (CRT glow, scanlines, chunky pixel-adjacent shapes) rather than smoothing it into generic clean-flat-illustration style.
 
 **Explicit non-goals:** literal Hearthstone-style painted fantasy art, photorealism, generic "crypto bro" clip-art (rocket emojis, laser eyes, cartoon coins) — the brand should read as *designed*, not as a template. See `STATUS.md` Section 0 for the same "complete and well-balanced, not AAA" bar applied to the game itself.
 
-**Open question, raised 2026-09-08:** the user is reconsidering whether "Crypto Clash" is the right name for the game — a separate, bigger conversation from the visual identity work in this doc, not yet resolved. Consequence for asset work in the meantime: **don't bake the "CRYPTO CLASH" wordmark into anything hard to redo** (a character avatar, a mascot pose) — keep name-bearing text on separate, easily-swapped layers/overlays (see the banner mockup technique in Section 8) until the name is settled.
+**Resolved 2026-09-14: the game is named Floorwars** (was "CryptoClash" — raised as an open question 2026-09-08, unresolved for several sessions since the old name kept feeling wrong to the user). Wordmark: **FLOORWARS**. Prose: **Floorwars**. Official X/Twitter: [@playfloorwars](https://x.com/playfloorwars). Every asset/mockup made before this date that shows the old wordmark or "CryptoClash" text needs a swap before reuse — the banner mockup technique in Section 8 already keeps name-bearing text on a separate, easily-swapped layer for exactly this reason.
 
 ---
 

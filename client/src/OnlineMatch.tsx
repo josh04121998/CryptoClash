@@ -44,7 +44,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>CRYPTO CLASH</h1>
+        <h1>FLOORWARS</h1>
         <span className="app-bar__subtitle">multiplayer</span>
         <div className="app-bar__actions">
           <MuteToggle />

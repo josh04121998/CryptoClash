@@ -10,7 +10,7 @@ async function signInWith(wallet: Wallet, overrides: Partial<{ domain: string; n
   const siwe = new SiweMessage({
     domain: overrides.domain ?? DOMAIN,
     address: wallet.address,
-    statement: "Sign in to CRYPTO CLASH.",
+    statement: "Sign in to FLOORWARS.",
     uri: `https://${overrides.domain ?? DOMAIN}`,
     version: "1",
     chainId: 1,
@@ -43,7 +43,7 @@ describe("verifySiwe", () => {
     const siwe = new SiweMessage({
       domain: DOMAIN,
       address: claimedWallet.address, // claims to be `claimedWallet`...
-      statement: "Sign in to CRYPTO CLASH.",
+      statement: "Sign in to FLOORWARS.",
       uri: `https://${DOMAIN}`,
       version: "1",
       chainId: 1,

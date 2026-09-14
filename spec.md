@@ -1,4 +1,4 @@
-# CRYPTO CLASH
+# FLOORWARS
 
 ## Product & Game Design Specification
 
@@ -8,7 +8,7 @@
 
 # 1. Product Vision
 
-**CRYPTO CLASH** is a free-to-play digital collectible card game built around three things:
+**FLOORWARS** is a free-to-play digital collectible card game built around three things:
 
 1. **A genuinely fun and easy-to-learn card battler**
 2. **Deep collecting and rarity**
@@ -577,7 +577,7 @@ Raised by the user: a flat per-match Coin payout — including a flat *loss* pay
 
 **Two changes, not one:**
 
-1. **Structural fix, modeled on how Hearthstone actually works:** Hearthstone's normal Play mode has no flat per-match gold at all — gold comes only from daily quests and capped win-streak bonuses, which by construction can't be farmed past their daily cap no matter how many extra games get played. CryptoClash already has the equivalent machinery (Section 21's Quests: Play 1/Play 3/Win 1, Daily Login, Weekly) sitting unused as a *second* income source alongside the flat per-match Coins. Proposal: **remove `MATCH_WIN_COINS`/`MATCH_LOSS_COINS`/`MATCH_DRAW_COINS` entirely** and let the already-capped quest/daily/weekly system be the only Coins-from-matches path. A normal player's first win of the day still nets 100 Coins (the `win_1` quest) — it just can't be repeated by playing match #50. Rank-ladder progression (already built, not Coins-based) remains the reason to keep playing once the day's quests are done, same role Hearthstone's ranked stars play.
+1. **Structural fix, modeled on how Hearthstone actually works:** Hearthstone's normal Play mode has no flat per-match gold at all — gold comes only from daily quests and capped win-streak bonuses, which by construction can't be farmed past their daily cap no matter how many extra games get played. Floorwars already has the equivalent machinery (Section 21's Quests: Play 1/Play 3/Win 1, Daily Login, Weekly) sitting unused as a *second* income source alongside the flat per-match Coins. Proposal: **remove `MATCH_WIN_COINS`/`MATCH_LOSS_COINS`/`MATCH_DRAW_COINS` entirely** and let the already-capped quest/daily/weekly system be the only Coins-from-matches path. A normal player's first win of the day still nets 100 Coins (the `win_1` quest) — it just can't be repeated by playing match #50. Rank-ladder progression (already built, not Coins-based) remains the reason to keep playing once the day's quests are done, same role Hearthstone's ranked stars play.
 2. **Engagement gate + asymmetric penalty, for what's still per-match-triggered** (quest "play"/"win" progress, referral credit, achievement/rank points — these can't be fully quest-capped away since quests themselves need *something* to count toward): void those specifically for whichever player forfeits before the match reaches meaningful play (proposed threshold: `state.turn >= 3`, so each side got at least one real turn — `MatchState.turn` already exists for this). Critically, this must be **asymmetric**: only the player who leaves early gets nothing. The opponent who stayed and queued in good faith still gets full win credit regardless of when the other side quit — voiding *both* sides (the first version of this idea) would punish the honest player for someone else's abuse, which defeats the purpose.
 
 **Decision, made explicitly by the user rather than assumed:** ship change 1 now, defer change 2. Deleting the flat reward already shrinks the exploitable surface from "unbounded, any number of instant leaves" down to "at most one day's capped quest value per account" — judged enough for now, in exchange for not yet touching `matchRoom.ts`'s more invasive engagement-gating logic. **Change 1 is implemented** (`coinsRepo.ts`, `matchRoom.ts`, session 20): `MATCH_WIN_COINS`/`MATCH_LOSS_COINS`/`MATCH_DRAW_COINS` are gone; `awardMatchResult` now only logs a zero-amount `coin_transactions` audit row (reason `match_win`/`match_loss`/`match_draw`) so `leaderboardRepo.ts`'s Most Wins/Win Rate aggregates keep working off real match outcomes — a match itself credits zero Coins either way. **Change 2 (the `turn >= 3` engagement gate + asymmetric leave penalty) is still not built** — quest "play"/"win" progress, referral credit, and rank/achievement points still fire immediately on any forfeit, including an instant Leave, so those remain farmable up to their daily/one-time caps. Revisit change 2 if that residual surface ever turns out to matter in practice.
@@ -861,7 +861,7 @@ If all three are true, the product is working.
 
 # 36. North Star
 
-CRYPTO CLASH should feel like:
+FLOORWARS should feel like:
 
 > **Hearthstone simplicity + TFT-style decision making + Pokémon collecting + crypto culture.**
 

@@ -1,8 +1,8 @@
-# CryptoClash — Collectibility Specification
+# Floorwars — Collectibility Specification
 
 ### Version 1.1 — 2026-09-12
 
-This document is the single authoritative spec for how a CryptoClash card's *rarity*, *print*, *shine*, *condition*, and *provenance* relate to each other. It consolidates and resolves `spec.md` Sections 12–20 (which were written as an evolving log of proposals and later "resolved" patches — this doc is the clean end state) and settles the naming collisions those sections flagged as open (`spec.md` §13/§14). `spec.md` itself is left as the historical record; this file is what to build against going forward. See `card-schema.md` for gameplay effect syntax and `architecture.md` Section 6 for the underlying data-layer design — this doc only owns the collectibility model.
+This document is the single authoritative spec for how a Floorwars card's *rarity*, *print*, *shine*, *condition*, and *provenance* relate to each other. It consolidates and resolves `spec.md` Sections 12–20 (which were written as an evolving log of proposals and later "resolved" patches — this doc is the clean end state) and settles the naming collisions those sections flagged as open (`spec.md` §13/§14). `spec.md` itself is left as the historical record; this file is what to build against going forward. See `card-schema.md` for gameplay effect syntax and `architecture.md` Section 6 for the underlying data-layer design — this doc only owns the collectibility model.
 
 **Changelog:** v1.1 adds Condition/grading (Section 7) — physical-card-grading and CS:GO-wear-style scarcity, requested directly by the user — and resolves the two axis-interaction questions v1.0 had left open (Section 13).
 
@@ -15,7 +15,7 @@ Every card has two identities that must never be allowed to blend into one:
 - **Gameplay identity** — what the card *does*. Cost, stats, effects, keywords.
 - **Collectible identity** — why a specific *copy* of it is valuable.
 
-A card's gameplay identity is anchored to its cheapest available print, always. **No print of a card is ever stronger in a match than any other print of the same card.** This is the one rule everything below exists to serve — it's what lets CryptoClash have genuinely rare, valuable cards without becoming pay-to-win.
+A card's gameplay identity is anchored to its cheapest available print, always. **No print of a card is ever stronger in a match than any other print of the same card.** This is the one rule everything below exists to serve — it's what lets Floorwars have genuinely rare, valuable cards without becoming pay-to-win.
 
 ---
 
@@ -77,7 +77,7 @@ None of these five words appear in the Rarity ladder (Section 3). That's the who
 
 Unchanged from `spec.md` §17: a flat, independent per-instance roll (currently 8%), applied to any pulled template regardless of its Rarity, Edition, or Condition. A Common, Standard-Edition, low-Condition card can still be foil. This is deliberately closer to a Pokémon "shiny" than a value multiplier stacked on rarity — a second, independent thing to get excited about on a flip.
 
-**Resolved in v1.1 (was open in v1.0): yes, Foil rolls independently on every Edition tier, including Secret Edition — no exceptions.** See Section 9 for why this is safe even at the extreme combinatorial end (some grail combinations may end up with zero realized copies, which is a feature, not a bug — real secret-rare chase cards in Pokémon/Yu-Gi-Oh are sometimes famous for having *no known Gem Mint copy in existence*, and that scarcity story is part of what makes them grails). Special-casing Editions to bake in a fixed Foil value would only be a real-world necessity if physical printing presses forced it (a specific foil stamping die per rarity, which is why Yu-Gi-Oh's Starlight Rare *is* its own foil pattern by definition) — CryptoClash has no such constraint, so there's no reason to give up an independent axis.
+**Resolved in v1.1 (was open in v1.0): yes, Foil rolls independently on every Edition tier, including Secret Edition — no exceptions.** See Section 9 for why this is safe even at the extreme combinatorial end (some grail combinations may end up with zero realized copies, which is a feature, not a bug — real secret-rare chase cards in Pokémon/Yu-Gi-Oh are sometimes famous for having *no known Gem Mint copy in existence*, and that scarcity story is part of what makes them grails). Special-casing Editions to bake in a fixed Foil value would only be a real-world necessity if physical printing presses forced it (a specific foil stamping die per rarity, which is why Yu-Gi-Oh's Starlight Rare *is* its own foil pattern by definition) — Floorwars has no such constraint, so there's no reason to give up an independent axis.
 
 ---
 
@@ -87,7 +87,7 @@ A per-instance number (`#007 / 1,000`) attached when a card comes from a numbere
 
 Today, serial numbers only make sense attached to Founders Set output (Section 8) — nothing else in the game produces a capped, countable print run. `card_instances.serial_number` already exists and is nullable; it's simply never populated yet.
 
-**Where CryptoClash can beat the physical original:** a serial here is backed by an on-chain mint — the serial *and* the total supply for that edition are independently, trustlessly verifiable by anyone, not just claimed on a piece of cardboard. Section 11 covers the population-report feature this enables.
+**Where Floorwars can beat the physical original:** a serial here is backed by an on-chain mint — the serial *and* the total supply for that edition are independently, trustlessly verifiable by anyone, not just claimed on a piece of cardboard. Section 11 covers the population-report feature this enables.
 
 ---
 
@@ -100,7 +100,7 @@ Today, serial numbers only make sense attached to Founders Set output (Section 8
 
 ### Naming — deliberately not "PSA"
 
-**Recommendation: never call this "PSA" in-game.** PSA is a real third-party grading company's brand — using their name here would be a trademark problem, not just a flavor choice. Instead, name the mechanic and its top tier using CryptoClash's own already-established trading-floor vocabulary (Coins, Dust, Market Events, "the floor is the battlefield"):
+**Recommendation: never call this "PSA" in-game.** PSA is a real third-party grading company's brand — using their name here would be a trademark problem, not just a flavor choice. Instead, name the mechanic and its top tier using Floorwars' own already-established trading-floor vocabulary (Coins, Dust, Market Events, "the floor is the battlefield"):
 
 - The axis/mechanic: **Floor Grade**, an integer **1–10** (mirrors PSA's familiar 1–10 scale on purpose — that recognizability is the whole point — without using their name).
 - Named bands, using real finance terms instead of PSA's photographic-condition language (Poor/Good/Mint etc.), so the theme stays consistent with the rest of the game:
@@ -203,13 +203,13 @@ Modeled as one of five mutually-exclusive rungs on the Edition ladder (Section 4
 
 Real research, not guesswork — grounded in current (2026) TCG rarity documentation. Sources at the end.
 
-1. **Shine as an independent axis from power** — Pokémon's holo/reverse-holo/foil treatments long predate and remain separate from its rarity-symbol system; a Common can be a foil promo. CryptoClash's existing 8% flat Foil roll already follows this — confirmed as the right call.
-2. **"Any card of this tier" vs. "one specific card" are different numbers** — Pokémon's Illustration Rare lands ~7.52%/pack, but a *specific* Illustration Rare is far rarer because a dozen-plus cards split that tier's odds. CryptoClash's own Epic/Legendary odds (`packsRepo.ts`) are already tuned against this exact distinction (session 20) — validated by this research as correct methodology.
+1. **Shine as an independent axis from power** — Pokémon's holo/reverse-holo/foil treatments long predate and remain separate from its rarity-symbol system; a Common can be a foil promo. Floorwars' existing 8% flat Foil roll already follows this — confirmed as the right call.
+2. **"Any card of this tier" vs. "one specific card" are different numbers** — Pokémon's Illustration Rare lands ~7.52%/pack, but a *specific* Illustration Rare is far rarer because a dozen-plus cards split that tier's odds. Floorwars' own Epic/Legendary odds (`packsRepo.ts`) are already tuned against this exact distinction (session 20) — validated by this research as correct methodology.
 3. **Print-run flags are a stamp, not a lottery.** Pokémon's 1st Edition/Shadowless/Unlimited distinction is about *which physical print run* an otherwise-identical card came from — reinforces Section 10's recommendation that First Edition should be a boolean flag tied to a time window, never something `rollPackCards` decides.
-4. **A guaranteed "hit" slot per pack.** Modern Pokémon packs guarantee at least one Reverse Holo/Rare-or-better slot. CryptoClash's `LAST_SLOT_ODDS` already does this — confirmed as on-pattern.
+4. **A guaranteed "hit" slot per pack.** Modern Pokémon packs guarantee at least one Reverse Holo/Rare-or-better slot. Floorwars' `LAST_SLOT_ODDS` already does this — confirmed as on-pattern.
 5. **A rolled-at-creation, permanent quality tier, bucketed from a hidden value.** This is CS:GO's actual mechanism (a float rolled once, bucketed into Factory New → Battle-Scarred), not a physical grading company's process (which re-examines a real object after the fact for real damage). Section 7's Condition axis borrows CS:GO's *mechanic* while borrowing PSA's *cultural weight* (a numbered 1–10 scale is instantly legible as "how good is this specific copy" to anyone who's ever heard of card grading) — deliberately not borrowing PSA's actual name or band vocabulary (trademark, and it doesn't fit this game's theme as well as finance terms do).
-6. **Deliberately not adopting: Yu-Gi-Oh's full rarity ladder.** Yu-Gi-Oh has stacked over a dozen named rarities over 25+ years (Common, Rare, Super Rare, Ultra Rare, Ultimate Rare, Secret Rare, Ghost Rare, Parallel Rare, Starfoil Rare, Mosaic Rare, Starlight Rare, Collector's Rare, Quarter Century Secret Rare, and more) — a real, well-documented source of confusion even among its own hardcore fans. CryptoClash's 7-tier Rarity + 5-tier Edition + Foil + Condition stays expressive (more real combinatorial depth than Yu-Gi-Oh's list, per Section 9's math) while staying explicable in one sentence per axis. This is the exact trap Section 4 exists to avoid re-creating.
-7. **Numbered/serialized parallels are mostly a sports-card convention** (Topps/Panini `/99`, `/25`, `1-of-1`), not a classic Pokémon/Yu-Gi-Oh one — the user's original "Pokémon-style chase card" is really a blend of Pokémon's Secret Rare *concept*, sports-card-style *serialization*, and now CS:GO-style *condition*. That blend is exactly what this doc leans into, since numbered/graded scarcity is one thing physical TCGs mostly bolt on awkwardly (a third-party grading company, a separate resale market for "raw vs. slabbed") and CryptoClash's on-chain layer does natively.
+6. **Deliberately not adopting: Yu-Gi-Oh's full rarity ladder.** Yu-Gi-Oh has stacked over a dozen named rarities over 25+ years (Common, Rare, Super Rare, Ultra Rare, Ultimate Rare, Secret Rare, Ghost Rare, Parallel Rare, Starfoil Rare, Mosaic Rare, Starlight Rare, Collector's Rare, Quarter Century Secret Rare, and more) — a real, well-documented source of confusion even among its own hardcore fans. Floorwars' 7-tier Rarity + 5-tier Edition + Foil + Condition stays expressive (more real combinatorial depth than Yu-Gi-Oh's list, per Section 9's math) while staying explicable in one sentence per axis. This is the exact trap Section 4 exists to avoid re-creating.
+7. **Numbered/serialized parallels are mostly a sports-card convention** (Topps/Panini `/99`, `/25`, `1-of-1`), not a classic Pokémon/Yu-Gi-Oh one — the user's original "Pokémon-style chase card" is really a blend of Pokémon's Secret Rare *concept*, sports-card-style *serialization*, and now CS:GO-style *condition*. That blend is exactly what this doc leans into, since numbered/graded scarcity is one thing physical TCGs mostly bolt on awkwardly (a third-party grading company, a separate resale market for "raw vs. slabbed") and Floorwars' on-chain layer does natively.
 8. **Anniversary reprint editions** (Yu-Gi-Oh's Quarter Century Secret Rare: existing cards re-issued in a new premium finish to mark 25 years) — a good long-tail retention lever worth remembering *later*: a future "1-Year Anniversary Founders Set" could reprint existing templates in a new finish without touching gameplay or minting new supply of the underlying template. Not needed for launch.
 
 ---
@@ -218,8 +218,8 @@ Real research, not guesswork — grounded in current (2026) TCG rarity documenta
 
 Two structural advantages worth stating explicitly:
 
-- **Grading/authentication is solved by construction.** Physical TCGs need PSA/BGS grading as an entire third-party industry to prove a card is real and undamaged, with weeks of turnaround and shipping risk. CryptoClash's Condition grade (Section 7) is assigned at mint and is provable from the chain itself — no external authority, no waiting, no risk of a counterfeit slab.
-- **Population reports are trustless, free, and live.** Pokémon/sports-card collectors pay close attention to PSA's published population reports (how many of a given grade exist). CryptoClash can expose the equivalent directly — e.g. "3 Blue Chip Secret Edition Alpha Dogs minted, out of a 250-unit run, 0 in Foil" — computed live from real `card_editions.max_supply` vs. actual mints, verifiable by any player without trusting CryptoClash's own claim. **Recommendation: this should be a first-class Collection-screen feature, and arguably the single highest-leverage payoff of the whole axis system** — it's the thing that turns Section 9's "expected ~5" into a real, watchable number (`spec.md` §19 already lists "Serialised cards" as a collection-screen category this extends naturally).
+- **Grading/authentication is solved by construction.** Physical TCGs need PSA/BGS grading as an entire third-party industry to prove a card is real and undamaged, with weeks of turnaround and shipping risk. Floorwars' Condition grade (Section 7) is assigned at mint and is provable from the chain itself — no external authority, no waiting, no risk of a counterfeit slab.
+- **Population reports are trustless, free, and live.** Pokémon/sports-card collectors pay close attention to PSA's published population reports (how many of a given grade exist). Floorwars can expose the equivalent directly — e.g. "3 Blue Chip Secret Edition Alpha Dogs minted, out of a 250-unit run, 0 in Foil" — computed live from real `card_editions.max_supply` vs. actual mints, verifiable by any player without trusting Floorwars' own claim. **Recommendation: this should be a first-class Collection-screen feature, and arguably the single highest-leverage payoff of the whole axis system** — it's the thing that turns Section 9's "expected ~5" into a real, watchable number (`spec.md` §19 already lists "Serialised cards" as a collection-screen category this extends naturally).
 
 ---
 

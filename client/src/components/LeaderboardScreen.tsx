@@ -95,7 +95,7 @@ export function LeaderboardScreen({ token, onBack }: LeaderboardScreenProps) {
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>CRYPTO CLASH</h1>
+        <h1>FLOORWARS</h1>
         <span className="app-bar__subtitle">leaderboard</span>
         <div className="app-bar__actions">
           <button type="button" onClick={onBack}>

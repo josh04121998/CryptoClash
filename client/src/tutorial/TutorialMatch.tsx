@@ -36,7 +36,7 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
   return (
     <div className="app">
       <header className="app-bar">
-        <h1>CRYPTO CLASH</h1>
+        <h1>FLOORWARS</h1>
         <span className="app-bar__subtitle">tutorial — vs. coach</span>
         <div className="app-bar__actions">
           <MuteToggle />

@@ -51,7 +51,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const siwe = new SiweMessage({
       domain: "cryptoclash.test",
       address: wallet.address,
-      statement: "Sign in to CRYPTO CLASH.",
+      statement: "Sign in to FLOORWARS.",
       uri: "https://cryptoclash.test",
       version: "1",
       chainId: 1,

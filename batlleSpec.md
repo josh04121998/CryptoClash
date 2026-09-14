@@ -1,4 +1,4 @@
-# CRYPTO CLASH
+# FLOORWARS
 
 ## Simplified Battle System Specification
 
@@ -706,7 +706,7 @@ Not:
 
 > **"Wait, what does this obscure rule mean?"**
 
-That is the core design philosophy of CRYPTO CLASH.
+That is the core design philosophy of FLOORWARS.
 
 ---
 

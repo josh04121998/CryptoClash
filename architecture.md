@@ -1,4 +1,4 @@
-# CRYPTO CLASH
+# FLOORWARS
 
 ## Technical Architecture Specification
 
@@ -140,7 +140,7 @@ Kept in its own service, deliberately decoupled from the Game Backend.
 
 Discussed 2026-09-07: leaning toward **self-listing** (deploy an own ERC-20, seed an own liquidity pool directly on a DEX — e.g. Uniswap/Aerodrome on Base) over a bonding-curve launchpad (pump.fun and similar). Reasoning:
 
-* A launchpad's main advantage — built-in discovery via its trending page — is weak for this project specifically: thousands of tokens launch on these platforms daily, most get zero attention, and the audience is mostly pure-degen flow rather than people who'd become CryptoClash players.
+* A launchpad's main advantage — built-in discovery via its trending page — is weak for this project specifically: thousands of tokens launch on these platforms daily, most get zero attention, and the audience is mostly pure-degen flow rather than people who'd become Floorwars players.
 * Self-listing lets the token's distribution lean on what the project actually has — the playable game, the Doggos faction's built-in meme identity (dogs are the most proven meme-coin lineage: Doge → Shiba → Floki → Bonk), and the existing/growing crypto-native player base as day-one holders (e.g. an airdrop to early players/testers) — rather than depending on a platform's discovery mechanism.
 * The tradeoff self-listing takes on: a launchpad's bonding curve gives automatic fair-launch verification and auto-locked liquidity on migration, which preempts "did they rug the LP?" suspicion for free. Self-listing has to earn that trust itself — visibly locking (or burning) the LP and communicating it clearly is a real requirement, not optional polish, if going this route.
 * Self-listing without a real distribution plan (leaning on the game/community rather than assuming the DEX listing alone draws attention) risks being a quieter void than the launchpad, not a louder one — the recommendation above is conditional on pairing it with that plan, not the listing mechanism alone.

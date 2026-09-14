@@ -1,4 +1,4 @@
-# CryptoClash — Battle Playtest Rubric
+# Floorwars — Battle Playtest Rubric
 
 **Owner:** TCG (product)  
 **Priority:** Battle-first retention (Josh, 2026-09-09)  

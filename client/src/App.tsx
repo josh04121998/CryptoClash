@@ -203,7 +203,7 @@ export default function App() {
     <div className="app">
       <header className="app-bar">
         <button type="button" className="app-bar__logo-btn" onClick={() => setMode("landing")} title="Back to landing">
-          <h1>CRYPTO CLASH</h1>
+          <h1>FLOORWARS</h1>
         </button>
         <div className="app-bar__actions">
           <MuteToggle />
