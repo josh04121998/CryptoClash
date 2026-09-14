@@ -45,7 +45,7 @@ Faction accent colors (sampled into each prompt, from `branding.md` §2): Doggos
 > A small, scrappy pup in a junior trading-floor vest, alert stance, holding binoculars or in a lookout posture, eyes scanning the distance. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
 
 ### Shield Pup — Uncommon (`shield_pup`)
-> A sturdy dog holding a makeshift riot-shield stamped with a security badge, standing firm and protective, trading-floor security uniform. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
+> A sturdy dog on all fours in a trading-floor security uniform, standing firm and protective, a translucent energy force field shimmering in front of it like a glowing security barrier — no physical shield object, no need to hold anything, the dog's stance stays natural on four legs. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
 
 ### Puppy Swarm — Uncommon (`puppy_swarm`)
 > A tumbling, excitable pile of small puppies in mismatched trading-floor gear, chaotic energy, all elbows and tails. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
