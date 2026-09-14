@@ -50,20 +50,28 @@ Faction accent colors (sampled into each prompt, from `branding.md` §2): Doggos
 ### Puppy Swarm — Uncommon (`puppy_swarm`)
 > A tumbling, excitable pile of small puppies in mismatched trading-floor gear, chaotic energy, all elbows and tails. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
 
-### Pack Rush — Uncommon (`pack_rush`)
-> A pack of dogs in suits charging forward together, motion-blurred, ties flying, aggressive group momentum. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
+### Pack Rush — Uncommon (`pack_rush`) — accepted, shipped in `branding/assets/Cards/Doggo/packrush.jpg`
+> A pack of dogs sprinting forward together on all fours, low to the ground, quadruped running stride (not standing upright) — suits and ties flying, motion-blurred, aggressive group momentum. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
+>
+> *v2 fix (2026-09-14): the first pass came back with the pack running upright on two legs like human sprinters — the same body-plan drift Fast Fang hit. Made "on all fours, quadruped running stride" explicit rather than assuming "sprint" implies it; regen fixed it.*
 
 ### Moon Dog — Rare (`moon_dog`) — ALREADY DONE, reference only
 > **Already generated and shipped — don't regenerate.** Kept here for reference since every other Doggos card is styled off it: a dog in a tailored pinstripe suit and loosened terminal-green tie, standing on the moon's surface with Earth visible in the black sky behind it, confident smirk. This is the one card with a flavor-specific space backdrop instead of the default skyline/monitor-grid (`branding.md` §9.2) — its ability is literally about the moon.
 
-### Guard Dog — Rare (`guard_dog`)
-> A broad-chested guard-breed dog (mastiff or rottweiler) in a security blazer, arms crossed, stern unmovable expression, standing at a trading-floor checkpoint. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
+### Guard Dog — Rare (`guard_dog`) — accepted, shipped in `branding/assets/Cards/Doggo/guarddog.jpg`
+> A broad-chested guard-breed dog (mastiff or rottweiler) on all fours, quadruped stance, chest out and front legs planted wide and firm, guarding a trading-floor checkpoint/turnstile, stern unmovable expression, security blazer fitted over its back the way Moon Dog's suit is. Gold (`#f5a623`) accent lighting. [+ Character Suffix]
+>
+> *v2 fix (2026-09-14): "arms crossed" in the original wording reads as a human gesture and produced a fully bipedal, human-bodied anthro dog. Replaced with a quadruped-appropriate stance (front legs planted, chest out); regen fixed it.*
 
-### Loyal Hound — Legendary (`loyal_hound`)
-> A noble, dignified hound in a tailored suit, calm senior-partner presence, composed posture radiating quiet trust. Gold (`#f5a623`) accent lighting, a slightly more dynamic/prestigious composition fitting its Legendary rarity. [+ Character Suffix]
+### Loyal Hound — Legendary (`loyal_hound`) — accepted, shipped in `branding/assets/Cards/Doggo/loyalhound.jpg`
+> A large, dignified elder hound (Great Dane or Doberman build, a greying muzzle) on all fours in an immaculate three-piece pinstripe suit with a gold pocket-watch chain, standing composed at the head of a private boardroom table in a penthouse office — floor-to-ceiling windows behind it showing the city skyline bathed in warm golden dusk light, a deliberately richer, warmer palette than the rest of the faction's cool blue-black trading-floor look, so this Legendary reads as visually distinct rather than a repeat of Moon Dog. A slightly low, upward hero angle gives it real scale and presence. Calm, composed expression radiating quiet authority and absolute trust. Gold (`#f5a623`) accent lighting, an especially prestigious, elevated composition fitting its Legendary rarity. [+ Character Suffix]
+>
+> *v2 fix (2026-09-14): the original wording ("dog in a tailored suit... calm confident presence") was indistinguishable from Moon Dog's own concept. Gave it its own breed, setting, and warm-vs-cool palette so the two Legendaries read as clearly different cards.*
 
-### Alpha Dog — Legendary (`alpha_dog`)
-> An imposing pack-leader dog in a sharp power suit, executive dominance, a few puppies looking up at it from around its feet. Gold (`#f5a623`) accent lighting, a commanding, dynamic composition fitting its Legendary rarity. [+ Character Suffix]
+### Alpha Dog — Legendary (`alpha_dog`) — accepted, shipped in `branding/assets/Cards/Doggo/alphadog.jpg`
+> A massive, imposing pack-leader dog (a powerful build — Rottweiler or Cane Corso) on all fours atop a raised platform at the center of a chaotic trading floor, a hard spotlight cutting down through swirling dark data/light streaks (abstract glow and motion only — no legible text, letters, numbers, or signage anywhere in the background). Lesser dogs work frantically in the blurred background below while a few puppies sit still at its feet, looking up in devotion — it alone stands motionless, the eye of the storm. A sharp, dramatically cut power coat catches the light like a cape. Fierce, commanding expression — raw executive dominance, not calm confidence like the rest of the faction's Legendaries. Dramatic red-gold rim lighting, a more aggressive and intense palette than Moon Dog's cool space tones or Loyal Hound's warm dusk. Gold (`#f5a623`) accent lighting, a commanding, larger-than-life, dynamic composition fitting its Legendary rarity. [+ Character Suffix]
+>
+> *v2 fix (2026-09-14): first pass gave Alpha Dog its own distinct dramatic hook (good), but the background "swirling data streams" came back as literal legible signage ("NEW YORK", "ORVAL 241", etc.) — a direct Character Suffix violation. Explicit "no legible text/letters/numbers/signage" call-out fixed it on regen.*
 
 ### Shadow Pup — Common (`shadow_pup`)
 > A dark-coated dog blending into shadow at the edge of the trading floor, sleek, watchful, half-lit by a distant monitor glow. Gold (`#f5a623`) accent lighting, otherwise darker and lower-contrast than the rest of the faction. [+ Character Suffix]
@@ -325,7 +333,7 @@ One reusable frame/border shell per rarity, no card-specific content — the sec
 
 ## Progress checklist
 
-**Doggos:** ☐ Fast Fang · ☐ Pup Scout · ☐ Shield Pup · ☐ Puppy Swarm · ☐ Pack Rush · ☑ Moon Dog (done) · ☐ Guard Dog · ☐ Loyal Hound · ☐ Alpha Dog · ☐ Shadow Pup
+**Doggos:** ☑ Fast Fang · ☑ Pup Scout · ☑ Shield Pup · ☑ Puppy Swarm · ☑ Pack Rush · ☑ Moon Dog (done) · ☑ Guard Dog · ☑ Loyal Hound · ☑ Alpha Dog · ☑ Shadow Pup — **faction complete**
 
 **Frogs:** ☐ Leap Frog · ☐ Warty Lookout · ☐ Frog Swarm · ☐ Sticky Tongue · ☐ Mimic Frog · ☐ Chaos Croak · ☐ Glitch Toad · ☐ Warty Prince · ☐ Copycat · ☐ Deep Croak · ☐ Primordial Croak
 
