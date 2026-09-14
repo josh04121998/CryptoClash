@@ -195,6 +195,8 @@ Modeled as one of five mutually-exclusive rungs on the Edition ladder (Section 4
 
 **Recommendation: split it out** — `card_editions` keeps a 4-value `edition_type` (`standard` / `full_art` / `ultra` / `secret`) and gains a separate `is_first_edition boolean`, the same shape as `is_foil` on `card_instances` today. A Founders Set print can then genuinely be "First Edition Secret Edition," matching how the physical hobby actually stacks these. This is a schema-shape call, not just a naming one — flagging for sign-off rather than just doing it, since it touches migration `0002`.
 
+**Signed off and built (migration `0009`):** `card_editions.edition_type`'s check constraint now reads `standard` / `full_art` / `ultra` / `secret`; `card_instances` gained `is_first_edition boolean not null default false`. Schema only — nothing rolls or reads `is_first_edition` yet (no Founders Set product exists to mint one).
+
 ---
 
 ## 11. What we're borrowing from Pokémon, Yu-Gi-Oh, and CS:GO — and why
@@ -221,13 +223,28 @@ Two structural advantages worth stating explicitly:
 
 ---
 
+## 12.5 A real gap: the NFT image has to bake in what the live UI renders as CSS
+
+Raised 2026-09-14, in a chat about `grok-card-prompts.md`'s "no art needed for Foil/Condition" note — worth stating explicitly so it isn't missed whenever minting actually gets built (architecture.md Section 8, deliberately last on the roadmap).
+
+An NFT's image is one static flat file. Foil (Section 5) and Condition (Section 7) are deliberately pure CSS effects in the *live game UI* (`CardFace.tsx`) — no separate art generated for either, ever, per `branding.md` §9.3/`grok-card-prompts.md`'s own instructions. That's correct and stays correct. But it means the **flattening/minting pipeline** (`tools/card-render/` — currently a hand-copied, one-card, no-DB prototype per its own top comment) has a job the live UI doesn't: it has to *bake* those same CSS effects into the exported image at mint time, per instance, since there's no live DOM to apply them to once the image is a static PNG sitting on IPFS/a marketplace. Two distinct problems stack here, not one:
+
+1. **Foil/Condition — still no new art, but the compositor needs the overlay logic.** Reuse `CardFace.tsx`'s existing CSS (the rainbow-gradient foil border, a condition-scaled gloss/scuff treatment once that's built) as a layer the Playwright screenshot captures, keyed off that specific `card_instances` row's `is_foil`/`condition_grade`. Not built yet — today's prototype renders only the flat, ungraded, non-foil look.
+2. **Full Art/Ultra/Secret Edition — the opposite problem, real separate art, unlike Foil/Condition.** `branding.md` §9.3 already flags these need their own generated illustration (a wider re-composition, not a filter over Standard art) — lowest priority, not started. Once that art exists, the compositor needs to pick the *right base illustration* per instance's `edition_type`, matching what `card_editions`/`card_instances` actually says. These two problems compose, not substitute for each other: a Full Art, foil, Blue-Chip-graded instance needs the Full Art illustration as its base, with the foil shimmer and condition gloss layered on top of *that* — not a special-cased fifth image.
+
+Metadata (standard ERC-721 `attributes`) should declare Foil/Condition/Edition/Serial explicitly too, regardless of what the image shows — that's what Section 12's trustless population-report feature and any marketplace trait-filtering actually read, not the pixels. Image and metadata both need to be right; neither substitutes for the other.
+
+Not urgent — minting itself isn't built, and Standard-illustration generation (the actual current bottleneck, `grok-card-prompts.md`) comes first regardless. Flagged here so the compositor's eventual real build accounts for it from the start rather than being discovered as a surprise once Standard art exists and someone tries to mint a foil.
+
+---
+
 ## 13. Recommendations and open questions
 
 Stated as recommendations, not unilateral decisions — flagging which ones are ready to build against and which still need your call.
 
-1. **First-Edition-as-flag vs. -as-tier (Section 10): recommend flag.** Matches real-world precedent, needs sign-off since it's a schema-shape change to migration `0002`.
+1. **First-Edition-as-flag vs. -as-tier (Section 10): recommend flag.** Matches real-world precedent. **Signed off and built** — see Section 10's changelog note (migration `0009`).
 2. **Does Foil stack independently on every Edition, including Secret (Section 5): recommend yes, always, no exceptions.** The occasional zero-population grail combo this produces is a feature (Section 9), not a bug — make the population report honest about a "0 exist" case rather than special-casing it away.
-3. **Condition rolls on every paid pull, fixed baseline on free ones (Section 7): recommend yes**, mirroring CS:GO's "everything has a wear value, even the cheapest items" precedent, since it's cheap to implement uniformly and creates fun surprises across the whole pool, not just premium prints.
+3. **Condition rolls on every paid pull, fixed baseline on free ones (Section 7): recommend yes**, mirroring CS:GO's "everything has a wear value, even the cheapest items" precedent, since it's cheap to implement uniformly and creates fun surprises across the whole pool, not just premium prints. **Schema signed off and built** (migration `0009` added `card_instances.condition_grade`) — the actual roll-at-grant logic and CSS presentation are still unbuilt.
 4. **Condition should never be re-rollable/re-gradable (Section 7): recommend against ever adding this**, even as a Dust sink — it would turn a permanent provenance record into a gambling loop, undermining the one thing that makes a grade trustworthy.
 5. **Founders Set business model and cadence — still your call, not decided here.** A reasonable default worth considering: a time-boxed, real-money cash-shop product (consistent with `spec.md`'s already-decided principle that real-money packs stay a separate path from the token economy), each Founders Set a distinct, named, hard-capped print run — but whether it's purely paid, partly achievement-gated, or recurring is a genuine product decision.
 6. Unchanged from `spec.md` §13: the per-template **Rarity assignment is still a cost-based heuristic**, not tuned design — out of scope for this doc, noted for completeness.
