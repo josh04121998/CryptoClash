@@ -192,11 +192,63 @@ function findCleanKillTarget(
   return best?.slot;
 }
 
+/**
+ * How well `attackerSlot` would fare attacking `guardSlot` right now, best
+ * to worst: 3 = kills the Guard and survives (ideal), 2 = kills it but dies
+ * too (still clears the wall — worth it), 1 = survives without killing it
+ * (safe chip damage, no loss), 0 = dies without even killing it (a pure
+ * loss). Used only to pick attack *order*, not whether to attack at all — a
+ * Guard forces every attack to target it (combat.ts), so the bot can't skip
+ * engaging it once it decides to attack, but it can choose which creature
+ * goes first, so a safe/efficient attacker clears or softens the Guard
+ * before a fragile one is forced to finish the job.
+ */
+function guardEngagementScore(state: MatchState, playerId: PlayerId, enemyId: PlayerId, attackerSlot: number, guardSlot: number): number {
+  const myAttack = getEffectiveAttack(state, playerId, attackerSlot);
+  const myHealth = state.players[playerId].board[attackerSlot]!.health;
+  const guard = state.players[enemyId].board[guardSlot]!;
+  const guardAttack = getEffectiveAttack(state, enemyId, guardSlot);
+
+  const kills = myAttack >= guard.health;
+  const survives = guardAttack < myHealth;
+  if (kills && survives) return 3;
+  if (kills) return 2;
+  if (survives) return 1;
+  return 0;
+}
+
+/**
+ * Board-slot attack order for this turn — natural slot order, unless the
+ * enemy has a Guard up right now. STATUS.md session 17 diagnosed the
+ * dominant Degens bot-loss pattern as low-HP/high-attack creatures dying in
+ * forced Guard trades for nothing (attacking a Guard bare-slot-order could
+ * throw a fragile glass-cannon at it first purely because it happened to sit
+ * in an earlier board slot). With a Guard present, creatures are ordered by
+ * guardEngagementScore (best first) instead, so a safe/efficient attacker
+ * clears or softens the Guard before a fragile one is forced to engage it
+ * too — and once the Guard actually dies mid-loop, attackWithBoard's
+ * existing per-iteration re-check already falls the rest back to normal
+ * clean-kill/face logic, no further change needed there. A snapshot taken
+ * once at the start of the attack phase (not re-sorted after every
+ * individual attack, since the Guard's remaining health shifts) — a
+ * heuristic ordering, not a fully optimal re-solve each step.
+ */
+function attackOrderForTurn(state: MatchState, playerId: PlayerId, enemyId: PlayerId): number[] {
+  const board = state.players[playerId].board;
+  const slots = board.map((_, i) => i).filter((i) => board[i] !== null);
+  const guardSlot = state.players[enemyId].board.findIndex((c) => c && (c.keywords.has("Guard") || c.tempKeywords.has("Guard")));
+  if (guardSlot === -1) return slots;
+
+  return [...slots].sort(
+    (a, b) => guardEngagementScore(state, playerId, enemyId, b, guardSlot) - guardEngagementScore(state, playerId, enemyId, a, guardSlot),
+  );
+}
+
 function attackWithBoard(state: MatchState, playerId: PlayerId) {
   const enemyId = enemyOf(playerId);
   const lethalAvailable = currentEligibleAttack(state, playerId) >= state.players[enemyId].hp;
 
-  for (let slot = 0; slot < BOARD_SIZE; slot++) {
+  for (const slot of attackOrderForTurn(state, playerId, enemyId)) {
     if (!state.players[playerId].board[slot]) continue;
     const enemyGuardSlot = state.players[enemyId].board.findIndex(
       (c) => c && (c.keywords.has("Guard") || c.tempKeywords.has("Guard")),

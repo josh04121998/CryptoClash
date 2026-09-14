@@ -588,6 +588,40 @@ describe("bot AI", () => {
     expect(getAdjacentSlots(landedSlot)).toContain(2);
   });
 
+  // STATUS.md session 17's diagnosed Degens board-recovery gap: attacking a mandatory
+  // Guard target in bare board-slot order could throw a fragile low-HP/high-attack
+  // creature at it first purely because it sat in an earlier slot, dying for nothing
+  // while a safer creature elsewhere on the board could have cleared the Guard instead.
+  it("sends the creature that can safely clear a Guard first, instead of sacrificing a fragile one in slot order", () => {
+    const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 29);
+    state.players.A.hand = [];
+
+    // guard_dog: 3 Attack / 4 Health, Guard.
+    placeCreature(state, "B", 0, "guard_dog");
+
+    // Slot 0: a fragile attacker that can neither kill the Guard (2 < 4 Health) nor
+    // survive its counter-hit (3 Guard Attack >= 2 Health) — a pure loss if forced to
+    // engage first. Slot 1: a safe attacker that kills the Guard outright and survives.
+    const fragile = placeCreature(state, "A", 0, "pup_scout");
+    fragile.baseAttack = 2;
+    fragile.health = fragile.maxHealth = 2;
+    const safe = placeCreature(state, "A", 1, "fast_fang");
+    safe.baseAttack = 4;
+    safe.health = safe.maxHealth = 5;
+
+    takeBotTurn(state, "A");
+
+    expect(state.players.B.board[0]).toBeNull(); // the Guard died
+    // The old slot-order bot would've thrown the fragile creature at the Guard first and
+    // lost it for nothing; the safe creature should clear the Guard instead, leaving the
+    // fragile one alive to attack face afterward (no enemy creature left to trade into).
+    expect(state.players.A.board[0]).not.toBeNull(); // fragile survived
+    expect(state.players.A.board[0]?.health).toBe(2); // took no damage at all
+    expect(state.players.A.board[1]).not.toBeNull(); // safe attacker survived too
+    expect(state.players.A.board[1]?.health).toBe(2); // 5 - the Guard's 3 counter-damage
+    expect(state.players.B.hp).toBe(28); // the surviving fragile creature hit face afterward, instead of dying for nothing
+  });
+
   // Session 16 balance-pass follow-up: the bot previously had no self-damage-risk
   // model at all — it would play a Degens "pay your own HP" card purely for the
   // value/tempo gain, blind to how low that left its own HP. These three cases
