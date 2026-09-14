@@ -35,7 +35,9 @@ const COMMUNITY_LINKS = [
   { label: "Telegram" },
 ];
 
-const LITEPAPER_URL = "https://claude.ai/code/artifact/f1bc3a81-2b9b-43e1-9d86-92072afa54e2";
+// Served as a plain static file (client/public/litepaper.html — Vite copies public/ verbatim),
+// same domain as the game, not a third-party-hosted link.
+const LITEPAPER_URL = "/litepaper.html";
 
 /** A rough skyline silhouette (varied-height rects) — pure inline SVG, no image asset. */
 function SkylineSilhouette() {

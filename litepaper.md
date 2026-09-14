@@ -1,10 +1,12 @@
 # Floorwars — Litepaper
 
-### v1.0 — 2026-09-14
+### v1.1 — 2026-09-14
 
 The community/marketing-facing companion to this repo's internal design docs (`spec.md`, `architecture.md`, `collectibility.md`) — written for players, holders, and anyone sizing up the project from outside, not for a future session picking up engineering work. Where a number or decision here touches something still open internally, it's stated as open here too — this document doesn't get ahead of what's actually decided.
 
-The published, designed version of this document is the one meant to be shared; this file is its canonical source text.
+**v1.1 changes:** the token section was trimmed to a plain **TBC** — the earlier draft's self-listing/Doggos-meme-anchor/Funding-Rule detail was accurate to `STATUS.md`'s internal design direction, but the user judged it premature to publish in a public-facing document before those specifics are actually locked. Also moved off a claude.ai Artifact link and onto a real static page served from the game's own domain (`client/public/litepaper.html`) — see below.
+
+This file is the canonical source text. The published version is `client/public/litepaper.html` — a static file Vite serves verbatim at `/litepaper.html` on the same domain as the game itself, not a third-party-hosted link, linked from the landing page's "Read the Litepaper" button.
 
 ---
 
@@ -55,13 +57,9 @@ Two paths that are deliberately kept apart:
 
 ## 5. The token
 
-An external marketing, community, and staking layer — separate from Coins, riding this cycle's memefi wave, thematically anchored to the Doggos faction. Dogs are the most proven meme-coin lineage there is (Doge → Shiba → Floki → Bonk), and that's not incidental to the choice.
+An external community and utility layer is planned, separate from Coins. Full tokenomics — supply, allocation, listing approach, launch timing — are still being finalized.
 
-The commitment that matters most here: **any staking rewards or buybacks are funded from real revenue — a cut of cash-shop pack sales and marketplace fees — never from token emissions.** This is a direct, deliberate rejection of the pattern that collapsed Axie Infinity's SLP economy, where emission-funded rewards only held up as long as new-buyer inflow outpaced emission, and fell apart the moment growth slowed. An emission-funded reward is a promise the token can't keep once growth stalls; a revenue-funded one only pays when the game is actually earning.
-
-Leaning toward **self-listing** — the project's own contract, an own seeded liquidity pool on a real DEX — over a bonding-curve launchpad, because self-listing lets distribution lean on what actually exists: a real playable game, the Doggos faction's built-in meme identity, and an airdrop to early players and holders as day-one distribution, rather than hoping a listing draws attention on its own. The tradeoff this takes on, stated plainly: a launchpad gives automatic, visible proof that liquidity got locked on migration — self-listing has to earn that trust itself, which means **visibly locking (or burning) liquidity and communicating it clearly is a real requirement here, not optional polish.**
-
-**What's still open, stated honestly rather than invented for this document:** exact supply, allocation, and launch timing. Chain choice is currently leaning toward an EVM-compatible L2 (Robinhood Chain is the current frontrunner, evaluated against Solana, not locked in) — chosen for inheriting an already-shipped, already-tested wallet-connect stack rather than needing to rebuild one from scratch.
+**TBC.**
 
 ## 6. Roadmap — in order, and why that order
 

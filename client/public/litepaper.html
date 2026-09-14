@@ -1,44 +1,24 @@
-<title>Floorwars Litepaper</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Floorwars — Litepaper</title>
+<meta name="description" content="The floor is the battlefield. What Floorwars is, its five-axis collectibility system, the economy, and the roadmap." />
+<meta property="og:title" content="Floorwars — Litepaper" />
+<meta property="og:description" content="The floor is the battlefield. What Floorwars is, its five-axis collectibility system, the economy, and the roadmap." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@playfloorwars" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
 <style>
   :root {
-    color-scheme: light dark;
-    --bg: #f6f3ea;
-    --bg-raise: #ffffff;
-    --panel: #ffffff;
-    --panel-alt: #f0ece0;
-    --border: #ddd6c2;
-    --border-bright: #c9bf9e;
-    --text: #1c231e;
-    --text-dim: #5c6a5f;
-    --gold: #a87a00;
-    --green: #00875f;
-    --hp: #c2453a;
-    --glow-gold: rgba(168, 122, 0, 0.08);
-    --glow-green: rgba(0, 135, 95, 0.08);
-    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
-    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-    --font-mono: "IBM Plex Mono", "Consolas", monospace;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #050907;
-      --bg-raise: #0a0f0c;
-      --panel: #0d1512;
-      --panel-alt: #101c16;
-      --border: #22322b;
-      --border-bright: #2e5c46;
-      --text: #dfeee7;
-      --text-dim: #7e9389;
-      --gold: #f2b705;
-      --green: #00e28a;
-      --hp: #ff6b62;
-      --glow-gold: rgba(242, 183, 5, 0.14);
-      --glow-green: rgba(0, 226, 138, 0.14);
-    }
-  }
-
-  :root[data-theme="dark"] {
+    color-scheme: dark;
     --bg: #050907;
     --bg-raise: #0a0f0c;
     --panel: #0d1512;
@@ -52,12 +32,16 @@
     --hp: #ff6b62;
     --glow-gold: rgba(242, 183, 5, 0.14);
     --glow-green: rgba(0, 226, 138, 0.14);
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Consolas", monospace;
   }
 
   * { box-sizing: border-box; }
 
+  html, body { margin: 0; padding: 0; }
+
   body {
-    margin: 0;
     background:
       radial-gradient(circle at 12% 0%, var(--glow-green) 0%, transparent 40%),
       radial-gradient(circle at 88% 8%, var(--glow-gold) 0%, transparent 45%),
@@ -68,10 +52,12 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  img { max-width: 100%; }
+
   a { color: var(--green); }
   a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  .wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; }
 
   /* ---------- top ticker ---------- */
   .ticker-bar {
@@ -87,7 +73,7 @@
   .ticker-track {
     display: inline-flex;
     gap: 2.5rem;
-    padding: 0.45rem 0;
+    padding-block: 0.45rem;
     animation: ticker-scroll 38s linear infinite;
   }
   @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
@@ -185,15 +171,14 @@
     padding-top: 0.3rem;
   }
   .sec-body { max-width: 65ch; }
+  h1, h2, h3 { font-family: var(--font-display); }
   h2 {
-    font-family: var(--font-display);
     font-weight: 700;
     font-size: 1.5rem;
     margin: 0 0 0.9rem;
     text-wrap: balance;
   }
   h3 {
-    font-family: var(--font-display);
     font-weight: 600;
     font-size: 1.02rem;
     color: var(--green);
@@ -212,6 +197,17 @@
     font-size: 0.94rem;
   }
   .callout strong { color: var(--gold); }
+  .tbc {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    margin-top: 0.2rem;
+  }
 
   /* ---------- faction ledger ---------- */
   .ledger {
@@ -351,13 +347,8 @@
     .axis-list li { grid-template-columns: 1fr; gap: 0.15rem; }
   }
 </style>
-
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-  rel="stylesheet"
-/>
+</head>
+<body>
 
 <div class="ticker-bar" aria-hidden="true">
   <div class="ticker-track">
@@ -365,14 +356,12 @@
     <span>SERVER-AUTHORITATIVE COMBAT</span>
     <span class="up">▲ FULL FREE COINS LOOP SHIPPED</span>
     <span>GENESIS SUPPLY: PERMANENTLY CAPPED</span>
-    <span class="down">▼ REWARDS FUNDED BY REVENUE, NEVER EMISSIONS</span>
     <span>NO WALLET REQUIRED TO PLAY</span>
     <span class="up">▲ EARLY ACCESS NEXT</span>
-    <span>6 FACTIONS LIVE</span>
+    <span class="up">▲ 6 FACTIONS LIVE</span>
     <span>SERVER-AUTHORITATIVE COMBAT</span>
     <span class="up">▲ FULL FREE COINS LOOP SHIPPED</span>
     <span>GENESIS SUPPLY: PERMANENTLY CAPPED</span>
-    <span class="down">▼ REWARDS FUNDED BY REVENUE, NEVER EMISSIONS</span>
     <span>NO WALLET REQUIRED TO PLAY</span>
     <span class="up">▲ EARLY ACCESS NEXT</span>
   </div>
@@ -380,12 +369,12 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow">Litepaper · v1.0 · 2026-09-14</span>
+    <span class="eyebrow">Litepaper · v1.1 · 2026-09-14</span>
     <h1 class="wordmark">FLOORWARS<span class="dot">.</span></h1>
     <p class="tagline">The floor is <b>the battlefield.</b></p>
     <div class="hero-links">
       <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">𝕏 @playfloorwars</a>
-      <a href="#economy">Read the token model →</a>
+      <a href="/">← Play Floorwars</a>
     </div>
   </div>
 </header>
@@ -468,10 +457,8 @@
     <div class="sec-num">05</div>
     <div class="sec-body">
       <h2>The token</h2>
-      <p>An external marketing, community, and staking layer — separate from Coins, riding this cycle's memefi wave, thematically anchored to the Doggos faction. Dogs are the most proven meme-coin lineage there is (Doge → Shiba → Floki → Bonk), and that's not incidental to the choice.</p>
-      <div class="callout"><strong>The commitment that matters most:</strong> any staking rewards or buybacks are funded from real revenue — a cut of cash-shop pack sales and marketplace fees — never from token emissions. This is a direct rejection of the pattern that collapsed Axie Infinity's SLP economy, where emission-funded rewards only held up as long as new-buyer inflow outpaced emission. An emission-funded reward is a promise the token can't keep once growth stalls; a revenue-funded one only pays when the game is actually earning.</div>
-      <p>Leaning toward <strong>self-listing</strong> — an own contract, an own seeded liquidity pool on a real DEX — over a bonding-curve launchpad, because self-listing lets distribution lean on what actually exists: a real playable game, the Doggos faction's built-in meme identity, and an airdrop to early players and holders as day-one distribution. The tradeoff, stated plainly: a launchpad gives automatic proof that liquidity got locked on migration; self-listing has to earn that trust itself. Visibly locking (or burning) liquidity and communicating it clearly is a real requirement here, not optional polish.</p>
-      <p class="lede">What's still open, stated honestly rather than invented for this document: exact supply, allocation, and launch timing. Chain choice currently leans toward an EVM-compatible L2, evaluated against Solana but not locked in — chosen for inheriting an already-shipped, already-tested wallet-connect stack rather than rebuilding one from scratch.</p>
+      <p>An external community and utility layer is planned, separate from Coins. Full tokenomics — supply, allocation, listing approach, launch timing — are still being finalized.</p>
+      <span class="tbc">TBC</span>
     </div>
   </section>
 
@@ -499,7 +486,7 @@
         <li class="phase">
           <span class="phase-status next">Then</span>
           <p class="phase-title">Token launch</p>
-          <p>Self-listed, liquidity visibly locked, an airdrop to early players and holders — launched once there's a real product to point at.</p>
+          <p>Details TBC — launched once there's a real product to point at.</p>
         </li>
         <li class="phase">
           <span class="phase-status next">Then</span>
@@ -532,3 +519,6 @@
   <div class="fw">FLOORWARS<span class="dot">.</span></div>
   <p>The floor is the battlefield. · <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a></p>
 </footer>
+
+</body>
+</html>
