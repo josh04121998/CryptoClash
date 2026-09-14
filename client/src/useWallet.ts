@@ -1,3 +1,4 @@
+import { Faction } from "@cryptoclash/engine";
 import { getAddress } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { SiweMessage } from "siwe";
@@ -90,6 +91,11 @@ export function useWallet() {
   // there's more than one wallet to choose from — so accountsChanged/switchWallet target the
   // right extension instead of silently falling back to whatever window.ethereum points at.
   const [activeProvider, setActiveProvider] = useState<Eip1193Provider | null>(null);
+  // undefined = not fetched yet (avoids flashing the faction picker before we actually know);
+  // null = fetched, genuinely unchosen. Always re-fetched from the server on token change rather
+  // than cached in localStorage — it's a one-time, server-enforced choice, so staleness here would
+  // mean either wrongly re-offering the picker or wrongly hiding it.
+  const [startingFaction, setStartingFactionState] = useState<Faction | null | undefined>(undefined);
 
   useEffect(() => {
     const stored = loadStoredSession();
@@ -99,6 +105,28 @@ export function useWallet() {
       setStatus("connected");
     }
   }, []);
+
+  // Re-hydrate startingFaction from the server whenever the session token changes — covers both a
+  // fresh sign-in (signInWith already knows the answer from /api/auth/verify, but re-fetching here
+  // keeps this the single source of truth rather than threading it through two code paths) and a
+  // page reload restoring a session from localStorage (which never called /api/auth/verify at all).
+  useEffect(() => {
+    if (!token) {
+      setStartingFactionState(undefined);
+      return;
+    }
+    let cancelled = false;
+    apiFetch<{ startingFaction: Faction | null }>("/api/account", { token })
+      .then((res) => {
+        if (!cancelled) setStartingFactionState(res.startingFaction);
+      })
+      .catch(() => {
+        if (!cancelled) setStartingFactionState(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   // Collect every EIP-6963-announcing wallet. `requestProvider` re-asks wallets that already
   // announced before this listener was attached (the common case — they announce on page load).
@@ -190,7 +218,18 @@ export function useWallet() {
     setToken(null);
     setActiveProvider(null);
     setStatus("disconnected");
+    setStartingFactionState(undefined);
   }, []);
+
+  /** The one-time faction choice (StartingFactionScreen.tsx) — POSTs, then updates local state on success so the caller doesn't need a separate refetch. */
+  const chooseStartingFaction = useCallback(
+    async (faction: Faction) => {
+      if (!token) throw new Error("Not connected.");
+      await apiFetch("/api/starting-faction", { method: "POST", token, body: JSON.stringify({ faction }) });
+      setStartingFactionState(faction);
+    },
+    [token],
+  );
 
   // Detect the active account changing *outside* our UI (switched in the wallet extension
   // itself while already connected here) — our session token was signed for the old
@@ -259,5 +298,7 @@ export function useWallet() {
     discoveredWallets: discoveredWallets.map((w) => w.info),
     disconnect,
     switchWallet,
+    startingFaction,
+    chooseStartingFaction,
   };
 }

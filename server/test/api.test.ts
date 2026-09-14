@@ -36,7 +36,14 @@ d("/api/* over real HTTP, against real Postgres", () => {
     await pool.query("delete from events"); // not account-scoped, so not covered by the cascade above
   });
 
-  async function signIn(referralCode?: string): Promise<{ token: string; address: string }> {
+  /**
+   * Picks "Doggos" as the starting faction right after sign-in by default —
+   * most tests here just need *some* owned collection to exercise deck
+   * save/craft/disenchant against, not to test the faction-choice flow
+   * itself (that has its own dedicated `describe("starting faction")` below,
+   * which passes `pickFaction: false`).
+   */
+  async function signIn(options?: { referralCode?: string; pickFaction?: boolean }): Promise<{ token: string; address: string }> {
     const wallet = Wallet.createRandom();
     const nonceRes = await fetch(`${baseUrl}/api/auth/nonce`);
     const { nonce } = (await nonceRes.json()) as { nonce: string };
@@ -56,11 +63,36 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const verifyRes = await fetch(`${baseUrl}/api/auth/verify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message, signature, referralCode }),
+      body: JSON.stringify({ message, signature, referralCode: options?.referralCode }),
     });
     expect(verifyRes.status).toBe(200);
     const body = (await verifyRes.json()) as { token: string; account: { walletAddress: string } };
+
+    if (options?.pickFaction !== false) {
+      const factionRes = await fetch(`${baseUrl}/api/starting-faction`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${body.token}`, "content-type": "application/json" },
+        body: JSON.stringify({ faction: "Doggos" }),
+      });
+      expect(factionRes.status).toBe(200);
+    }
+
     return { token: body.token, address: body.account.walletAddress };
+  }
+
+  /** Grants exactly the cards a legal-deck fixture needs, independent of starting-faction semantics (which has its own tests). */
+  async function grantDeckOwnership(accountId: string, templateIds: string[]): Promise<void> {
+    const client = await pool.connect();
+    try {
+      await grantCardInstances(client, accountId, templateIds.map((templateId) => ({ templateId, isFoil: false })));
+    } finally {
+      client.release();
+    }
+  }
+
+  async function accountIdFor(address: string): Promise<string> {
+    const res = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
+    return res.rows[0].id;
   }
 
   it("completes a full sign-in and gets a usable session token", async () => {
@@ -75,7 +107,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
   });
 
   it("creates, lists, and deletes a deck through the real HTTP API", async () => {
-    const { token } = await signIn();
+    const { token, address } = await signIn({ pickFaction: false });
     const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const thirtyPupScouts = Array(30).fill("pup_scout");
@@ -87,24 +119,11 @@ d("/api/* over real HTTP, against real Postgres", () => {
     // MAX_COPIES_PER_CARD is 3 — 30 copies of one card should be rejected as illegal, not silently saved.
     expect(createRes.status).toBe(422);
 
-    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
-    // any test exercising deck save/ownership together needs a deck buildable from those.
-    const legalDeck = [
-      ...Array(3).fill("pup_scout"),
-      ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("pump_signal"),
-      ...Array(3).fill("cool_down"),
-      ...Array(3).fill("leap_frog"),
-      ...Array(3).fill("warty_lookout"),
-      ...Array(3).fill("sticky_tongue"),
-      ...Array(3).fill("chaos_croak"),
-      ...Array(3).fill("junior_dev"),
-    ];
+    await grantDeckOwnership(await accountIdFor(address), CROSS_FACTION_LEGAL_DECK);
     const goodCreateRes = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
       headers: auth,
-      body: JSON.stringify({ name: "Test Deck", cards: legalDeck }),
+      body: JSON.stringify({ name: "Test Deck", cards: CROSS_FACTION_LEGAL_DECK }),
     });
     expect(goodCreateRes.status).toBe(201);
     const { deck } = (await goodCreateRes.json()) as { deck: { id: string } };
@@ -120,21 +139,80 @@ d("/api/* over real HTTP, against real Postgres", () => {
     expect(((await listAfterDeleteRes.json()) as { decks: unknown[] }).decks).toEqual([]);
   });
 
-  it("grants a starting collection on sign-in, readable via /api/collection", async () => {
-    const { token } = await signIn();
+  it("grants nothing on sign-in until a starting faction is chosen, then grants that faction's + Neutral's Commons", async () => {
+    const { token } = await signIn({ pickFaction: false });
+    const before = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${token}` } });
+    const { owned: ownedBefore } = (await before.json()) as { owned: Record<string, number> };
+    expect(ownedBefore).toEqual({});
+
+    const factionRes = await fetch(`${baseUrl}/api/starting-faction`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ faction: "Doggos" }),
+    });
+    expect(factionRes.status).toBe(200);
+
     const res = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${token}` } });
     expect(res.status).toBe(200);
     const { owned, foils } = (await res.json()) as { owned: Record<string, number>; foils: Record<string, number> };
-    expect(owned["pup_scout"]).toBe(3); // Common
-    expect(owned["moon_dog"]).toBeUndefined(); // Rare — pack-only now
+    expect(owned["pup_scout"]).toBe(3); // Doggos Common
+    expect(owned["sharpening_stone"]).toBe(3); // Neutral Common, granted regardless of faction
+    expect(owned["pump_signal"]).toBeUndefined(); // CryptoBros Common — a different faction now
+    expect(owned["moon_dog"]).toBeUndefined(); // Rare — pack-only
     expect(owned["puppy"]).toBeUndefined(); // token, never granted
     expect(foils).toEqual({}); // starting collection is never foil — only packs roll foils
   });
 
+  it("rejects choosing a starting faction twice, and rejects an invalid one", async () => {
+    const { token } = await signIn({ pickFaction: false });
+    const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const firstRes = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", headers: auth, body: JSON.stringify({ faction: "Frogs" }) });
+    expect(firstRes.status).toBe(200);
+
+    const secondRes = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", headers: auth, body: JSON.stringify({ faction: "Degens" }) });
+    expect(secondRes.status).toBe(409);
+
+    const accountRes = await fetch(`${baseUrl}/api/account`, { headers: auth });
+    expect(((await accountRes.json()) as { startingFaction: string }).startingFaction).toBe("Frogs"); // unchanged
+
+    const { token: otherToken } = await signIn({ pickFaction: false });
+    const invalidRes = await fetch(`${baseUrl}/api/starting-faction`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${otherToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ faction: "Neutral" }),
+    });
+    expect(invalidRes.status).toBe(400);
+  });
+
+  it("rejects /api/starting-faction and /api/account with no Authorization header", async () => {
+    expect((await fetch(`${baseUrl}/api/account`)).status).toBe(401);
+    const res = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", body: JSON.stringify({ faction: "Doggos" }) });
+    expect(res.status).toBe(401);
+  });
+
+  /**
+   * A legal (pool-legal, max 3 copies), cross-faction 30-card deck — granted directly via
+   * grantDeckOwnership rather than through the starting-faction grant, which now only covers one
+   * chosen faction's Commons plus Neutral's, not a deck spanning five factions.
+   */
+  const CROSS_FACTION_LEGAL_DECK = [
+    ...Array(3).fill("pup_scout"),
+    ...Array(3).fill("fast_fang"),
+    ...Array(3).fill("shadow_pup"),
+    ...Array(3).fill("pump_signal"),
+    ...Array(3).fill("cool_down"),
+    ...Array(3).fill("leap_frog"),
+    ...Array(3).fill("warty_lookout"),
+    ...Array(3).fill("sticky_tongue"),
+    ...Array(3).fill("chaos_croak"),
+    ...Array(3).fill("junior_dev"),
+  ];
+
   it("rejects a deck that needs more copies than the account owns", async () => {
-    const { token, address } = await signIn();
-    const account = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
-    const accountId = account.rows[0].id;
+    const { token, address } = await signIn({ pickFaction: false });
+    const accountId = await accountIdFor(address);
+    await grantDeckOwnership(accountId, CROSS_FACTION_LEGAL_DECK);
 
     // Sell off two of this account's three owned Pup Scouts, the same effect crafting's
     // disenchant now really does (spec.md Section 18, see the crafting tests below) — leaves only 1 owned.
@@ -146,24 +224,10 @@ d("/api/* over real HTTP, against real Postgres", () => {
     );
     await pool.query("delete from card_instances where id = any($1::uuid[])", [instances.rows.map((r) => r.id)]);
 
-    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
-    // any test exercising deck save/ownership together needs a deck buildable from those.
-    const legalDeck = [
-      ...Array(3).fill("pup_scout"),
-      ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("pump_signal"),
-      ...Array(3).fill("cool_down"),
-      ...Array(3).fill("leap_frog"),
-      ...Array(3).fill("warty_lookout"),
-      ...Array(3).fill("sticky_tongue"),
-      ...Array(3).fill("chaos_croak"),
-      ...Array(3).fill("junior_dev"),
-    ];
     const res = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ name: "Test Deck", cards: legalDeck }),
+      body: JSON.stringify({ name: "Test Deck", cards: CROSS_FACTION_LEGAL_DECK }),
     });
     expect(res.status).toBe(422);
     const body = (await res.json()) as { details: string[] };
@@ -171,33 +235,25 @@ d("/api/* over real HTTP, against real Postgres", () => {
   });
 
   it("won't let one account's token touch another account's deck", async () => {
-    const owner = await signIn();
-    const intruder = await signIn();
-    // All Common-rarity — the starting collection (post-packs) only grants Commons, so
-    // any test exercising deck save/ownership together needs a deck buildable from those.
-    const legalDeck = [
-      ...Array(3).fill("pup_scout"),
-      ...Array(3).fill("fast_fang"),
-      ...Array(3).fill("shadow_pup"),
-      ...Array(3).fill("pump_signal"),
-      ...Array(3).fill("cool_down"),
-      ...Array(3).fill("leap_frog"),
-      ...Array(3).fill("warty_lookout"),
-      ...Array(3).fill("sticky_tongue"),
-      ...Array(3).fill("chaos_croak"),
-      ...Array(3).fill("junior_dev"),
-    ];
+    const owner = await signIn({ pickFaction: false });
+    const intruder = await signIn({ pickFaction: false });
+    await grantDeckOwnership(await accountIdFor(owner.address), CROSS_FACTION_LEGAL_DECK);
+    // The PUT below re-validates cards ownership against the *intruder's* account before the
+    // deck-ownership check even runs, so the intruder needs to own the cards too, or this would
+    // 422 (illegal deck) instead of exercising the 404 (cross-account access) this test is for.
+    await grantDeckOwnership(await accountIdFor(intruder.address), CROSS_FACTION_LEGAL_DECK);
+
     const createRes = await fetch(`${baseUrl}/api/decks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${owner.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ name: "Owner's Deck", cards: legalDeck }),
+      body: JSON.stringify({ name: "Owner's Deck", cards: CROSS_FACTION_LEGAL_DECK }),
     });
     const { deck } = (await createRes.json()) as { deck: { id: string } };
 
     const hijackRes = await fetch(`${baseUrl}/api/decks/${deck.id}`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${intruder.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ name: "Hijacked", cards: legalDeck }),
+      body: JSON.stringify({ name: "Hijacked", cards: CROSS_FACTION_LEGAL_DECK }),
     });
     expect(hijackRes.status).toBe(404);
   });
@@ -277,11 +333,6 @@ d("/api/* over real HTTP, against real Postgres", () => {
       const rare = rates.find((r) => r.rarity === "Rare");
       expect(rare).toEqual({ rarity: "Rare", disenchantValue: 20, craftCost: 100 });
     });
-
-    async function accountIdFor(address: string): Promise<string> {
-      const res = await pool.query<{ id: string }>("select id from accounts where wallet_address = $1", [address]);
-      return res.rows[0].id;
-    }
 
     it("disenchants owned copies into Dust, then crafts a different card with it", async () => {
       const { token, address } = await signIn();
@@ -484,7 +535,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
       const referrerCodeRes = await fetch(`${baseUrl}/api/referral`, { headers: { Authorization: `Bearer ${referrer.token}` } });
       const { code } = (await referrerCodeRes.json()) as { code: string };
 
-      const referred = await signIn(code);
+      const referred = await signIn({ referralCode: code });
       const collectionRes = await fetch(`${baseUrl}/api/collection`, { headers: { Authorization: `Bearer ${referred.token}` } });
       const { owned } = (await collectionRes.json()) as { owned: Record<string, number> };
       // The starting Common grant already owns something too, but a free pack can pull
@@ -498,7 +549,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     });
 
     it("doesn't fail sign-in over a garbled/unknown referral code", async () => {
-      const { token } = await signIn("not-a-real-code-at-all");
+      const { token } = await signIn({ referralCode: "not-a-real-code-at-all" });
       expect(token).toBeTruthy();
     });
 

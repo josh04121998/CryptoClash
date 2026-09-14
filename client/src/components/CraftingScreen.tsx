@@ -1,4 +1,4 @@
-import { CARD_POOL, CardTemplate, Rarity } from "@cryptoclash/engine";
+import { CARD_POOL, CardTemplate, Faction, Rarity } from "@cryptoclash/engine";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
 import { rarityColor } from "../rarityColor.js";
@@ -7,6 +7,8 @@ import { CardFace } from "./CardFace.js";
 
 export interface CraftingScreenProps {
   token: string;
+  /** The account's chosen starting faction — App.tsx never renders this screen until one's chosen, but stays nullable defensively (mirrors craftingRepo.ts's own conservative null handling). */
+  startingFaction: Faction | null;
   onBack: () => void;
 }
 
@@ -18,20 +20,33 @@ interface CraftRate {
 
 /**
  * Same craft-eligible set as the server's CRAFT_ELIGIBLE_RARITIES
- * (craftingRepo.ts) — Common is excluded (the starting-collection grant would
- * let it be farmed for free Dust) and Mythic/Genesis are excluded (crafting
- * one would be a backdoor around Genesis's permanently-capped supply). The
- * actual Dust numbers come from GET /api/craft/rates, not hardcoded here —
- * only which rarities show up in this list is duplicated, and only because
- * there's no template data to derive it from otherwise.
+ * (craftingRepo.ts) — Mythic/Genesis are excluded (crafting one would be a
+ * backdoor around Genesis's permanently-capped supply). Common used to be
+ * excluded outright too; now that the starting grant only covers one chosen
+ * faction's Commons plus Neutral's (STATUS.md roadmap item 1), a Common from
+ * any *other* faction is real duplicate-protection material — see
+ * isFreeStartingCommon below, the same rule craftingRepo.ts enforces
+ * server-side (this list is just what the grid shows; the server is the
+ * real gate on every request). The actual Dust numbers come from
+ * GET /api/craft/rates, not hardcoded here — only which rarities/templates
+ * show up in this list is duplicated, and only because there's no template
+ * data to derive it from otherwise.
  */
-const CRAFT_ELIGIBLE: ReadonlySet<Rarity> = new Set(["Uncommon", "Rare", "Epic", "Legendary"]);
+const CRAFT_ELIGIBLE: ReadonlySet<Rarity> = new Set(["Common", "Uncommon", "Rare", "Epic", "Legendary"]);
 
-const CRAFTABLE_CARDS: CardTemplate[] = Object.values(CARD_POOL)
-  .filter((t) => !t.token && t.rarity && CRAFT_ELIGIBLE.has(t.rarity))
-  .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : a.faction.localeCompare(b.faction)));
+function isFreeStartingCommon(template: CardTemplate, startingFaction: Faction | null): boolean {
+  return template.faction === "Neutral" || startingFaction === null || template.faction === startingFaction;
+}
 
-export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
+export function CraftingScreen({ token, startingFaction, onBack }: CraftingScreenProps) {
+  const CRAFTABLE_CARDS: CardTemplate[] = useMemo(
+    () =>
+      Object.values(CARD_POOL)
+        .filter((t) => !t.token && t.rarity && CRAFT_ELIGIBLE.has(t.rarity))
+        .filter((t) => !(t.rarity === "Common" && isFreeStartingCommon(t, startingFaction)))
+        .sort((a, b) => (a.rarity === b.rarity ? a.name.localeCompare(b.name) : a.faction.localeCompare(b.faction))),
+    [startingFaction],
+  );
   const [dust, setDust] = useState<number | null>(null);
   const [rates, setRates] = useState<CraftRate[]>([]);
   const [owned, setOwned] = useState<Record<string, number>>({});
@@ -121,8 +136,10 @@ export function CraftingScreen({ token, onBack }: CraftingScreenProps) {
 
       <main className="crafting">
         <p className="crafting__intro">
-          Disenchant duplicate Uncommon+ cards into Dust, then craft the cards you actually want. Commons stay free and
-          undisenchantable — everyone already gets a full set of them.
+          Disenchant duplicate cards into Dust, then craft the cards you actually want.{" "}
+          {startingFaction
+            ? `Your ${startingFaction} Commons and every Neutral Common stay free and undisenchantable — everything else, including other factions' Commons, is real crafting material.`
+            : "Commons stay free and undisenchantable until you've chosen a starting faction."}
         </p>
         {error && <p className="deck-picker__empty">Couldn't load crafting: {error}</p>}
         {loading && <p className="deck-picker__prompt">Loading…</p>}

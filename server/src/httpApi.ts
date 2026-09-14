@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { validateDeck } from "@cryptoclash/engine";
+import { Faction, validateDeck } from "@cryptoclash/engine";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import {
@@ -10,7 +10,15 @@ import {
   UnknownAchievementError,
 } from "./achievementsRepo.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
-import { getCollectionSummary, grantStartingCollection, validateOwnership } from "./collectionRepo.js";
+import {
+  getCollectionSummary,
+  getStartingFaction,
+  grantStartingCollection,
+  InvalidFactionError,
+  StartingFactionAlreadySetError,
+  setStartingFaction,
+  validateOwnership,
+} from "./collectionRepo.js";
 import { getBalance, grantWelcomeBonus } from "./coinsRepo.js";
 import {
   craftCard,
@@ -173,7 +181,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return true;
       }
       const account = await findOrCreateAccount(pool, result.address);
-      await grantStartingCollection(pool, account.id);
+      // Starting faction is now a one-time player choice (STATUS.md roadmap item 1), not an
+      // automatic every-faction grant — only top up an *already-chosen* faction's Commons here.
+      // A brand-new account (or one that signed in before this feature existed and never picked)
+      // gets nothing granted on this path; the client offers the faction picker separately.
+      const startingFaction = await getStartingFaction(pool, account.id);
+      if (startingFaction) await grantStartingCollection(pool, account.id, startingFaction);
       if (account.isNew) {
         await grantWelcomeBonus(pool, account.id);
         // Best-effort — an unknown/garbled ?ref= code shouldn't block sign-in. Never applies to
@@ -181,7 +194,43 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         if (body.referralCode) await recordReferralSignup(pool, account.id, body.referralCode).catch(() => null);
       }
       const token = await issueSessionToken({ accountId: account.id, walletAddress: account.walletAddress });
-      sendJson(res, 200, { token, account: { id: account.id, walletAddress: account.walletAddress } });
+      sendJson(res, 200, { token, account: { id: account.id, walletAddress: account.walletAddress, startingFaction } });
+      return true;
+    }
+
+    if (url.pathname === "/api/account" && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { startingFaction: await getStartingFaction(pool, accountId) });
+      return true;
+    }
+
+    if (url.pathname === "/api/starting-faction" && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { faction?: string };
+      if (!body.faction) {
+        sendJson(res, 400, { error: "faction is required." });
+        return true;
+      }
+      try {
+        await setStartingFaction(pool, accountId, body.faction as Faction);
+        sendJson(res, 200, { startingFaction: body.faction });
+      } catch (e) {
+        if (e instanceof InvalidFactionError) {
+          sendJson(res, 400, { error: e.message });
+        } else if (e instanceof StartingFactionAlreadySetError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
       return true;
     }
 

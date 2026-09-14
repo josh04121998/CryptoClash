@@ -12,7 +12,17 @@ import {
   recordMatchOutcomeForAchievements,
   UnknownAchievementError,
 } from "../src/achievementsRepo.js";
-import { getCollectionCounts, getCollectionSummary, grantCardInstances, grantStartingCollection, validateOwnership } from "../src/collectionRepo.js";
+import {
+  getCollectionCounts,
+  getCollectionSummary,
+  getStartingFaction,
+  grantCardInstances,
+  grantStartingCollection,
+  InvalidFactionError,
+  setStartingFaction,
+  StartingFactionAlreadySetError,
+  validateOwnership,
+} from "../src/collectionRepo.js";
 import { awardMatchResult, getBalance, grantWelcomeBonus, WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "../src/eventsRepo.js";
@@ -135,13 +145,24 @@ d("accounts + decks (integration, real Postgres)", () => {
   });
 
   describe("collection", () => {
-    it("grants MAX_COPIES_PER_CARD of every Common template, and stays idempotent on repeat grants", async () => {
+    it("grants MAX_COPIES_PER_CARD of the chosen faction's Commons plus every Neutral Common, and stays idempotent on repeat grants", async () => {
       const account = await findOrCreateAccount(pool, "0xcollector");
-      await grantStartingCollection(pool, account.id);
+      await grantStartingCollection(pool, account.id, "Doggos");
 
       const owned = await getCollectionCounts(pool, account.id);
-      const commonIds = Object.values(CARD_POOL).filter((t) => !t.token && t.rarity === "Common").map((t) => t.id);
-      for (const id of commonIds) expect(owned[id]).toBe(MAX_COPIES_PER_CARD);
+      const doggosCommonIds = Object.values(CARD_POOL)
+        .filter((t) => !t.token && t.rarity === "Common" && t.faction === "Doggos")
+        .map((t) => t.id);
+      const neutralCommonIds = Object.values(CARD_POOL)
+        .filter((t) => !t.token && t.rarity === "Common" && t.faction === "Neutral")
+        .map((t) => t.id);
+      for (const id of [...doggosCommonIds, ...neutralCommonIds]) expect(owned[id]).toBe(MAX_COPIES_PER_CARD);
+
+      // A different faction's Common is real duplicate-protection material now, not a freebie.
+      const otherFactionCommonIds = Object.values(CARD_POOL)
+        .filter((t) => !t.token && t.rarity === "Common" && t.faction !== "Doggos" && t.faction !== "Neutral")
+        .map((t) => t.id);
+      for (const id of otherFactionCommonIds) expect(owned[id]).toBeUndefined();
 
       // Uncommon-and-above is now pack-only — the starting grant doesn't touch it.
       const aboveCommonIds = Object.values(CARD_POOL).filter((t) => !t.token && t.rarity && t.rarity !== "Common").map((t) => t.id);
@@ -152,7 +173,7 @@ d("accounts + decks (integration, real Postgres)", () => {
       for (const id of tokenIds) expect(owned[id]).toBeUndefined();
 
       // Calling it again shouldn't duplicate instances (top-up, not additive).
-      await grantStartingCollection(pool, account.id);
+      await grantStartingCollection(pool, account.id, "Doggos");
       const ownedAgain = await getCollectionCounts(pool, account.id);
       expect(ownedAgain["pup_scout"]).toBe(MAX_COPIES_PER_CARD);
     });
@@ -160,7 +181,7 @@ d("accounts + decks (integration, real Postgres)", () => {
     it("scopes ownership per-account", async () => {
       const collector = await findOrCreateAccount(pool, "0xhasit");
       const bystander = await findOrCreateAccount(pool, "0xdoesnthaveit");
-      await grantStartingCollection(pool, collector.id);
+      await grantStartingCollection(pool, collector.id, "Doggos");
 
       expect((await getCollectionCounts(pool, collector.id))["pup_scout"]).toBe(MAX_COPIES_PER_CARD);
       expect((await getCollectionCounts(pool, bystander.id))["pup_scout"]).toBeUndefined();
@@ -168,7 +189,7 @@ d("accounts + decks (integration, real Postgres)", () => {
 
     it("validateOwnership passes a deck within owned copies and flags one that exceeds them", async () => {
       const account = await findOrCreateAccount(pool, "0xdeckowner2");
-      await grantStartingCollection(pool, account.id);
+      await grantStartingCollection(pool, account.id, "Doggos");
 
       expect(await validateOwnership(pool, account.id, Array(MAX_COPIES_PER_CARD).fill("pup_scout"))).toEqual([]);
 
@@ -179,6 +200,35 @@ d("accounts + decks (integration, real Postgres)", () => {
       // A different account that never had a collection granted owns nothing.
       const other = await findOrCreateAccount(pool, "0xnocollection");
       expect(await validateOwnership(pool, other.id, ["pup_scout"])).toHaveLength(1);
+    });
+  });
+
+  describe("starting faction", () => {
+    it("is null until chosen, then setStartingFaction locks it in and grants the collection", async () => {
+      const account = await findOrCreateAccount(pool, "0xfactionpicker");
+      expect(await getStartingFaction(pool, account.id)).toBeNull();
+
+      await setStartingFaction(pool, account.id, "Frogs");
+      expect(await getStartingFaction(pool, account.id)).toBe("Frogs");
+
+      const owned = await getCollectionCounts(pool, account.id);
+      expect(owned["leap_frog"]).toBe(MAX_COPIES_PER_CARD); // Frogs Common
+      expect(owned["sharpening_stone"]).toBe(MAX_COPIES_PER_CARD); // Neutral Common, granted regardless
+      expect(owned["pup_scout"]).toBeUndefined(); // a different faction's Common
+    });
+
+    it("rejects choosing a faction a second time", async () => {
+      const account = await findOrCreateAccount(pool, "0xonechoiceonly");
+      await setStartingFaction(pool, account.id, "Builders");
+      await expect(setStartingFaction(pool, account.id, "Degens")).rejects.toThrow(StartingFactionAlreadySetError);
+      expect(await getStartingFaction(pool, account.id)).toBe("Builders"); // unchanged
+    });
+
+    it("rejects an unrecognized faction, including Neutral (not a choosable faction)", async () => {
+      const account = await findOrCreateAccount(pool, "0xbadfaction");
+      await expect(setStartingFaction(pool, account.id, "Neutral" as never)).rejects.toThrow(InvalidFactionError);
+      await expect(setStartingFaction(pool, account.id, "NotAFaction" as never)).rejects.toThrow(InvalidFactionError);
+      expect(await getStartingFaction(pool, account.id)).toBeNull();
     });
   });
 
@@ -387,6 +437,7 @@ d("accounts + decks (integration, real Postgres)", () => {
 
     it("rejects disenchanting/crafting Common (starting-collection farm guard) and unknown/token templates", async () => {
       const account = await findOrCreateAccount(pool, "0xguardrail");
+      // No starting faction chosen — every Common is still conservatively treated as free.
       // Common — excluded so disenchant->resign-in->re-grant can't farm infinite Dust.
       await expect(disenchantCards(pool, account.id, "pup_scout", 1)).rejects.toThrow(InvalidTemplateError);
       await expect(craftCard(pool, account.id, "pup_scout")).rejects.toThrow(InvalidTemplateError);
@@ -394,6 +445,30 @@ d("accounts + decks (integration, real Postgres)", () => {
       await expect(craftCard(pool, account.id, "puppy")).rejects.toThrow(InvalidTemplateError);
       // Unknown id.
       await expect(craftCard(pool, account.id, "not_a_real_card")).rejects.toThrow(InvalidTemplateError);
+    });
+
+    it("once a faction is chosen, a *different* faction's Common is real craft material, but the chosen faction's own and Neutral's stay guarded", async () => {
+      const account = await findOrCreateAccount(pool, "0xfactioncrafter");
+      await setStartingFaction(pool, account.id, "Doggos");
+
+      // pup_scout is Doggos' own free Common — still guarded.
+      await expect(disenchantCards(pool, account.id, "pup_scout", 1)).rejects.toThrow(InvalidTemplateError);
+      // sharpening_stone is a Neutral Common, granted regardless of faction — still guarded.
+      await expect(disenchantCards(pool, account.id, "sharpening_stone", 1)).rejects.toThrow(InvalidTemplateError);
+
+      // pump_signal is CryptoBros' Common — this account was never granted any, so it owns none yet,
+      // but the *eligibility* check (not ownership) is what this test is really pinning down: it must
+      // not throw InvalidTemplateError the way the two guarded cases above do.
+      await expect(disenchantCards(pool, account.id, "pump_signal", 1)).rejects.toThrow(InsufficientCopiesError);
+
+      const client = await pool.connect();
+      try {
+        await grantCardInstances(client, account.id, Array.from({ length: 5 }, () => ({ templateId: "pump_signal", isFoil: false })));
+      } finally {
+        client.release();
+      }
+      const result = await disenchantCards(pool, account.id, "pump_signal", 5);
+      expect(result.dustEarned).toBe(25); // Common = 5 Dust each
     });
 
     it("crafts a card by spending Dust, granting a non-foil standard instance", async () => {

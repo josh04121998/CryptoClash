@@ -14,6 +14,7 @@ import { MuteToggle } from "./components/MuteToggle.js";
 import { PacksScreen } from "./components/PacksScreen.js";
 import { QuestsScreen } from "./components/QuestsScreen.js";
 import { ReferralScreen } from "./components/ReferralScreen.js";
+import { StartingFactionScreen } from "./components/StartingFactionScreen.js";
 import { WalletPicker } from "./components/WalletPicker.js";
 import { LocalMatch } from "./LocalMatch.js";
 import { OnlineMatch } from "./OnlineMatch.js";
@@ -113,6 +114,18 @@ export default function App() {
     return <LeaderboardScreen token={wallet.token} onBack={() => setMode("menu")} />;
   }
 
+  // The one-time starting-faction choice (STATUS.md roadmap item 1) gates only the screens whose
+  // whole purpose is real card ownership — Packs/Quests/etc. work fine with no faction chosen yet.
+  // wallet.startingFaction === undefined means "not fetched yet," not "unchosen" — don't flash this
+  // screen while that's still in flight.
+  const needsStartingFaction =
+    wallet.token !== null &&
+    wallet.startingFaction === null &&
+    (mode === "collection" || mode === "crafting" || mode === "deck-builder" || mode === "my-decks");
+  if (needsStartingFaction) {
+    return <StartingFactionScreen onChoose={(faction) => wallet.chooseStartingFaction(faction)} />;
+  }
+
   if (mode === "packs" && wallet.token) {
     return (
       <PacksScreen
@@ -155,7 +168,7 @@ export default function App() {
   }
 
   if (mode === "crafting" && wallet.token) {
-    return <CraftingScreen token={wallet.token} onBack={() => setMode("menu")} />;
+    return <CraftingScreen token={wallet.token} startingFaction={wallet.startingFaction ?? null} onBack={() => setMode("menu")} />;
   }
 
   if (mode === "my-decks" && wallet.token) {

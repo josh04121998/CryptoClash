@@ -1,68 +1,123 @@
-import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
+import { CARD_POOL, Faction, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
 import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "./txHelper.js";
 
+/** The six real factions a player can pick as their free starting set — Neutral isn't choosable (see starterTemplateIds). */
+export const STARTING_FACTIONS: readonly Faction[] = ["Doggos", "Frogs", "Degens", "CryptoBros", "Builders", "Normies"];
+
+export class InvalidFactionError extends Error {}
+export class StartingFactionAlreadySetError extends Error {}
+
 /**
- * Every Common-rarity, non-token template id — the starter set. Recomputed
- * from CARD_POOL each call (not cached) so a newly-added Common template
- * shows up automatically without a code change here.
+ * Common-rarity, non-token templates for one chosen faction, plus every
+ * Neutral Common (faction-agnostic staples like Sharpening Stone/Rocket
+ * Boots — granted regardless of which faction is chosen, same as how
+ * Neutral Items already show up in every faction's own sample deck).
+ * Recomputed from CARD_POOL each call, not cached, so a newly-added Common
+ * template shows up automatically without a code change here.
  */
-function starterTemplateIds(): string[] {
+function starterTemplateIds(faction: Faction): string[] {
   return Object.values(CARD_POOL)
-    .filter((t) => !t.token && t.rarity === "Common")
+    .filter((t) => !t.token && t.rarity === "Common" && (t.faction === faction || t.faction === "Neutral"))
     .map((t) => t.id);
 }
 
 /**
- * Grants an account MAX_COPIES_PER_CARD standard-edition instances of every
- * Common template — enough (18 Commons today, need 10 at 3 copies for a
- * legal 30-card deck) to build a real deck with zero acquisition friction,
- * while leaving Uncommon-and-above genuinely something packs (roadmap step
- * 5) are the only way to get. Before this, every account got the entire pool
- * (STATUS.md roadmap step 4) — that made packs pointless, since there was
- * nothing left to pull that you didn't already own. Idempotent and safe to
- * call on every sign-in: only tops up what's missing, so it also back-fills
- * any Common template added to the pool after an account's first sign-in.
+ * Grants an account MAX_COPIES_PER_CARD standard-edition instances of their
+ * chosen faction's Commons plus every Neutral Common — a real "must be
+ * earned, like Hearthstone" baseline (STATUS.md roadmap item 1) rather than
+ * every faction's Commons handed over for free forever (the original
+ * session-4 design, which in turn replaced session 3's "the entire pool" —
+ * see the git history on this function for that lineage). Idempotent and
+ * safe to call on every sign-in: only tops up what's missing, so it also
+ * back-fills any Common template added to the pool after an account's first
+ * sign-in. Deliberately doesn't enforce "faction already chosen" itself —
+ * that's setStartingFaction's job; this is the reusable grant primitive both
+ * setStartingFaction (first choice) and the sign-in top-up path (repeat
+ * visits) call.
+ *
+ * **Known gap, not solved here:** Builders and Degens have only one Common
+ * template each today (Junior Dev, Degen Ape) vs. 3-4 for every other
+ * faction, so choosing either of those two as your starting faction doesn't
+ * yield enough unique owned cards to build a legal 30-card deck on its own
+ * (max 3 copies/card) — packs are required regardless of faction choice for
+ * those two. Flagging rather than special-casing around it: the real fix is
+ * more Builders/Degens Common templates (a card-pool/balance decision, out
+ * of scope for this schema/grant change), not gerrymandering this function.
  *
  * Three queries regardless of pool size — bulk upsert editions, bulk-read
  * current counts, bulk-insert the shortfall — rather than one round-trip per
  * template, since this runs on every sign-in, not just account creation.
  */
-export async function grantStartingCollection(pool: Pool, accountId: string): Promise<void> {
-  const templateIds = starterTemplateIds();
+export async function grantStartingCollection(pool: Pool, accountId: string, faction: Faction): Promise<void> {
+  const templateIds = starterTemplateIds(faction);
   if (templateIds.length === 0) return;
 
+  await withTransaction(pool, (client) => grantStartingCollectionWithClient(client, accountId, templateIds));
+}
+
+async function grantStartingCollectionWithClient(client: PoolClient, accountId: string, templateIds: string[]): Promise<void> {
+  const editionRows = await client.query<{ id: string }>(
+    `insert into card_editions (template_id, edition_type)
+     select unnest($1::text[]), 'standard'
+     on conflict (template_id, edition_type) do update set template_id = excluded.template_id
+     returning id`,
+    [templateIds],
+  );
+  const editionIds = editionRows.rows.map((r) => r.id);
+
+  const countRows = await client.query<{ edition_id: string; count: string }>(
+    `select edition_id, count(*)::int as count
+     from card_instances
+     where owner_id = $1 and edition_id = any($2::uuid[])
+     group by edition_id`,
+    [accountId, editionIds],
+  );
+  const ownedByEdition = new Map(countRows.rows.map((r) => [r.edition_id, Number(r.count)]));
+
+  const toInsert: string[] = [];
+  for (const editionId of editionIds) {
+    const owned = ownedByEdition.get(editionId) ?? 0;
+    for (let i = owned; i < MAX_COPIES_PER_CARD; i++) toInsert.push(editionId);
+  }
+
+  if (toInsert.length > 0) {
+    await client.query(
+      `insert into card_instances (owner_id, edition_id) select $1, unnest($2::uuid[])`,
+      [accountId, toInsert],
+    );
+  }
+}
+
+/** Null means the account hasn't chosen a starting faction yet (a brand-new account, or one that signed in before this feature existed). */
+export async function getStartingFaction(db: Pool | PoolClient, accountId: string): Promise<Faction | null> {
+  const result = await db.query<{ starting_faction: Faction | null }>(
+    `select starting_faction from accounts where id = $1`,
+    [accountId],
+  );
+  return result.rows[0]?.starting_faction ?? null;
+}
+
+/**
+ * The one-time choice: locks in `faction` as this account's free starting
+ * set and immediately grants it. Deliberately a one-shot, not a re-pickable
+ * setting — 409s if the account already has one, so "must be earned" can't
+ * be sidestepped by re-rolling faction to farm a second free Common set.
+ */
+export async function setStartingFaction(pool: Pool, accountId: string, faction: Faction): Promise<void> {
+  if (!STARTING_FACTIONS.includes(faction)) {
+    throw new InvalidFactionError(`"${faction}" isn't a choosable starting faction.`);
+  }
   await withTransaction(pool, async (client) => {
-    const editionRows = await client.query<{ id: string }>(
-      `insert into card_editions (template_id, edition_type)
-       select unnest($1::text[]), 'standard'
-       on conflict (template_id, edition_type) do update set template_id = excluded.template_id
-       returning id`,
-      [templateIds],
+    const existing = await client.query<{ starting_faction: Faction | null }>(
+      `select starting_faction from accounts where id = $1 for update`,
+      [accountId],
     );
-    const editionIds = editionRows.rows.map((r) => r.id);
-
-    const countRows = await client.query<{ edition_id: string; count: string }>(
-      `select edition_id, count(*)::int as count
-       from card_instances
-       where owner_id = $1 and edition_id = any($2::uuid[])
-       group by edition_id`,
-      [accountId, editionIds],
-    );
-    const ownedByEdition = new Map(countRows.rows.map((r) => [r.edition_id, Number(r.count)]));
-
-    const toInsert: string[] = [];
-    for (const editionId of editionIds) {
-      const owned = ownedByEdition.get(editionId) ?? 0;
-      for (let i = owned; i < MAX_COPIES_PER_CARD; i++) toInsert.push(editionId);
+    if (existing.rows[0]?.starting_faction) {
+      throw new StartingFactionAlreadySetError("Starting faction is already chosen and can't be changed.");
     }
-
-    if (toInsert.length > 0) {
-      await client.query(
-        `insert into card_instances (owner_id, edition_id) select $1, unnest($2::uuid[])`,
-        [accountId, toInsert],
-      );
-    }
+    await client.query(`update accounts set starting_faction = $2 where id = $1`, [accountId, faction]);
+    await grantStartingCollectionWithClient(client, accountId, starterTemplateIds(faction));
   });
 }
 

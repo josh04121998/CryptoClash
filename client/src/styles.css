@@ -803,6 +803,27 @@ button {
   font-size: 0.85rem;
 }
 
+.deck-picker__card--selected {
+  background: var(--panel-alt);
+  box-shadow: 0 0 0 2px currentColor inset;
+}
+
+.starting-faction__confirm {
+  margin-top: 0.25rem;
+  padding: 0.7rem 1.5rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1.5px solid var(--accent);
+  background: var(--panel-alt);
+  color: var(--accent);
+}
+
+.starting-faction__confirm:disabled {
+  opacity: 0.5;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+
 .wallet-error {
   color: var(--danger);
   font-size: 0.82rem;
