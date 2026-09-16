@@ -24,6 +24,20 @@
 // live. The board variant is a real asset, not a CSS crop, so the border
 // corners/edges stay crisp at the tiny size board cards render at.
 //
+// Every source JPEG also carries a ~20-30px near-white canvas margin
+// outside the gold/silver border itself (the generator's own page
+// background, not part of the frame art) — measured consistently across
+// all five tiers via tools/card-render/measure-margin.mjs. The luminance
+// threshold below only strips near-BLACK background (the art/text window
+// interiors); it can't also treat "near-white" as background without
+// eating the border's own bright highlights, so that margin used to
+// survive as an opaque white rectangle around every card in the live game
+// — the real cause of the "white borders" the user kept seeing even after
+// the crossbar fix. Fixed by auto-detecting and cropping that margin out
+// (scanning inward from each edge along the center row/column for the
+// first non-near-white pixel) before doing anything else, so the frame PNG
+// starts right at the border's own outer edge with nothing left to bleed.
+//
 // Re-run this whenever branding/assets/Rarity/*.jpg is regenerated:
 //   node tools/card-render/chroma-key-frames.mjs
 import { chromium } from "playwright";
@@ -60,11 +74,39 @@ for (const rarity of RARITIES) {
     async ({ low, high, boardCropFraction }) => {
       const img = document.querySelector("img");
       await img.decode();
+      const rawCanvas = document.createElement("canvas");
+      rawCanvas.width = img.naturalWidth;
+      rawCanvas.height = img.naturalHeight;
+      const rawCtx = rawCanvas.getContext("2d");
+      rawCtx.drawImage(img, 0, 0);
+
+      // Strip the source's own near-white canvas margin (the generator's page
+      // background, not part of the frame art) before anything else — scan
+      // inward from each edge along the center row/column for the first
+      // pixel that isn't near-white.
+      const raw = rawCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height).data;
+      const isWhite = (x, y) => {
+        const i = (y * rawCanvas.width + x) * 4;
+        return raw[i] > 235 && raw[i + 1] > 235 && raw[i + 2] > 235;
+      };
+      const midY = Math.floor(rawCanvas.height / 2);
+      const midX = Math.floor(rawCanvas.width / 2);
+      let left = 0;
+      while (left < rawCanvas.width / 2 && isWhite(left, midY)) left++;
+      let right = rawCanvas.width - 1;
+      while (right > rawCanvas.width / 2 && isWhite(right, midY)) right--;
+      let top = 0;
+      while (top < rawCanvas.height / 2 && isWhite(midX, top)) top++;
+      let bottom = rawCanvas.height - 1;
+      while (bottom > rawCanvas.height / 2 && isWhite(midX, bottom)) bottom--;
+      const cropWidth = right - left + 1;
+      const cropHeight = bottom - top + 1;
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(rawCanvas, left, top, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
       for (let i = 0; i < d.length; i += 4) {
