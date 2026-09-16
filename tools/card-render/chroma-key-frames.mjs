@@ -38,6 +38,18 @@
 // first non-near-white pixel) before doing anything else, so the frame PNG
 // starts right at the border's own outer edge with nothing left to bleed.
 //
+// Common's generated frame also came back a genuinely pale, near-white
+// "brushed silver" (measured directly: RGB ~190-215 across most of the
+// border's width, against rarityColor.ts's intended #9ca3af/(156,163,175)
+// accent, which only actually shows up as a thin ~2px rim at the border's
+// very outer edge) — not a margin-crop leftover (verified separately), just
+// how light that source illustration's metal tone is. Every other rarity's
+// warmer gold/green/blue/purple tone reads fine at the same brightness, so
+// this is scoped to Common only: darken its opaque pixels toward a real
+// gunmetal tone after alpha is computed (so the near-black/near-white
+// transparency keying above is unaffected) rather than regenerating the art.
+const COMMON_DARKEN = 0.72;
+
 // Re-run this whenever branding/assets/Rarity/*.jpg is regenerated:
 //   node tools/card-render/chroma-key-frames.mjs
 import { chromium } from "playwright";
@@ -71,7 +83,7 @@ for (const rarity of RARITIES) {
   const srcPath = path.join(SRC_DIR, `${rarity}.jpg`);
   await page.goto(pathToFileURL(srcPath).href);
   const { fullDataUrl, boardDataUrl } = await page.evaluate(
-    async ({ low, high, boardCropFraction }) => {
+    async ({ low, high, boardCropFraction, darken }) => {
       const img = document.querySelector("img");
       await img.decode();
       const rawCanvas = document.createElement("canvas");
@@ -116,6 +128,11 @@ for (const rarity of RARITIES) {
         else if (lum >= high) alpha = 255;
         else alpha = Math.round(((lum - low) / (high - low)) * 255);
         d[i + 3] = alpha;
+        if (darken !== 1) {
+          d[i] = Math.round(d[i] * darken);
+          d[i + 1] = Math.round(d[i + 1] * darken);
+          d[i + 2] = Math.round(d[i + 2] * darken);
+        }
       }
       ctx.putImageData(imageData, 0, 0);
 
@@ -127,7 +144,7 @@ for (const rarity of RARITIES) {
 
       return { fullDataUrl: canvas.toDataURL("image/png"), boardDataUrl: boardCanvas.toDataURL("image/png") };
     },
-    { low: LOW, high: HIGH, boardCropFraction: BOARD_CROP_FRACTION }
+    { low: LOW, high: HIGH, boardCropFraction: BOARD_CROP_FRACTION, darken: rarity === "common" ? COMMON_DARKEN : 1 }
   );
   writeFileSync(path.join(OUT_DIR, `${rarity}.png`), Buffer.from(fullDataUrl.replace(/^data:image\/png;base64,/, ""), "base64"));
   writeFileSync(path.join(OUT_DIR, `${rarity}-board.png`), Buffer.from(boardDataUrl.replace(/^data:image\/png;base64,/, ""), "base64"));
