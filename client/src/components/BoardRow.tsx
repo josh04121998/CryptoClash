@@ -19,7 +19,7 @@ export interface BoardRowProps {
   spotlightGuard?: boolean;
 }
 
-function allKeywords(creature: BoardCreature): string[] {
+export function allKeywords(creature: BoardCreature): string[] {
   return Array.from(new Set([...creature.keywords, ...creature.tempKeywords]));
 }
 

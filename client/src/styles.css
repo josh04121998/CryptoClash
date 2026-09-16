@@ -23,6 +23,13 @@
   --glow-gold: rgba(242, 183, 5, 0.14);
   --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  /* "Polished glass bead" bevel shared by the cost/attack/health stat gems —
+     a bright inner highlight arc near the top, a soft inner shadow at the
+     bottom for roundness, a thin bright rim, and an outer drop shadow. Flat
+     color circles read cheap; a real trading card's stat badges have a
+     visible facet/highlight, not a flat fill. */
+  --gem-bevel: inset 0 3px 3px rgba(255, 255, 255, 0.55), inset 0 -4px 5px rgba(0, 0, 0, 0.4), 0 0 0 1.5px rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.55);
 }
 
 * {
@@ -219,8 +226,8 @@ button {
 
 .board-slot {
   position: relative;
-  width: 100px;
-  height: 128px;
+  width: 120px;
+  height: 158px;
 }
 
 .board-slot--empty {
@@ -347,7 +354,7 @@ button {
    row eats exactly the vertical space this project's "battlefield feels crushed" feedback called
    out. flex-wrap above stays on as a fallback for a genuinely full 10-card hand on a narrow phone. */
 .hand-row > div:not(:first-child) {
-  margin-left: -28px;
+  margin-left: -70px;
 }
 
 .hand-row > div:hover,
@@ -414,37 +421,45 @@ button {
   cursor: default;
 }
 
-/* Card — a Hearthstone-style frame (rarity-colored border/gem, a faction
-   "ticker" badge standing in for a faction icon, a name plate, an inset text
-   box, hexagon/circle stat gems), built entirely from CSS shapes/gradients —
-   there's no art-asset pipeline (branding.md Section 7), same "CSS/SVG, no
-   image asset" approach as the landing page's skyline. See CardFace.tsx for
-   why this structural change doesn't disturb the hooks (hit-flash, damage/
-   heal popups, foil shimmer, keyword tooltips, lunge classes) hanging off it. */
+/* Card — real generated art (cardArt.ts) layered under the real generated
+   rarity-frame illustration (frameArt.ts, branding.md §9.6) via
+   `mix-blend-mode: lighten` (the frame is drawn on a flat near-black
+   background, so its window pixels disappear and the art shows through —
+   see frameArt.ts's doc comment). Falls back to a CSS placeholder glow when
+   a card has no real illustration yet (most of the pool — art generation is
+   a slow background task) or no rarity (tokens).
+
+   Hearthstone-style split by size, not one layout crammed everywhere: a
+   battlefield minion (--board) shows only portrait + cost/attack/health —
+   no name, no rules text, so a 120px-wide minion never has to fit a
+   paragraph. Every other size (--hand, also used by Collection/Crafting/
+   DeckBuilder/Packs) is sized to actually hold the full card — name,
+   keywords, rules text — inside the frame art's own text window. See
+   CardFace.tsx for why this doesn't disturb the hooks (hit-flash, damage/
+   heal popups, foil shimmer, keyword tooltips, lunge classes) hanging off
+   `.card-face` itself. */
 
 .card-face {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: block;
   background: linear-gradient(160deg, var(--panel-alt), var(--panel));
   border: 2px solid var(--rarity-color, var(--border));
   border-radius: 10px;
   padding: 3px;
-  gap: 2px;
   color: var(--text);
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .card-face--hand {
-  width: 92px;
-  height: 124px;
+  width: 150px;
+  height: 210px;
   flex-shrink: 0;
 }
 
 .card-face--board {
-  width: 100px;
-  height: 128px;
+  width: 120px;
+  height: 158px;
 }
 
 .card-face--selected {
@@ -463,12 +478,11 @@ button {
 
 /* Cosmetic-only shimmer (spec.md Section 14) — never reflects gameplay stats.
    Only the base .card-face rule above (border + background) is overridden —
-   the frame's inner regions (portrait/name-plate/textbox/stats) keep their
-   own backgrounds, so a foil card reads as an animated rainbow border/glow
-   around an otherwise-normal frame rather than a shimmer across the whole
-   face; the 3px gap between the border and the inner regions (added for the
-   frame redesign) still lets a sliver of the shimmering background show
-   through, same "still visible, not gone" spirit as before. */
+   the art/frame layers inside keep rendering normally on top, so a foil card
+   reads as an animated rainbow border/glow around an otherwise-normal frame
+   rather than a shimmer across the whole face; the 3px padding between the
+   border and the art/frame layers still lets a sliver of the shimmering
+   background show through, same "still visible, not gone" spirit as before. */
 .card-face--foil {
   border-color: transparent;
   background:
@@ -494,80 +508,94 @@ button {
   cursor: default;
 }
 
-/* Faction cue — a thin "ticker strip" at the very top of the frame, tinted
-   per-faction. Typographic/color rather than an icon (no illustrated faction
-   emblems exist), and on-theme: the brand's whole identity leans on ticker-
-   tape/exchange-floor motifs (branding.md Section 4). */
-.card-face__stripe {
-  flex-shrink: 0;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--faction-color, var(--border-bright));
-}
-
-/* "Portrait" — no illustration exists, so this is a faction-tinted glow over
-   the brand's scanline/CRT texture standing in for art, the same reasoning
-   the landing page's skyline is CSS/SVG rather than an image. */
-.card-face__portrait {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 24px;
-  border-radius: 6px;
-  background: var(--bg);
+/* Art layer — real illustration when cardArt.ts has one, otherwise a
+   faction-tinted glow over the brand's scanline/CRT texture standing in for
+   art (same reasoning the landing page's skyline is CSS/SVG rather than an
+   image). Sits under .card-face__frame; both are absolutely positioned
+   relative to .card-face's padding box, so they automatically respect the
+   foil sliver above. */
+.card-face__art {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background-color: var(--bg);
+  background-size: cover;
+  background-position: top center;
   overflow: hidden;
 }
 
-.card-face__portrait::before {
+.card-face__art::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 30% 15%, var(--faction-color, var(--border-bright)) 0%, transparent 65%);
-  opacity: 0.4;
+  background: radial-gradient(circle at 30% 15%, var(--faction-color, var(--border-bright)) 0%, transparent 65%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 3px);
 }
 
-.card-face__portrait::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 3px);
-  pointer-events: none;
-}
-
-/* Real illustration present (cardArt.ts) — drop the placeholder tint/scanline
-   that otherwise stands in for art, so it doesn't wash out the actual image. */
-.card-face__portrait--art::before,
-.card-face__portrait--art::after {
+/* Real illustration present — drop the placeholder tint/scanline so it
+   doesn't wash out the actual image. */
+.card-face__art--real::before {
   display: none;
+}
+
+/* Full-face sizes only (name/keywords/text render below) — fade the art to
+   the panel color before the frame art's own text window starts (measured
+   empirically at ~59% down), so there's never a visible seam between "art
+   still showing" and "frame's dark window taking over." Board-size minions
+   skip this: nothing renders in the lower half, so full-bleed art reads
+   better than a card that fades to black for no reason. */
+.card-face__art--fade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, transparent 40%, var(--panel) 56%);
+}
+
+.card-face__frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .card-face__cost {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  background: radial-gradient(circle at 35% 30%, #a5ecff, var(--energy) 60%, #0b6f96 100%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 22%, #fff 0%, #a5ecff 20%, var(--energy) 62%, #0b6f96 100%);
   color: #051018;
-  font-size: 0.75rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.06em;
   z-index: 2;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--gem-bevel);
+}
+
+/* A small icon glyph inside each stat gem — cost/attack/health originally
+   distinguished themselves by shape (hexagon vs. circle) plus color, which
+   read ambiguously at a glance (the user's own feedback: "what do the
+   diamonds mean") and got worse once a sword icon was added on top of an
+   already-busy hexagon (see StatIcon.tsx). Simplified to what the user
+   asked for directly — all three are now plain circles, and the icon
+   itself (lightning/spearhead/heart) is what disambiguates, the same
+   convention Hearthstone's own mana/attack/health gems use. */
+.card-face__stat-icon {
+  width: 0.5em;
+  height: 0.5em;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .card-face__ticker {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  padding: 1px 4px;
   border-radius: 3px;
   background: var(--faction-color, var(--border-bright));
   color: #05100a;
   font-family: var(--font-mono);
-  font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1.3;
@@ -575,106 +603,97 @@ button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.card-face__name-plate {
-  position: relative;
-  flex-shrink: 0;
-  margin-top: 3px;
-  padding: 2px 6px;
-  background: linear-gradient(180deg, #1c2620, #0e1512);
-  border-top: 1px solid var(--rarity-color, var(--border-bright));
-  border-bottom: 1px solid var(--rarity-color, var(--border-bright));
-  text-align: center;
-}
-
-/* Rarity gem — a diamond straddling the portrait/name-plate seam, colored by
-   rarityColor.ts. This, plus the outer border being rarity-colored too, is
-   the "clear rarity-colored border/gem treatment" the card frame needs. */
-.card-face__rarity-gem {
+/* The frame art's own lower window (measured ~61%-97% down) — name/keywords/
+   rules text live here, inset enough to clear the frame's illustrated metal
+   border on both sides. */
+.card-face__body {
   position: absolute;
-  top: -6px;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  transform: translateX(-50%) rotate(45deg);
-  background: var(--rarity-color, var(--border-bright));
-  box-shadow: 0 0 5px 1px var(--rarity-color, transparent), 0 0 0 1px rgba(0, 0, 0, 0.6);
-  z-index: 3;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .card-face__name {
   display: block;
   font-family: var(--font-display);
-  font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text);
-}
-
-.card-face__textbox {
-  flex: 1 1 auto;
-  min-height: 0;
-  background: rgba(0, 0, 0, 0.22);
-  border-radius: 4px;
-  padding: 2px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  overflow: hidden;
-  text-align: center;
+  color: #f4f4f0;
+  /* A light emboss — a faint bright edge above, a dark one below/behind —
+     reads as "cut metal" rather than flat printed text. */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35), 0 -1px 1px rgba(0, 0, 0, 0.5), 0 2px 5px rgba(0, 0, 0, 0.75);
 }
 
 .card-face__keywords {
   flex-shrink: 0;
-  font-size: 0.58rem;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  font-weight: 700;
 }
 
 .card-face__text {
-  font-size: 0.6rem;
   color: var(--text-dim);
-  line-height: 1.15;
+  line-height: 1.3;
   overflow: hidden;
 }
 
-.card-face__stats {
+/* Type · Faction caption, pinned to the bottom of the text window (above
+   the stat gems) via margin-top: auto on the flex column — reads at a
+   glance the way a real trading card's type line does. */
+.card-face__footer {
+  margin-top: auto;
   flex-shrink: 0;
+  color: var(--text-dim);
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-face__stats {
+  position: absolute;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
-  padding: 0 1px;
+  left: 8%;
+  right: 8%;
+  bottom: 5%;
 }
 
 .card-face__attack,
 .card-face__health {
-  width: 22px;
-  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  gap: 0.06em;
   font-weight: 700;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  box-shadow: var(--gem-bevel);
 }
 
 .card-face__attack {
-  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-  background: radial-gradient(circle at 35% 30%, #ffe08a, #fbbf24 55%, #92600a 100%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 22%, #fff 0%, #ffe08a 20%, #fbbf24 58%, #92600a 100%);
   color: #241a00;
 }
 
 .card-face__health {
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ff8a94, var(--hp) 55%, #7a1620 100%);
+  background: radial-gradient(circle at 32% 22%, #fff 0%, #ff8a94 20%, var(--hp) 58%, #7a1620 100%);
   color: #fff;
 }
 
 .card-face__health--damaged {
-  background: radial-gradient(circle at 35% 30%, #b23a44, #7f1d1d 60%, #4a0d0d 100%);
+  background: radial-gradient(circle at 32% 22%, #d16169 0%, #b23a44 25%, #7f1d1d 60%, #4a0d0d 100%);
 }
 
 .card-face__keyword {
@@ -682,6 +701,79 @@ button {
   text-decoration: underline dotted;
   text-decoration-color: rgba(245, 197, 66, 0.5);
   text-underline-offset: 2px;
+}
+
+/* Concrete per-size numbers (cost/ticker/body/stat-gem dimensions and font
+   sizes) — hand and board differ enough in physical size (150x210 vs
+   120x158) that one fluid scale reads wrong at one end or the other, so
+   each size gets its own tuned values, same convention this file already
+   used for its mobile breakpoints below. */
+.card-face--hand .card-face__cost {
+  top: 8px;
+  left: 8px;
+  width: 26px;
+  height: 26px;
+  font-size: 0.95rem;
+}
+
+.card-face--hand .card-face__ticker {
+  top: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  font-size: 0.6rem;
+}
+
+.card-face--hand .card-face__body {
+  top: 62%;
+  left: 9%;
+  right: 9%;
+  bottom: 15%;
+  gap: 3px;
+}
+
+.card-face--hand .card-face__name {
+  font-size: 0.95rem;
+}
+
+.card-face--hand .card-face__keywords {
+  font-size: 0.68rem;
+}
+
+.card-face--hand .card-face__text {
+  font-size: 0.72rem;
+}
+
+.card-face--hand .card-face__footer {
+  font-size: 0.42rem;
+}
+
+.card-face--hand .card-face__attack,
+.card-face--hand .card-face__health {
+  width: 30px;
+  height: 30px;
+  font-size: 1rem;
+}
+
+.card-face--board .card-face__cost {
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+}
+
+.card-face--board .card-face__ticker {
+  top: 6px;
+  right: 6px;
+  padding: 1px 4px;
+  font-size: 0.5rem;
+}
+
+.card-face--board .card-face__attack,
+.card-face--board .card-face__health {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
 }
 
 /* Menu */
@@ -970,8 +1062,8 @@ button {
 }
 
 .pack-reveal__slot {
-  width: 92px;
-  height: 124px;
+  width: 150px;
+  height: 210px;
 }
 
 .pack-reveal__back {
@@ -1132,7 +1224,7 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 0.3rem;
-  width: 110px;
+  width: 150px;
 }
 
 .crafting__rarity-label {
@@ -1624,56 +1716,80 @@ button {
 
 @media (max-width: 640px), (max-height: 760px) {
   .hand-row > div:not(:first-child) {
-    margin-left: -20px;
+    margin-left: -52px;
   }
 
   .board-slot,
   .card-face--board {
-    width: 62px;
-    height: 88px;
+    width: 90px;
+    height: 119px;
   }
 
   .card-face--hand {
-    width: 68px;
-    height: 96px;
+    width: 112px;
+    height: 157px;
   }
 
-  .card-face__name-plate {
-    margin-top: 2px;
-    padding: 1px 3px;
+  .card-face--hand .card-face__name {
+    font-size: 0.78rem;
   }
 
-  .card-face__name {
-    font-size: 0.6rem;
+  .card-face--hand .card-face__body {
+    top: 62%;
+    left: 9%;
+    right: 9%;
+    bottom: 14%;
+    gap: 2px;
   }
 
-  .card-face__rarity-gem {
-    width: 7px;
-    height: 7px;
-    top: -5px;
-  }
-
-  .card-face__text {
+  .card-face--hand .card-face__text,
+  .card-face--hand .card-face__footer {
     display: none;
   }
 
-  .card-face__keywords {
-    font-size: 0.5rem;
+  .card-face--hand .card-face__keywords {
+    font-size: 0.56rem;
   }
 
-  .card-face__cost {
+  .card-face--hand .card-face__cost {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    top: 6px;
+    left: 6px;
+  }
+
+  .card-face--hand .card-face__ticker {
+    font-size: 0.48rem;
+    padding: 1px 4px;
+    top: 6px;
+    right: 6px;
+  }
+
+  .card-face--hand .card-face__attack,
+  .card-face--hand .card-face__health {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+  }
+
+  .card-face--board .card-face__cost {
     width: 16px;
     height: 16px;
     font-size: 0.62rem;
+    top: 5px;
+    left: 5px;
   }
 
-  .card-face__ticker {
+  .card-face--board .card-face__ticker {
     font-size: 0.42rem;
     padding: 1px 3px;
+    top: 5px;
+    right: 5px;
   }
 
-  .card-face__attack,
-  .card-face__health {
+  .card-face--board .card-face__attack,
+  .card-face--board .card-face__health {
     width: 18px;
     height: 18px;
     font-size: 0.62rem;
@@ -1881,6 +1997,64 @@ button {
    thin falling strips rather than round confetti dots, ties into branding.md's identity). No
    strips on a loss — celebrating that would read as mocking the player. */
 
+/* Tap-to-inspect popup for a board minion (CardInspectOverlay.tsx) — see
+   CardFace.tsx's doc comment for why battlefield cards show no name/text
+   in the first place. Tapping either the backdrop or the enlarged card
+   itself dismisses it (both share onClose), matching the "tap the card to
+   flip it open, tap again to flip it closed" mental model. */
+.card-inspect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(2, 5, 4, 0.72);
+  cursor: pointer;
+  perspective: 1000px;
+  animation: card-inspect-backdrop-in 0.15s ease;
+}
+
+@keyframes card-inspect-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card-inspect-card {
+  animation: card-inspect-flip-in 0.3s ease;
+}
+
+@keyframes card-inspect-flip-in {
+  from {
+    transform: rotateY(90deg) scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: rotateY(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.card-inspect-hint {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-inspect-backdrop,
+  .card-inspect-card {
+    animation: none;
+  }
+}
+
 .match-result__backdrop {
   position: fixed;
   inset: 0;
@@ -2070,43 +2244,41 @@ button {
 
   .board-slot,
   .card-face--board {
-    width: 52px;
-    height: 76px;
+    width: 68px;
+    height: 90px;
   }
 
   .card-face--hand {
-    width: 58px;
-    height: 84px;
+    width: 88px;
+    height: 123px;
   }
 
-  .card-face__stripe {
-    height: 2px;
+  .card-face--hand .card-face__name {
+    font-size: 0.62rem;
   }
 
-  .card-face__name-plate {
-    margin-top: 1px;
-    padding: 1px 2px;
-  }
-
-  .card-face__name {
-    font-size: 0.5rem;
-  }
-
-  .card-face__rarity-gem {
-    width: 6px;
-    height: 6px;
-    top: -4px;
-  }
-
-  .card-face__keywords {
+  .card-face--hand .card-face__keywords,
+  .card-face--hand .card-face__ticker,
+  .card-face--board .card-face__ticker {
     display: none;
   }
 
-  .card-face__ticker {
-    display: none;
+  .card-face--hand .card-face__cost {
+    width: 16px;
+    height: 16px;
+    font-size: 0.55rem;
+    top: 3px;
+    left: 3px;
   }
 
-  .card-face__cost {
+  .card-face--hand .card-face__attack,
+  .card-face--hand .card-face__health {
+    width: 18px;
+    height: 18px;
+    font-size: 0.58rem;
+  }
+
+  .card-face--board .card-face__cost {
     width: 14px;
     height: 14px;
     font-size: 0.5rem;
@@ -2114,8 +2286,8 @@ button {
     left: 2px;
   }
 
-  .card-face__attack,
-  .card-face__health {
+  .card-face--board .card-face__attack,
+  .card-face--board .card-face__health {
     width: 16px;
     height: 16px;
     font-size: 0.55rem;
@@ -2126,7 +2298,7 @@ button {
   }
 
   .hand-row > div:not(:first-child) {
-    margin-left: -16px;
+    margin-left: -40px;
   }
 
   .player-header {

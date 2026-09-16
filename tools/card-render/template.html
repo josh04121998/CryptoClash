@@ -11,17 +11,13 @@
     height: 2100px;
     position: relative;
     background: #0b120e;
-    border: 16px solid var(--rarity-color);
-    border-radius: 48px;
     overflow: hidden;
     font-family: 'IBM Plex Mono', monospace;
     color: #dfeee7;
-    box-shadow: 0 0 0 4px #04140e inset;
   }
   .art {
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 1180px;
+    inset: 0;
     background-size: cover;
     background-position: top center;
   }
@@ -29,29 +25,50 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 78%, #0b120e 100%);
+    background: linear-gradient(180deg, transparent 0%, transparent 40%, #0b120e 57%);
+  }
+  /* The real generated rarity-frame illustration — already has real alpha
+     (tools/card-render/chroma-key-frames.mjs), so this is a plain layer on
+     top, no blend mode. Same asset the live game UI uses (CardFace.tsx). */
+  .frame {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    z-index: 2;
   }
   .cost, .stat {
     position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     font-family: 'Chakra Petch', sans-serif;
     font-weight: 700;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    /* "Polished glass bead" bevel, same recipe as CardFace.tsx's
+       --gem-bevel: a bright inner highlight, a soft inner shadow for
+       roundness, a thin bright rim, an outer drop shadow. */
+    box-shadow: inset 0 6px 8px rgba(255, 255, 255, 0.55), inset 0 -8px 10px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(255, 255, 255, 0.3),
+      0 6px 16px rgba(0, 0, 0, 0.6);
     z-index: 3;
   }
+  .stat-icon {
+    width: 0.45em;
+    height: 0.45em;
+    opacity: 0.85;
+    flex-shrink: 0;
+  }
   .cost {
-    top: 40px; left: 40px;
+    top: 70px; left: 70px;
     width: 130px; height: 130px;
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    background: radial-gradient(circle at 35% 30%, #a5ecff, #29c1ea 60%, #0b6f96 100%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 22%, #fff 0%, #a5ecff 20%, #29c1ea 62%, #0b6f96 100%);
     font-size: 68px;
     color: #051018;
   }
   .ticker {
     position: absolute;
-    top: 48px; right: 48px;
+    top: 80px; right: 80px;
     background: var(--faction-color);
     color: #05100a;
     font-family: 'IBM Plex Mono', monospace;
@@ -63,24 +80,18 @@
     z-index: 3;
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6);
   }
-  .nameplate {
+  /* The frame art's own lower window (measured ~61%-97% down, same
+     proportions as CardFace.tsx's .card-face__body) — name/keywords/rules
+     text live here, inset enough to clear the frame's illustrated border. */
+  .body {
     position: absolute;
-    top: 1180px; left: 0; right: 0;
-    height: 172px;
-    background: linear-gradient(180deg, #1c2620, #0e1512);
-    border-top: 4px solid var(--rarity-color);
-    border-bottom: 4px solid var(--rarity-color);
+    top: 63%; left: 9%; right: 9%; bottom: 15%;
+    z-index: 3;
     display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .nameplate .gem {
-    position: absolute;
-    top: -24px; left: 50%;
-    transform: translateX(-50%) rotate(45deg);
-    width: 48px; height: 48px;
-    background: var(--rarity-color);
-    box-shadow: 0 0 18px var(--rarity-color);
+    flex-direction: column;
+    gap: 26px;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
   }
   .name {
     font-family: 'Chakra Petch', sans-serif;
@@ -88,13 +99,7 @@
     font-size: 80px;
     color: #f4f4f0;
     letter-spacing: 1px;
-  }
-  .textbox {
-    position: absolute;
-    top: 1360px; left: 64px; right: 64px; bottom: 200px;
-    display: flex;
-    flex-direction: column;
-    gap: 26px;
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.35), 0 -2px 2px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.75);
   }
   .keyword {
     color: var(--faction-color);
@@ -109,50 +114,46 @@
     color: #dfeee7;
   }
   .footer {
-    position: absolute;
-    bottom: 76px;
-    left: 220px; right: 220px;
-    text-align: center;
+    margin-top: auto;
     font-size: 26px;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: #5f7268;
+    color: #dfeee7;
+    opacity: 0.65;
   }
   .stat {
-    bottom: 26px;
+    bottom: 5%;
     width: 140px; height: 140px;
     font-size: 76px;
   }
   .attack {
-    left: 48px;
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f2b705 60%, #8a5a00 100%);
+    left: 8%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 22%, #fff 0%, #ffe9a8 20%, #f2b705 60%, #8a5a00 100%);
     color: #1a1200;
   }
   .health {
-    right: 48px;
+    right: 8%;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ff9a9a, #e23b3b 60%, #7a0f0f 100%);
+    background: radial-gradient(circle at 32% 22%, #fff 0%, #ff9a9a 20%, #e23b3b 60%, #7a0f0f 100%);
     color: #fff;
   }
 </style>
 </head>
 <body>
-  <div class="card" style="--rarity-color: {{RARITY_COLOR}}; --faction-color: {{FACTION_COLOR}};">
+  <div class="card" style="--faction-color: {{FACTION_COLOR}};">
     <div class="art" style="background-image: url('{{ART_URL}}');"></div>
-    <div class="cost">{{COST}}</div>
+    <div class="frame" style="background-image: url('{{FRAME_URL}}');"></div>
+    <div class="cost"><svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14.5H11L9 22L19.5 9H13L13 2Z"/></svg>{{COST}}</div>
     <div class="ticker">{{TICKER}}</div>
-    <div class="nameplate">
-      <div class="gem"></div>
+    <div class="body">
       <div class="name">{{NAME}}</div>
-    </div>
-    <div class="textbox">
       {{KEYWORD_HTML}}
       <div class="rules">{{RULES_TEXT}}</div>
+      <div class="footer">{{TYPE}} · {{FACTION}}</div>
     </div>
-    <div class="footer">{{TYPE}} · {{FACTION}}</div>
-    <div class="stat attack">{{ATTACK}}</div>
-    <div class="stat health">{{HEALTH}}</div>
+    <div class="stat attack"><svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L18 12H14.5V22H9.5V12H6Z"/></svg>{{ATTACK}}</div>
+    <div class="stat health"><svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>{{HEALTH}}</div>
   </div>
 </body>
 </html>

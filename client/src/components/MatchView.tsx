@@ -5,6 +5,7 @@ import type { SpotlightTarget } from "../tutorial/beats.js";
 import { useAttackAnimations } from "../useAttackAnimations.js";
 import { useMatchSounds } from "../useMatchSounds.js";
 import { BoardRow } from "./BoardRow.js";
+import { CardInspectOverlay } from "./CardInspectOverlay.js";
 import { HandRow } from "./HandRow.js";
 import { LogPanel } from "./LogPanel.js";
 import { MatchResultOverlay } from "./MatchResultOverlay.js";
@@ -66,6 +67,7 @@ export function MatchView({
 }: MatchViewProps) {
   const opponentId: PlayerId = myPlayerId === "A" ? "B" : "A";
   const [selection, setSelection] = useState<Selection>({ type: "none" });
+  const [inspectedCard, setInspectedCard] = useState<{ side: "own" | "enemy"; slot: number } | null>(null);
 
   const { marketEventFlash } = useMatchSounds(state, myPlayerId);
   const attackingSlots = useAttackAnimations(state);
@@ -193,66 +195,81 @@ export function MatchView({
   }
 
   function onOwnSlotClick(slot: number) {
-    if (!canAct) return;
     const creature = me.board[slot];
 
-    if (selection.type === "hand") {
-      const templateId = me.hand[selection.handIndex];
-      const template = CARD_POOL[templateId];
-      if (template.type === "Creature" && !creature) {
-        act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex, slot }));
+    if (canAct) {
+      if (selection.type === "hand") {
+        const templateId = me.hand[selection.handIndex];
+        const template = CARD_POOL[templateId];
+        if (template.type === "Creature" && !creature) {
+          act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex, slot }));
+          return;
+        }
+        if (needsTarget(templateId) && targetsFriendly(templateId) && creature) {
+          act(() =>
+            dispatch({
+              kind: "playCard",
+              playerId: myPlayerId,
+              handIndex: selection.handIndex,
+              target: { type: "creature", playerId: myPlayerId, slot },
+            }),
+          );
+        }
         return;
       }
-      if (needsTarget(templateId) && targetsFriendly(templateId) && creature) {
-        act(() =>
-          dispatch({
-            kind: "playCard",
-            playerId: myPlayerId,
-            handIndex: selection.handIndex,
-            target: { type: "creature", playerId: myPlayerId, slot },
-          }),
-        );
+
+      if (creature && !creature.hasAttackedThisTurn) {
+        playSelectSound();
+        setSelection(selection.type === "attacker" && selection.slot === slot ? { type: "none" } : { type: "attacker", slot });
+        return;
       }
-      return;
+
+      setSelection({ type: "none" });
     }
 
-    if (!creature || creature.hasAttackedThisTurn) {
-      setSelection({ type: "none" });
-      return;
-    }
-    playSelectSound();
-    setSelection(selection.type === "attacker" && selection.slot === slot ? { type: "none" } : { type: "attacker", slot });
+    // Falls through whenever the click wasn't a real game action (not my turn, an
+    // already-attacked creature, an empty slot with nothing selected) — a tap on a
+    // minion in that state used to just be a no-op/deselect, now it opens the full
+    // card detail instead. Never fires ahead of a real action above.
+    if (creature) setInspectedCard({ side: "own", slot });
   }
 
   function onEnemySlotClick(slot: number) {
-    if (!canAct) return;
     const enemyCreature = state.players[opponentId].board[slot];
 
-    if (selection.type === "hand") {
-      const templateId = me.hand[selection.handIndex];
-      if (needsTarget(templateId) && !targetsFriendly(templateId) && enemyCreature) {
+    if (canAct) {
+      if (selection.type === "hand") {
+        const templateId = me.hand[selection.handIndex];
+        if (needsTarget(templateId) && !targetsFriendly(templateId) && enemyCreature) {
+          act(() =>
+            dispatch({
+              kind: "playCard",
+              playerId: myPlayerId,
+              handIndex: selection.handIndex,
+              target: { type: "creature", playerId: opponentId, slot },
+            }),
+          );
+        }
+        return;
+      }
+
+      if (selection.type === "attacker" && enemyCreature) {
         act(() =>
           dispatch({
-            kind: "playCard",
+            kind: "attack",
             playerId: myPlayerId,
-            handIndex: selection.handIndex,
+            attackerSlot: selection.slot,
             target: { type: "creature", playerId: opponentId, slot },
           }),
         );
+        return;
       }
-      return;
     }
 
-    if (selection.type === "attacker" && enemyCreature) {
-      act(() =>
-        dispatch({
-          kind: "attack",
-          playerId: myPlayerId,
-          attackerSlot: selection.slot,
-          target: { type: "creature", playerId: opponentId, slot },
-        }),
-      );
-    }
+    // Same fallback as onOwnSlotClick — most of the time this is exactly when you'd
+    // want it: no attacker selected yet, so tapping an enemy minion could never have
+    // done anything else. Never fires ahead of a real attack/target action above.
+    if (enemyCreature) setInspectedCard({ side: "enemy", slot });
   }
 
   function onEnemyPortraitClick() {
@@ -419,6 +436,15 @@ export function MatchView({
           tutorialExit={showTutorialResult}
           onPracticeAi={onTutorialPracticeAi}
           onMainMenu={onTutorialMainMenu}
+        />
+      )}
+
+      {inspectedCard && state.players[inspectedCard.side === "own" ? myPlayerId : opponentId].board[inspectedCard.slot] && (
+        <CardInspectOverlay
+          state={state}
+          playerId={inspectedCard.side === "own" ? myPlayerId : opponentId}
+          slot={inspectedCard.slot}
+          onClose={() => setInspectedCard(null)}
         />
       )}
     </>
