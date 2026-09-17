@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ConfirmModal } from "./components/ConfirmModal.js";
 import { MatchView } from "./components/MatchView.js";
 import { MuteToggle } from "./components/MuteToggle.js";
 import { playRewardSound } from "./sound.js";
@@ -14,6 +15,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   const { status, playerId, state, dispatch, connect, disconnect, lastError, reward, opponentConnected } = useOnlineMatch();
   const [logOpen, setLogOpen] = useState(false);
   const [queuedSeconds, setQueuedSeconds] = useState(0);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
 
   useEffect(() => {
     connect(deckCards, token ?? undefined);
@@ -41,6 +43,15 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
     onExit();
   }
 
+  // A real playtest flag (same one LocalMatch.tsx fixes): the header's "Leave" had no
+  // confirmation, so a stray click mid-match silently forfeited it — worse here than in
+  // Play vs AI, since it also drops the opponent. Only gate the in-progress, no-winner case;
+  // "Cancel" while still queued, or leaving after a real winner exists, has nothing to lose.
+  function requestLeave() {
+    if (status === "in-match" && state && !state.winner) setConfirmingLeave(true);
+    else handleExit();
+  }
+
   return (
     <div className="app">
       <header className="app-bar">
@@ -58,7 +69,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
               Log
             </button>
           )}
-          <button type="button" onClick={handleExit}>
+          <button type="button" onClick={requestLeave}>
             Leave
           </button>
         </div>
@@ -121,6 +132,20 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
             </>
           )}
         </main>
+      )}
+
+      {confirmingLeave && (
+        <ConfirmModal
+          title="Leave this match?"
+          body="Your opponent wins if you leave now — this can't be undone."
+          confirmLabel="Leave"
+          cancelLabel="Stay"
+          onConfirm={() => {
+            setConfirmingLeave(false);
+            handleExit();
+          }}
+          onCancel={() => setConfirmingLeave(false)}
+        />
       )}
     </div>
   );

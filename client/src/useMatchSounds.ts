@@ -27,7 +27,12 @@ import {
  * detected Market Event log line — MatchView watches it (the same one-shot
  * ref-diff pattern again) to trigger a brief full-table screen flash,
  * matching the sound with a visual beat for what's meant to be a dramatic,
- * game-swinging moment (batlleSpec.md Sections 16-18).
+ * game-swinging moment (batlleSpec.md Sections 16-18). `marketEventText`
+ * rides alongside it — the actual matched log line(s) (BLACK_SWAN fires two:
+ * its own header plus whichever event it randomly picked), so MatchView can
+ * show a real readable toast naming what just happened instead of leaving
+ * the player to open the Log to find out (a real gap: the flash alone told
+ * you *something* happened, never *what*).
  *
  * The effect deliberately depends on primitives read off `state`
  * (`log.length`/`winner`/`activePlayer`), not `state` itself — `useMatch.ts`
@@ -43,21 +48,27 @@ export function useMatchSounds(state: MatchState, myPlayerId: PlayerId) {
   const prevActivePlayerRef = useRef<PlayerId | null>(null);
   const mountedRef = useRef(false);
   const [marketEventFlash, setMarketEventFlash] = useState(0);
+  const [marketEventText, setMarketEventText] = useState<string | null>(null);
 
   useEffect(() => {
     const isFirstRun = !mountedRef.current;
     mountedRef.current = true;
 
     if (!isFirstRun) {
+      const firedLines: string[] = [];
       for (let i = prevLogLengthRef.current; i < state.log.length; i++) {
         const text = state.log[i].text;
         if (/MARKET CRASH|PUMP —|LIQUIDATION|FOMO —|BLACK SWAN/.test(text)) {
           playMarketEventSound();
-          setMarketEventFlash((c) => c + 1);
+          firedLines.push(text);
         } else if (text.includes(" dies.")) playDeathSound();
         else if (text.includes(" heals ")) playHealSound();
         else if (text.includes(" attacks ") || text.includes(" trades with ")) playAttackSound();
         else if (text.includes(" plays ")) playCardSound();
+      }
+      if (firedLines.length > 0) {
+        setMarketEventFlash((c) => c + 1);
+        setMarketEventText(firedLines.join(" "));
       }
     }
     prevLogLengthRef.current = state.log.length;
@@ -76,5 +87,5 @@ export function useMatchSounds(state: MatchState, myPlayerId: PlayerId) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.log.length, state.winner, state.activePlayer, myPlayerId]);
 
-  return { marketEventFlash };
+  return { marketEventFlash, marketEventText };
 }

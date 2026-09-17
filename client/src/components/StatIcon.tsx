@@ -17,7 +17,14 @@
  * (this, the lightning bolt, the heart) hold up at tiny sizes; anything
  * with thin separate parts doesn't.
  */
-export function StatIcon({ kind }: { kind: "energy" | "attack" | "health" }) {
+export function StatIcon({ kind }: { kind: "energy" | "attack" | "health" | "guard" }) {
+  if (kind === "guard") {
+    return (
+      <svg className="card-face__stat-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2L20 5.5V11C20 16 16.8 19.9 12 22C7.2 19.9 4 16 4 11V5.5L12 2Z" />
+      </svg>
+    );
+  }
   if (kind === "energy") {
     return (
       <svg className="card-face__stat-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

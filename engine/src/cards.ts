@@ -1000,22 +1000,29 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   },
 };
 
-/** A legal 30-card deck built entirely from the pool above (mirror-match sample). */
+/**
+ * A legal 30-card Doggos deck, exercising the adjacency/swarm signature.
+ *
+ * Real bug fixed 2026-09-17 (live playtest, match 1): this deck — the oldest
+ * one in the file, predating every other faction's own *_SAMPLE_DECK — had
+ * drifted to include 8 off-faction cards (ember_curse/diamond_hands from
+ * Degens, pump_signal from Crypto Bros, cool_down from Normies), so a
+ * Doggos match could open with a hand full of other factions' cards. Fixed
+ * by replacing them with more copies of the deck's own real Doggos/Neutral
+ * cards (topped up toward the 3-copy cap, same density every other faction
+ * deck already uses) rather than adding anything new.
+ */
 export const SAMPLE_DECK: string[] = [
   ...Array(3).fill("fast_fang"),
   ...Array(3).fill("pup_scout"),
-  ...Array(2).fill("shadow_pup"),
-  ...Array(2).fill("shield_pup"),
+  ...Array(3).fill("shadow_pup"),
+  ...Array(3).fill("shield_pup"),
   ...Array(3).fill("guard_dog"),
-  ...Array(2).fill("puppy_swarm"),
-  ...Array(1).fill("pack_rush"),
-  ...Array(2).fill("spark_bolt"),
-  ...Array(2).fill("ember_curse"),
-  ...Array(2).fill("pump_signal"),
-  ...Array(2).fill("cool_down"),
-  ...Array(2).fill("moon_dog"),
-  ...Array(2).fill("diamond_hands"),
-  ...Array(1).fill("loyal_hound"),
+  ...Array(3).fill("puppy_swarm"),
+  ...Array(3).fill("pack_rush"),
+  ...Array(3).fill("spark_bolt"),
+  ...Array(3).fill("moon_dog"),
+  ...Array(2).fill("loyal_hound"),
   ...Array(1).fill("alpha_dog"),
 ];
 

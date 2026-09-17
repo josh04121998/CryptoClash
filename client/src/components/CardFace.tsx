@@ -74,6 +74,12 @@ export function CardFace({
   const showFullFace = size !== "board";
   const frame = frameArt(template.rarity, !showFullFace);
   const conditionTier = conditionGrade !== undefined ? conditionVisualTier(conditionGrade) : null;
+  // A real playtest flag: a board minion's Guard status was invisible at a glance (board size
+  // shows no keyword text at all, per the deliberate Hearthstone-style split above) — you only
+  // found out it was protecting you when trying to attack past it, and had no visual cue once
+  // it died that the protection was gone. Hand size already shows "Guard" in the keyword line;
+  // this badge is board-only.
+  const showGuardBadge = !showFullFace && Boolean(keywords?.includes("Guard"));
 
   // A screen-reader user gets nothing meaningful from the visual card frame
   // (stat gems, faction ticker, rarity-colored border) on its own — this
@@ -198,6 +204,11 @@ export function CardFace({
             <StatIcon kind="attack" />
             {showAttack}
           </span>
+          {showGuardBadge && (
+            <span className="card-face__guard-badge" title="Guard">
+              <StatIcon kind="guard" />
+            </span>
+          )}
           <span className={`card-face__health ${damaged ? "card-face__health--damaged" : ""}`}>
             <StatIcon kind="health" />
             {showHealth}

@@ -69,7 +69,7 @@ export function MatchView({
   const [selection, setSelection] = useState<Selection>({ type: "none" });
   const [inspectedCard, setInspectedCard] = useState<{ side: "own" | "enemy"; slot: number } | null>(null);
 
-  const { marketEventFlash } = useMatchSounds(state, myPlayerId);
+  const { marketEventFlash, marketEventText } = useMatchSounds(state, myPlayerId);
   const attackingSlots = useAttackAnimations(state);
   const [resultDismissed, setResultDismissed] = useState(false);
   const prevErrorRef = useRef(lastError);
@@ -79,15 +79,25 @@ export function MatchView({
   }, [lastError]);
 
   const [flashing, setFlashing] = useState(false);
+  // A real playtest flag: the 0.5s screen flash told you *something* happened, never *what* —
+  // finding out meant opening the Log after the fact. This toast surfaces the actual triggered
+  // event's own log text (already a clean one-liner, e.g. "📉 MARKET CRASH — the strongest
+  // creature on each side takes 2 damage.") for long enough to actually read it.
+  const [toastText, setToastText] = useState<string | null>(null);
   const prevFlashCountRef = useRef(marketEventFlash);
   useEffect(() => {
     if (marketEventFlash !== prevFlashCountRef.current) {
       prevFlashCountRef.current = marketEventFlash;
       setFlashing(true);
-      const timer = setTimeout(() => setFlashing(false), 500);
-      return () => clearTimeout(timer);
+      setToastText(marketEventText);
+      const flashTimer = setTimeout(() => setFlashing(false), 500);
+      const toastTimer = setTimeout(() => setToastText(null), 3200);
+      return () => {
+        clearTimeout(flashTimer);
+        clearTimeout(toastTimer);
+      };
     }
-  }, [marketEventFlash]);
+  }, [marketEventFlash, marketEventText]);
 
   const me = state.players[myPlayerId];
   const canAct = state.activePlayer === myPlayerId && !state.winner;
@@ -335,6 +345,11 @@ export function MatchView({
   return (
     <>
       <main className={flashing ? "table table--market-event-flash" : "table"}>
+        {toastText && (
+          <div className="market-event-toast" role="status" aria-live="polite">
+            {toastText}
+          </div>
+        )}
         {/* data-drop-zone="battlefield" is the drag-and-drop fallback for the gaps between
             slots/portraits (the volatility meter, the turn divider, spacing between cards) —
             BoardRow/PlayerHeader tag their own more specific zones, which `.closest` picks up

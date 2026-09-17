@@ -325,13 +325,22 @@ button {
   animation: pulse 1.2s infinite;
 }
 
+/* A real playtest flag: hand cards and board creatures shared the exact same card-face
+   styling with nothing else distinguishing "things I can play" from "things already in
+   play," and misclicks between the two rows happened repeatedly. Gives the hand its own
+   visually distinct tray — a raised panel with a border seam — rather than letting it read
+   as just another row of cards on the same battlefield surface. */
 .hand-row {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
   flex-wrap: wrap;
   width: 100%;
-  padding-top: 0.25rem;
+  padding: 0.5rem 0.5rem 0.25rem;
+  margin-top: 0.15rem;
+  background: linear-gradient(180deg, transparent 0%, var(--panel-alt) 100%);
+  border-top: 1px solid var(--border-bright);
+  border-radius: 14px 14px 0 0;
 }
 
 .hand-row > div {
@@ -362,9 +371,15 @@ button {
   z-index: 5;
 }
 
+/* Sits at the very top of the screen, above the opponent's own board — flip the tray so its
+   border/gradient seam reads as the bottom edge of the opponent's zone, not a stray top line. */
 .hand-row--opponent {
-  padding-top: 0;
-  padding-bottom: 0.25rem;
+  padding: 0.25rem 0.5rem 0.4rem;
+  margin-top: 0;
+  background: linear-gradient(0deg, transparent 0%, var(--panel-alt) 100%);
+  border-top: none;
+  border-bottom: 1px solid var(--border-bright);
+  border-radius: 0 0 14px 14px;
 }
 
 /*
@@ -730,6 +745,27 @@ button {
 
 .card-face__health--damaged {
   background: radial-gradient(circle at 32% 22%, #d16169 0%, #b23a44 25%, #7f1d1d 60%, #4a0d0d 100%);
+}
+
+/* Board-only (see CardFace.tsx's doc comment) — sits centered between the attack/health gems,
+   which .card-face__stats' space-between already leaves room for with a third child. Steel-blue
+   rather than the gold/red gem palette so it reads as a distinct "status," not a third stat. */
+.card-face__guard-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 22%, #fff 0%, #bcd7ff 20%, #4a7fc7 58%, #1a3d6b 100%);
+  color: #06101d;
+  box-shadow: var(--gem-bevel);
+  flex-shrink: 0;
+}
+
+.card-face__guard-badge .card-face__stat-icon {
+  width: 0.55em;
+  height: 0.55em;
 }
 
 .card-face__keyword {
@@ -2041,6 +2077,40 @@ button {
 
 .table--market-event-flash {
   animation: market-event-flash 0.5s ease-out;
+}
+
+/* Names what just happened — the flash above told the player *something* did, this says *what*
+   (the event's own log line, e.g. "📉 MARKET CRASH — the strongest creature on each side takes 2
+   damage."), without them needing to open the Log to find out. Fixed near the top so it reads
+   above the board regardless of scroll position, same positioning precedent as .reconnect-banner. */
+.market-event-toast {
+  position: fixed;
+  top: 4.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  max-width: min(92vw, 480px);
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.4);
+  animation: market-event-toast-in 0.5s ease-out;
+}
+
+@keyframes market-event-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* Match result overlay — a "ticker tape parade" on a win (real Wall Street victory tradition,

@@ -5,7 +5,7 @@
  */
 export const KEYWORD_TOOLTIPS: Record<string, string> = {
   Rush: "This creature can attack the same turn it's played, instead of waiting a turn.",
-  Guard: "This creature protects its player — the opponent must deal with it before attacking the player or any other creature on this side.",
+  Guard: "This creature protects its player — the opponent must deal with it before attacking the player or any other creature on this side. Once it dies, that protection is gone.",
   Stealth: "The opponent can't target this creature until it attacks or otherwise reveals itself.",
   Burn: "Deals direct or ongoing damage — straight to the enemy player, or a little each turn.",
   HODL: "The longer this creature survives, the stronger it grows — it gains a bonus at the start of your turn.",
