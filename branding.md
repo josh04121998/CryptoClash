@@ -172,6 +172,8 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 
 **Correction 2026-09-12:** this table was missing three real templates that exist in `engine/src/cards.ts` — Ember Curse (Degens), Pump Signal (Crypto Bros), Cool Down (Normies) — found while building `grok-card-prompts.md`. Added below, bringing this table's count to the real 71.
 
+**Correction 2026-09-17:** four new Commons added to close the Builders/Degens single-Common gap (STATUS.md roadmap item 2) — Code Monkey, Ship It (Builders), Overleveraged, Slow Burn (Degens). Table count is now 75.
+
 **Doggos**
 
 | Card | Rarity | Concept |
@@ -208,6 +210,8 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Card | Rarity | Concept |
 |---|---|---|
 | Junior Dev | Common | Young coder at a laptop, hoodie, hard hat slightly too big, eager |
+| Code Monkey | Common | A hunched coder in a hoodie chugging energy drinks, keys clacking, buried in monitors |
+| Ship It | Common | A coder shoving a glowing package out the door mid-run, sparks and loose wires trailing behind — deploying before it's ready |
 | Blueprint | Uncommon | A glowing holographic schematic unrolled in mid-air |
 | Scaffold Bot | Uncommon | A construction robot built from scaffolding parts, standing guard |
 | Efficient Engineer | Uncommon | Focused engineer, tool belt, checking a tablet |
@@ -224,6 +228,8 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Card | Rarity | Concept |
 |---|---|---|
 | Degen Ape | Common | A reckless ape/gorilla trader, chest-thumping, chaotic grin — the crypto-culture "ape in" reference |
+| Overleveraged | Common | A trader white-knuckling a leverage lever pushed past its red zone, wincing at the strain |
+| Slow Burn | Common | A trader watching a slow-burning ember-red fuse creep across a ledger, uneasy grin, no rush to put it out |
 | Margin Call | Uncommon | A trader mid-panic on a phone call, sweat, red warning screens behind |
 | Rug Pull | Uncommon | A literal rug yanked out from under a trader mid-fall — betrayal, chaos |
 | Leverage Trade | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |

@@ -36,14 +36,10 @@ function starterTemplateIds(faction: Faction): string[] {
  * setStartingFaction (first choice) and the sign-in top-up path (repeat
  * visits) call.
  *
- * **Known gap, not solved here:** Builders and Degens have only one Common
- * template each today (Junior Dev, Degen Ape) vs. 3-4 for every other
- * faction, so choosing either of those two as your starting faction doesn't
- * yield enough unique owned cards to build a legal 30-card deck on its own
- * (max 3 copies/card) — packs are required regardless of faction choice for
- * those two. Flagging rather than special-casing around it: the real fix is
- * more Builders/Degens Common templates (a card-pool/balance decision, out
- * of scope for this schema/grant change), not gerrymandering this function.
+ * Builders and Degens used to have only one Common template each (Junior
+ * Dev, Degen Ape) vs. 3-4 for every other faction — fixed by adding two more
+ * Commons per faction (Code Monkey/Ship It, Overleveraged/Slow Burn), so
+ * every faction now grants 3+ unique Commons plus the 2 Neutral ones.
  *
  * Three queries regardless of pool size — bulk upsert editions, bulk-read
  * current counts, bulk-insert the shortfall — rather than one round-trip per
