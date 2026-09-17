@@ -79,8 +79,8 @@ async function grantStartingCollectionWithClient(client: PoolClient, accountId: 
 
   if (toInsert.length > 0) {
     await client.query(
-      `insert into card_instances (owner_id, edition_id) select $1, unnest($2::uuid[])`,
-      [accountId, toInsert],
+      `insert into card_instances (owner_id, edition_id, condition_grade) select $1, unnest($2::uuid[]), $3`,
+      [accountId, toInsert, BASELINE_CONDITION_GRADE],
     );
   }
 }
@@ -117,11 +117,21 @@ export async function setStartingFaction(pool: Pool, accountId: string, faction:
   });
 }
 
-/** A single card grant: which template, and whether this copy rolled the pack's cosmetic foil chance. */
+/** A single card grant: which template, whether this copy rolled the pack's cosmetic foil chance, and its rolled Condition (Floor Grade, collectibility.md Section 7) — 1-10, permanent once granted. */
 export interface PackCard {
   templateId: string;
   isFoil: boolean;
+  conditionGrade: number;
 }
+
+/**
+ * The fixed, zero-RNG Condition grade (Section 7's "Near Prime" band) for
+ * every path that isn't a real pack/Founders Set roll — Starter Decks
+ * (grantStartingCollectionWithClient below) and Crafting (craftingRepo.ts),
+ * both already deterministic/non-foil/Standard-Edition-only by design, so a
+ * random Condition roll would be the odd one out among their guarantees.
+ */
+export const BASELINE_CONDITION_GRADE = 7;
 
 /**
  * Adds exactly the given cards as new standard-edition instances — unlike
@@ -148,12 +158,15 @@ export async function grantCardInstances(client: PoolClient, accountId: string, 
   const editionIdByTemplate = new Map(editionRows.rows.map((r) => [r.template_id, r.id]));
   const editionIds = cards.map((c) => editionIdByTemplate.get(c.templateId)!);
   const isFoils = cards.map((c) => c.isFoil);
+  const conditionGrades = cards.map((c) => c.conditionGrade);
 
-  // Two unnest() calls in one SELECT list run in lockstep since Postgres 10 — zips
-  // editionIds[i] with isFoils[i], not a cross join, as long as both arrays are the same length.
+  // Three unnest() calls in one SELECT list run in lockstep since Postgres 10 — zips
+  // editionIds[i]/isFoils[i]/conditionGrades[i] together, not a cross join, as long as
+  // all three arrays are the same length.
   await client.query(
-    `insert into card_instances (owner_id, edition_id, is_foil) select $1, unnest($2::uuid[]), unnest($3::boolean[])`,
-    [accountId, editionIds, isFoils],
+    `insert into card_instances (owner_id, edition_id, is_foil, condition_grade)
+     select $1, unnest($2::uuid[]), unnest($3::boolean[]), unnest($4::smallint[])`,
+    [accountId, editionIds, isFoils, conditionGrades],
   );
 }
 

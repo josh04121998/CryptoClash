@@ -1,6 +1,7 @@
 import { CARD_POOL, Rarity } from "@cryptoclash/engine";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
+import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
 import { playRevealSound } from "../sound.js";
 import { CardFace } from "./CardFace.js";
 
@@ -16,6 +17,7 @@ interface PackDefinition {
 interface PackCard {
   templateId: string;
   isFoil: boolean;
+  conditionGrade: number;
 }
 
 export interface PacksScreenProps {
@@ -118,8 +120,18 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack, onHome }:
                 <div key={`${card.templateId}-${i}`} className="pack-reveal__slot">
                   {i < revealedCount ? (
                     <div className="pack-reveal__card">
-                      <CardFace template={CARD_POOL[card.templateId]} size="hand" foil={card.isFoil} />
+                      <CardFace
+                        template={CARD_POOL[card.templateId]}
+                        size="hand"
+                        foil={card.isFoil}
+                        conditionGrade={card.conditionGrade}
+                      />
                       {card.isFoil && <span className="pack-reveal__foil-tag">✨ Foil</span>}
+                      {conditionVisualTier(card.conditionGrade) && (
+                        <span className={`pack-reveal__condition-tag pack-reveal__condition-tag--${conditionVisualTier(card.conditionGrade)}`}>
+                          {conditionVisualTier(card.conditionGrade) === "pristine" ? "💎" : "〰️"} {conditionBandName(card.conditionGrade)}
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <div className="pack-reveal__back" />

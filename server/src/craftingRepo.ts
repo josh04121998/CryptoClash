@@ -1,7 +1,7 @@
 import { CARD_POOL, CardTemplate, Faction, Rarity } from "@cryptoclash/engine";
 import type { Pool } from "pg";
 import { recordAchievementProgress } from "./achievementsRepo.js";
-import { grantCardInstances } from "./collectionRepo.js";
+import { BASELINE_CONDITION_GRADE, grantCardInstances } from "./collectionRepo.js";
 import { applyDustDeltaOnClient } from "./ledger.js";
 import { withTransaction } from "./txHelper.js";
 
@@ -183,7 +183,10 @@ export async function craftCard(pool: Pool, accountId: string, templateId: strin
     if (balance < cost) throw new InsufficientDustError(`Need ${cost} Dust, have ${balance}.`);
 
     const balanceAfter = await applyDustDeltaOnClient(client, accountId, -cost, `craft:${templateId}`);
-    await grantCardInstances(client, accountId, [{ templateId, isFoil: false }]);
+    // Fixed Condition grade, not a roll — crafting is already deterministic/non-foil by
+    // design (you pick exactly which card you get), so a random grade would be the odd
+    // one out among its guarantees. Same baseline Starter Decks use.
+    await grantCardInstances(client, accountId, [{ templateId, isFoil: false, conditionGrade: BASELINE_CONDITION_GRADE }]);
     // "Craft your first Legendary" achievement — hooked right at the real event, same reasoning
     // packsRepo.ts's rollGrantAndLog tracks "pack_opened_total" at its own real event.
     if (template.rarity === "Legendary") await recordAchievementProgress(client, accountId, "craft_legendary", 1);

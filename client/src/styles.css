@@ -508,6 +508,42 @@ button {
   cursor: default;
 }
 
+/* Condition/Floor Grade (collectibility.md Section 7) — cosmetic-only, never reflects
+   gameplay. A separate overlay span rather than a pseudo-element on .card-face__art,
+   since that element's own ::before/::after are already spoken for (placeholder tint,
+   hand-size fade-to-panel). Sits above the art/frame layers, below the stat gems/text. */
+.card-face__condition {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  pointer-events: none;
+}
+
+/* Blue Chip/Prime (grade 9-10) — a glossy diagonal sheen, like light catching a pristine
+   protective sleeve. */
+.card-face__condition--pristine {
+  background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / 0.32) 46%, rgb(255 255 255 / 0.06) 56%, transparent 72%);
+  mix-blend-mode: screen;
+}
+
+/* Distressed (grade 1-2) — visibly duller and scuffed: desaturated/darkened art plus a
+   faint diagonal scratch texture. The desaturation lives on .card-face__art itself (a
+   sibling, selected via the parent state class) since a blend-mode overlay alone can't
+   reduce saturation the way a filter can. */
+.card-face--condition-worn .card-face__art {
+  filter: saturate(0.5) brightness(0.82) contrast(0.94);
+}
+
+.card-face__condition--worn {
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0px,
+    transparent 6px,
+    rgb(0 0 0 / 0.1) 7px,
+    transparent 8px
+  );
+}
+
 /* Art layer — real illustration when cardArt.ts has one, otherwise a
    faction-tinted glow over the brand's scanline/CRT texture standing in for
    art (same reasoning the landing page's skyline is CSS/SVG rather than an
@@ -1087,6 +1123,20 @@ button {
   font-weight: 700;
   color: #ffe97d;
   text-align: center;
+}
+
+.pack-reveal__condition-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pack-reveal__condition-tag--pristine {
+  color: #7df9ff;
+}
+
+.pack-reveal__condition-tag--worn {
+  color: var(--text-dim);
 }
 
 @keyframes pack-reveal-flip {

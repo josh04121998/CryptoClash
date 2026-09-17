@@ -84,7 +84,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
   async function grantDeckOwnership(accountId: string, templateIds: string[]): Promise<void> {
     const client = await pool.connect();
     try {
-      await grantCardInstances(client, accountId, templateIds.map((templateId) => ({ templateId, isFoil: false })));
+      await grantCardInstances(client, accountId, templateIds.map((templateId) => ({ templateId, isFoil: false, conditionGrade: 7 })));
     } finally {
       client.release();
     }
@@ -343,7 +343,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
         await grantCardInstances(
           client,
           accountId,
-          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false })),
+          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false, conditionGrade: 7 })),
         );
       } finally {
         client.release();

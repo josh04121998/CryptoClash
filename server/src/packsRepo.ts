@@ -103,6 +103,39 @@ for (const odds of [NORMAL_ODDS, LAST_SLOT_ODDS]) {
  */
 const FOIL_CHANCE = 0.08;
 
+/**
+ * Condition (Floor Grade) roll — collectibility.md Section 7's CS:GO-wear-
+ * style quality axis, independent of Rarity/Edition/Foil by the same
+ * reasoning as FOIL_CHANCE above: a Common can roll Blue Chip, a Legendary
+ * can roll Distressed. Weights are the doc's own illustrative first-pass
+ * distribution (skewed toward the middle with a thin top tail, matching how
+ * real PSA population data looks), indexed 1 (Distressed) through 10 (Blue
+ * Chip) to mirror rollRarity's worst-to-best ordering. Rolled once, at mint
+ * — never re-rolled (Section 7: "no re-grade, permanent, provable fact").
+ */
+const CONDITION_WEIGHTS: [number, number][] = [
+  [1, 0.02],
+  [2, 0.04],
+  [3, 0.08],
+  [4, 0.12],
+  [5, 0.16],
+  [6, 0.2],
+  [7, 0.18],
+  [8, 0.12],
+  [9, 0.06],
+  [10, 0.02],
+];
+
+function rollCondition(rng: () => number): number {
+  const roll = rng();
+  let cumulative = 0;
+  for (const [grade, weight] of CONDITION_WEIGHTS) {
+    cumulative += weight;
+    if (roll < cumulative) return grade;
+  }
+  return CONDITION_WEIGHTS[CONDITION_WEIGHTS.length - 1][0];
+}
+
 function templatesByRarity(): Map<Rarity, string[]> {
   const map = new Map<Rarity, string[]>();
   for (const t of Object.values(CARD_POOL)) {
@@ -147,7 +180,8 @@ export function rollPackCards(packType: string, seed: number): PackCard[] {
     }
     const templateId = pool[Math.floor(rng() * pool.length)];
     const isFoil = rng() < FOIL_CHANCE;
-    cards.push({ templateId, isFoil });
+    const conditionGrade = rollCondition(rng);
+    cards.push({ templateId, isFoil, conditionGrade });
   }
   return cards;
 }

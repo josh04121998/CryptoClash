@@ -1,6 +1,7 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { CSSProperties, MouseEvent, useEffect, useRef, useState } from "react";
 import { cardArt } from "../cardArt.js";
+import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
 import { factionColor } from "../factionColor.js";
 import { factionTicker } from "../factionTicker.js";
 import { frameArt } from "../frameArt.js";
@@ -19,6 +20,8 @@ export interface CardFaceProps {
   dimmed?: boolean;
   /** Cosmetic-only shimmer (spec.md Section 14) — never affects gameplay stats or legality. */
   foil?: boolean;
+  /** Cosmetic-only Condition/Floor Grade, 1-10 (collectibility.md Section 7) — never affects gameplay. Omitted where the caller has no specific instance in hand (e.g. a template browsed in isolation with no owned copy). */
+  conditionGrade?: number;
   size?: "hand" | "board";
   /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
   attackDirection?: "up" | "down";
@@ -58,6 +61,7 @@ export function CardFace({
   selected = false,
   dimmed = false,
   foil = false,
+  conditionGrade,
   size = "board",
   attackDirection,
   onClick,
@@ -69,6 +73,7 @@ export function CardFace({
   const art = cardArt(template.id);
   const showFullFace = size !== "board";
   const frame = frameArt(template.rarity, !showFullFace);
+  const conditionTier = conditionGrade !== undefined ? conditionVisualTier(conditionGrade) : null;
 
   // A screen-reader user gets nothing meaningful from the visual card frame
   // (stat gems, faction ticker, rarity-colored border) on its own — this
@@ -86,6 +91,7 @@ export function CardFace({
     keywords && keywords.length > 0 ? keywords.join(", ") : undefined,
     template.text || undefined,
     foil ? "foil" : undefined,
+    conditionGrade !== undefined ? `Condition: ${conditionBandName(conditionGrade)}` : undefined,
     affordable === false ? "not enough energy" : undefined,
   ]
     .filter(Boolean)
@@ -130,6 +136,7 @@ export function CardFace({
         !affordable ? "card-face--unaffordable" : "",
         justHit ? "card-face--hit" : "",
         foil ? "card-face--foil" : "",
+        conditionTier ? `card-face--condition-${conditionTier}` : "",
         attackDirection ? `card-face--lunge-${attackDirection}` : "",
       ]
         .filter(Boolean)
@@ -155,6 +162,7 @@ export function CardFace({
         style={art ? { backgroundImage: `url(${art})` } : undefined}
       />
       {frame && <span className="card-face__frame" aria-hidden="true" style={{ backgroundImage: `url(${frame})` }} />}
+      {conditionTier && <span className={`card-face__condition card-face__condition--${conditionTier}`} aria-hidden="true" />}
 
       <span className="card-face__cost">
         <StatIcon kind="energy" />

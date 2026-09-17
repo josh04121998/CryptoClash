@@ -13,6 +13,7 @@ import {
   UnknownAchievementError,
 } from "../src/achievementsRepo.js";
 import {
+  BASELINE_CONDITION_GRADE,
   getCollectionCounts,
   getCollectionSummary,
   getStartingFaction,
@@ -176,6 +177,17 @@ d("accounts + decks (integration, real Postgres)", () => {
       await grantStartingCollection(pool, account.id, "Doggos");
       const ownedAgain = await getCollectionCounts(pool, account.id);
       expect(ownedAgain["pup_scout"]).toBe(MAX_COPIES_PER_CARD);
+
+      // Starter grants are the zero-RNG path — every instance gets the fixed baseline
+      // Condition grade, never a roll (collectibility.md Section 7).
+      const gradeRows = await pool.query<{ condition_grade: number }>(
+        `select ci.condition_grade from card_instances ci
+         join card_editions ce on ce.id = ci.edition_id
+         where ci.owner_id = $1 and ce.template_id = 'pup_scout'`,
+        [account.id],
+      );
+      expect(gradeRows.rows).toHaveLength(MAX_COPIES_PER_CARD);
+      for (const row of gradeRows.rows) expect(row.condition_grade).toBe(BASELINE_CONDITION_GRADE);
     });
 
     it("scopes ownership per-account", async () => {
@@ -296,6 +308,8 @@ d("accounts + decks (integration, real Postgres)", () => {
       for (const card of first) {
         expect(CARD_POOL[card.templateId]).toBeDefined();
         expect(typeof card.isFoil).toBe("boolean");
+        expect(card.conditionGrade).toBeGreaterThanOrEqual(1);
+        expect(card.conditionGrade).toBeLessThanOrEqual(10);
       }
     });
 
@@ -329,6 +343,25 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(rate).toBeLessThan(0.2);
     });
 
+    it("rolls Condition grades across the full 1-10 range, skewed toward the middle", () => {
+      const counts = new Map<number, number>();
+      for (let seed = 0; seed < 1000; seed++) {
+        for (const card of rollPackCards("standard", seed)) {
+          counts.set(card.conditionGrade, (counts.get(card.conditionGrade) ?? 0) + 1);
+        }
+      }
+      // Every grade 1-10 should show up at least once across 5000 rolls (collectibility.md
+      // Section 7's weight table has a real, if thin, tail down to 2% at the extremes).
+      for (let grade = 1; grade <= 10; grade++) {
+        expect(counts.get(grade) ?? 0).toBeGreaterThan(0);
+      }
+      // The 6/7 band (the two heaviest weights, 20%/18%) should clearly outpull either
+      // extreme (2% each) — a real skew, not a flat/uniform roll.
+      const midBand = (counts.get(6) ?? 0) + (counts.get(7) ?? 0);
+      const extremes = (counts.get(1) ?? 0) + (counts.get(10) ?? 0);
+      expect(midBand).toBeGreaterThan(extremes * 3);
+    });
+
     it("opens a pack: debits Coins, grants card instances (foils included), and logs the roll", async () => {
       const account = await findOrCreateAccount(pool, "0xpackbuyer");
       await grantWelcomeBonus(pool, account.id);
@@ -353,6 +386,18 @@ d("accounts + decks (integration, real Postgres)", () => {
         for (const card of foilsPulled) expect(foilOwned[card.templateId]).toBeGreaterThanOrEqual(1);
       }
 
+      // Condition grades actually persisted, not just present on the in-memory roll result —
+      // one grade per rolled card template should be findable among that template's instances.
+      for (const card of result.cards) {
+        const gradeRows = await pool.query<{ condition_grade: number }>(
+          `select ci.condition_grade from card_instances ci
+           join card_editions ce on ce.id = ci.edition_id
+           where ci.owner_id = $1 and ce.template_id = $2`,
+          [account.id, card.templateId],
+        );
+        expect(gradeRows.rows.map((r) => r.condition_grade)).toContain(card.conditionGrade);
+      }
+
       const logged = await pool.query<{ cards: { templateId: string; isFoil: boolean }[]; coins_spent: number }>(
         "select cards, coins_spent from pack_openings where account_id = $1",
         [account.id],
@@ -375,10 +420,10 @@ d("accounts + decks (integration, real Postgres)", () => {
       const client = await pool.connect();
       try {
         await grantCardInstances(client, account.id, [
-          { templateId: "moon_dog", isFoil: false },
-          { templateId: "moon_dog", isFoil: true },
-          { templateId: "moon_dog", isFoil: false },
-          { templateId: "moon_dog", isFoil: true },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: true, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: true, conditionGrade: 7 },
         ]);
       } finally {
         client.release();
@@ -396,8 +441,8 @@ d("accounts + decks (integration, real Postgres)", () => {
       const client = await pool.connect();
       try {
         await grantCardInstances(client, account.id, [
-          { templateId: "moon_dog", isFoil: false },
-          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
         ]);
       } finally {
         client.release();
@@ -415,9 +460,9 @@ d("accounts + decks (integration, real Postgres)", () => {
       const client = await pool.connect();
       try {
         await grantCardInstances(client, account.id, [
-          { templateId: "moon_dog", isFoil: true },
-          { templateId: "moon_dog", isFoil: false },
-          { templateId: "moon_dog", isFoil: false },
+          { templateId: "moon_dog", isFoil: true, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
+          { templateId: "moon_dog", isFoil: false, conditionGrade: 7 },
         ]);
       } finally {
         client.release();
@@ -463,7 +508,7 @@ d("accounts + decks (integration, real Postgres)", () => {
 
       const client = await pool.connect();
       try {
-        await grantCardInstances(client, account.id, Array.from({ length: 5 }, () => ({ templateId: "pump_signal", isFoil: false })));
+        await grantCardInstances(client, account.id, Array.from({ length: 5 }, () => ({ templateId: "pump_signal", isFoil: false, conditionGrade: 7 })));
       } finally {
         client.release();
       }
@@ -479,7 +524,7 @@ d("accounts + decks (integration, real Postgres)", () => {
         await grantCardInstances(
           client,
           account.id,
-          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false })),
+          Array.from({ length: 5 }, () => ({ templateId: "moon_dog", isFoil: false, conditionGrade: 7 })),
         );
       } finally {
         client.release();
@@ -491,6 +536,17 @@ d("accounts + decks (integration, real Postgres)", () => {
       expect(result.balance).toBe(0);
       expect((await getCollectionCounts(pool, account.id))["guard_dog"]).toBe(1);
       expect((await getCollectionSummary(pool, account.id)).foils["guard_dog"] ?? 0).toBe(0); // crafted cards are never foil
+
+      // Crafting is deterministic, like Starter Decks — the crafted instance gets the fixed
+      // baseline Condition grade, never a roll (collectibility.md Section 7).
+      const gradeRow = await pool.query<{ condition_grade: number }>(
+        `select ci.condition_grade from card_instances ci
+         join card_editions ce on ce.id = ci.edition_id
+         where ci.owner_id = $1 and ce.template_id = 'guard_dog'`,
+        [account.id],
+      );
+      expect(gradeRow.rows).toHaveLength(1);
+      expect(gradeRow.rows[0].condition_grade).toBe(BASELINE_CONDITION_GRADE);
     });
 
     it("rejects crafting without enough Dust, without granting a card", async () => {
