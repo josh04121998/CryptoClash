@@ -32,6 +32,20 @@ import iterationCycle from "./assets/cards/iteration_cycle.jpg";
 import crunchTime from "./assets/cards/crunch_time.jpg";
 import fullStackTitan from "./assets/cards/full_stack_titan.jpg";
 import unicornStartup from "./assets/cards/unicorn_startup.jpg";
+import degenApe from "./assets/cards/degen_ape.jpg";
+import overleveraged from "./assets/cards/overleveraged.jpg";
+import slowBurn from "./assets/cards/slow_burn.jpg";
+import emberCurse from "./assets/cards/ember_curse.jpg";
+import marginCall from "./assets/cards/margin_call.jpg";
+import rugPull from "./assets/cards/rug_pull.jpg";
+import leverageTrade from "./assets/cards/leverage_trade.jpg";
+import yoloAllin from "./assets/cards/yolo_allin.jpg";
+import blownAccount from "./assets/cards/blown_account.jpg";
+import liquidatedLedger from "./assets/cards/liquidated_ledger.jpg";
+import diamondHands from "./assets/cards/diamond_hands.jpg";
+import moonshot from "./assets/cards/moonshot.jpg";
+import exitLiquidity from "./assets/cards/exit_liquidity.jpg";
+import shortPosition from "./assets/cards/short_position.jpg";
 
 /**
  * templateId -> illustration. Sparse on purpose — branding.md Section 9's art
@@ -40,9 +54,10 @@ import unicornStartup from "./assets/cards/unicorn_startup.jpg";
  * edition only for now; Foil is a pure CSS effect over this same art (never a
  * separate asset), Full Art/1st Edition are a future separate generation pass.
  *
- * Doggos, Frogs, and Builders factions complete as of grok-card-prompts.md
- * (10/10, 11/11, 13/13 real templates — Puppy/Tadpole are summon-only tokens,
- * lowest generation priority, still unart'd).
+ * Doggos, Frogs, Builders, and Degens factions complete as of
+ * grok-card-prompts.md (10/10, 11/11, 13/13, 14/14 real templates —
+ * Puppy/Tadpole are summon-only tokens, lowest generation priority, still
+ * unart'd).
  */
 const CARD_ART: Partial<Record<string, string>> = {
   moon_dog: moonDog,
@@ -79,6 +94,20 @@ const CARD_ART: Partial<Record<string, string>> = {
   crunch_time: crunchTime,
   full_stack_titan: fullStackTitan,
   unicorn_startup: unicornStartup,
+  degen_ape: degenApe,
+  overleveraged,
+  slow_burn: slowBurn,
+  ember_curse: emberCurse,
+  margin_call: marginCall,
+  rug_pull: rugPull,
+  leverage_trade: leverageTrade,
+  yolo_allin: yoloAllin,
+  blown_account: blownAccount,
+  liquidated_ledger: liquidatedLedger,
+  diamond_hands: diamondHands,
+  moonshot,
+  exit_liquidity: exitLiquidity,
+  short_position: shortPosition,
 };
 
 export function cardArt(templateId: string): string | undefined {
