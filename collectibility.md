@@ -1,10 +1,10 @@
 # Floorwars — Collectibility Specification
 
-### Version 1.1 — 2026-09-12
+### Version 1.2 — 2026-09-18
 
 This document is the single authoritative spec for how a Floorwars card's *rarity*, *print*, *shine*, *condition*, and *provenance* relate to each other. It consolidates and resolves `spec.md` Sections 12–20 (which were written as an evolving log of proposals and later "resolved" patches — this doc is the clean end state) and settles the naming collisions those sections flagged as open (`spec.md` §13/§14). `spec.md` itself is left as the historical record; this file is what to build against going forward. See `card-schema.md` for gameplay effect syntax and `architecture.md` Section 6 for the underlying data-layer design — this doc only owns the collectibility model.
 
-**Changelog:** v1.1 adds Condition/grading (Section 7) — physical-card-grading and CS:GO-wear-style scarcity, requested directly by the user — and resolves the two axis-interaction questions v1.0 had left open (Section 13).
+**Changelog:** v1.1 adds Condition/grading (Section 7) — physical-card-grading and CS:GO-wear-style scarcity, requested directly by the user — and resolves the two axis-interaction questions v1.0 had left open (Section 13). v1.2 adds Launch Art (Section 10.5) — a second print-run flag alongside First Edition, covering copies minted before a template's art gets repainted.
 
 ---
 
@@ -199,6 +199,34 @@ Modeled as one of five mutually-exclusive rungs on the Edition ladder (Section 4
 
 ---
 
+## 10.5 Launch Art — a second flag alongside First Edition
+
+### The idea
+
+As each faction's card art gets generated (`grok-card-prompts.md`), an early round can later get repainted — e.g. Frogs' first-pass art needed a v2 prompt fix (2026-09-17/18 sessions) after real quality problems were found post-generation. Once a template's Standard-Edition illustration ships and players already own copies, a later repaint raises the same question real reprints do (Magic's Alpha/Beta, Pokémon's Base Set 1st print vs. Unlimited): should copies minted before the repaint be marked as historically distinct?
+
+Raised 2026-09-18 as **"the Genesis set"** for a planned month-or-two retirement of the current first-pass art. **Recommendation: keep the idea, rename it.** "Genesis" is already the top Rarity tier (Section 3) — reusing it here would repeat the exact naming collision Section 4 already resolved once (the original "Genesis Set" print-tier proposal in `spec.md` §13 colliding with Genesis-the-Rarity). Call this **Launch Art** instead: purely a "this copy predates a repaint" fact. It is not a Rarity and not an Edition tier — it stacks with every other axis the same way First Edition does (Section 10), and implies nothing about power or pull odds.
+
+### Why it isn't shaped like First Edition (a stored boolean)
+
+First Edition is anchored to one global launch-window clock, so a single `is_first_edition boolean` set at mint time is enough (Section 10). Launch Art can't safely reuse that shape: different factions ship and get repainted on different schedules (Frogs' art might stabilize in month 2, Builders' in month 4), so one global before/after flag would need either a column per template or a separate join table — more machinery than the underlying fact needs.
+
+**Recommendation: model it as a derived version-compare, not a stored flag:**
+
+- `card_editions` gains `artwork_version integer not null default 1`. Repainting a template's Standard art bumps this integer and updates `artwork_ref` to the new file, rather than silently overwriting the file behind the same version number.
+- `card_instances` gains `minted_artwork_version integer not null default 1`, copied once from the edition's current `artwork_version` at insert time — the same insert-time-snapshot pattern `is_foil`/`condition_grade` already use (Sections 5/7).
+- "Is this a Launch Art copy?" is computed on read — `minted_artwork_version < (current) card_editions.artwork_version` for that instance's edition row — never stored as its own boolean. This avoids a global cutover date and a backfill migration each time any one faction's art ships an update.
+
+### Asset-pipeline side
+
+Repainting a template means archiving the outgoing file rather than overwriting it in place (e.g. `client/src/assets/cards/archive/v{n}/{id}.jpg`), and `cardArt.ts`'s lookup needs to key off `(templateId, artworkVersion)` — falling back to the current file for any instance minted before versioning existed — rather than `templateId` alone as it does today.
+
+### Not yet wired to anything live
+
+Same caveat as the rest of this document's schema (Section 8): `card_editions`/`card_instances` aren't in the live pack-opening path yet — `packsRepo.ts` still writes a JSON blob straight to `pack_openings`. This is a schema-shape recommendation to build against whenever that system actually gets built, not something with an implementation today. Flagging for sign-off rather than just doing it, same as Section 10's schema change — this touches the same migration lineage (`0002`/`0009`).
+
+---
+
 ## 11. What we're borrowing from Pokémon, Yu-Gi-Oh, and CS:GO — and why
 
 Real research, not guesswork — grounded in current (2026) TCG rarity documentation. Sources at the end.
@@ -248,6 +276,7 @@ Stated as recommendations, not unilateral decisions — flagging which ones are 
 4. **Condition should never be re-rollable/re-gradable (Section 7): recommend against ever adding this**, even as a Dust sink — it would turn a permanent provenance record into a gambling loop, undermining the one thing that makes a grade trustworthy.
 5. **Founders Set business model and cadence — still your call, not decided here.** A reasonable default worth considering: a time-boxed, real-money cash-shop product (consistent with `spec.md`'s already-decided principle that real-money packs stay a separate path from the token economy), each Founders Set a distinct, named, hard-capped print run — but whether it's purely paid, partly achievement-gated, or recurring is a genuine product decision.
 6. Unchanged from `spec.md` §13: the per-template **Rarity assignment is still a cost-based heuristic**, not tuned design — out of scope for this doc, noted for completeness.
+7. **Launch Art as a derived version-compare vs. a stored flag (Section 10.5): recommend derived** (`minted_artwork_version` vs. the edition's current `artwork_version`), not a boolean. Avoids needing a single global cutover date across factions whose art ships and gets repainted on different schedules. Naming ("Launch Art," not "Genesis," to avoid colliding with the Rarity tier) is settled; the schema shape is not yet built — no code path mints `card_instances` at all yet, so this waits on the same prerequisite as the rest of this document's schema.
 
 ---
 
