@@ -22,10 +22,10 @@ Ready-to-paste prompts for every card illustration, generated from `branding.md`
 
 **`Stop-Loss Order` keeps its stamped name — approved exception.** v5 flagged the image for having STOP-LOSS stamped across the envelope. The user's counter: strip the words and you cannot tell what the card is showing. That is correct for this card specifically. A sealed envelope is a generic object; unlike a dog, a frog or a robot, it carries no identity of its own, and the stamp is what makes it a stop-loss order rather than mail. A replacement concept (a bear trap clamped on a falling candlestick) was proposed and rejected as tonally wrong — horror, not trading-floor. The general no-baked-text rule stands for the other 77 cards and its reason is unchanged (`branding.md` §9.6's compositor draws name/cost/attack/health as real typography so a balance change never forces a regeneration). This exception is narrow and safe because the stamped word is the card's **name**, which never changes with balance — no stat, no rules text, no rarity is baked in.
 
-**Work order accordingly: 27 cards flagged, not 32.**
-1. **Broken / unreadable (3):** Pump Signal (wrong faction colour), Short Position, Slow Burn (both genuinely unreadable at board size — un-reviewed art, not signed off).
+**Work order accordingly: 26 cards flagged.** (Counted straight off the checklist below, which is the authority — v5's "32" was itself one over, and a first pass at this revision said 27 by listing Slow Burn and Short Position in both tier 1 and the Degens group. 3 + 9 + 5 + 4 + 3 + 1 + 1 = 26.)
+1. **Broken / unreadable (3):** Pump Signal (wrong faction colour), Short Position, Slow Burn (the latter two genuinely unreadable at board size — un-reviewed art, not signed off).
 2. **Normies (9):** unchanged — the grey-lighting fault was in the prompt itself, and none of the nine has been reviewed and accepted.
-3. **Degens (7 more), Builders (4), Crypto Bros (3 more), Sharpening Stone, Tadpole.**
+3. **The rest (14):** Degens 5 more (Overleveraged, Ember Curse, Leverage Trade, Blown Account, Exit Liquidity), Builders 4 (Code Monkey, Scaffold Bot, Efficient Engineer, Unicorn Startup), Crypto Bros 3 more (Whale Wallet, Unicorn Exit, Compound Interest), Sharpening Stone, Tadpole.
 
 ---
 
