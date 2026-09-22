@@ -157,7 +157,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const { owned, foils } = (await res.json()) as { owned: Record<string, number>; foils: Record<string, number> };
     expect(owned["pup_scout"]).toBe(3); // Doggos Common
     expect(owned["sharpening_stone"]).toBe(3); // Neutral Common, granted regardless of faction
-    expect(owned["pump_signal"]).toBeUndefined(); // CryptoBros Common — a different faction now
+    expect(owned["pump_signal"]).toBeUndefined(); // Bulls Common — a different faction now
     expect(owned["moon_dog"]).toBeUndefined(); // Rare — pack-only
     expect(owned["puppy"]).toBeUndefined(); // token, never granted
     expect(foils).toEqual({}); // starting collection is never foil — only packs roll foils
@@ -170,7 +170,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     const firstRes = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", headers: auth, body: JSON.stringify({ faction: "Frogs" }) });
     expect(firstRes.status).toBe(200);
 
-    const secondRes = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", headers: auth, body: JSON.stringify({ faction: "Degens" }) });
+    const secondRes = await fetch(`${baseUrl}/api/starting-faction`, { method: "POST", headers: auth, body: JSON.stringify({ faction: "Apes" }) });
     expect(secondRes.status).toBe(409);
 
     const accountRes = await fetch(`${baseUrl}/api/account`, { headers: auth });

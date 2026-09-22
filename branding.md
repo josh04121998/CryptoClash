@@ -6,7 +6,7 @@ A reference for anyone (human or AI) generating visual assets for the game — s
 
 ## 1. Concept
 
-**"The floor is the battlefield."** Floorwars' combat identity is a Wall Street trading floor / bullpen at night, doubling as a battle arena — not generic fantasy war-visuals. This is deliberate: the game's cast (Doggos, Frogs, Degens, Crypto Bros, Builders, Normies) is already trading-culture themed, so the visual language should feel like it belongs to the same world as the gameplay, not bolted on.
+**"The floor is the battlefield."** Floorwars' combat identity is a Wall Street trading floor / bullpen at night, doubling as a battle arena — not generic fantasy war-visuals. This is deliberate: the game's cast (Doggos, Frogs, Apes, Bulls, Bears, Cats — the crypto bestiary, see §9.4) is already trading-culture themed, so the visual language should feel like it belongs to the same world as the gameplay, not bolted on.
 
 The palette and typography choices (Section 2/3) land somewhere between a Bloomberg terminal and a retro arcade cabinet — sharp neon-on-black, squared-off "technical" lettering, scanline texture. Think: an exchange-floor monitor wall that's also a fight screen. That retro-terminal/arcade quality is a real, load-bearing part of the identity, not just a side effect of the font choice — lean into it in generated art (CRT glow, scanlines, chunky pixel-adjacent shapes) rather than smoothing it into generic clean-flat-illustration style.
 
@@ -42,10 +42,10 @@ Pulled directly from `client/src/styles.css`'s `:root` — this is the actual, s
 |---|---|
 | Doggos | `#f5a623` |
 | Frogs | `#4ade80` |
-| Degens | `#ef4444` |
-| Crypto Bros | `#facc15` |
-| Builders | `#60a5fa` |
-| Normies | `#a3a3a3` |
+| Apes | `#ef4444` |
+| Bulls | `#facc15` |
+| Bears | `#60a5fa` |
+| Cats | `#c084fc` |
 
 ---
 
@@ -130,7 +130,7 @@ Written 2026-09-10, from a real reference the user generated (via Grok — a Moo
 
 **Generate the illustration only — never the card.** `CardFace.tsx` (the component that renders every card in the app) has an empty `.card-face__portrait` div waiting for art — right now it's just a CSS glow placeholder. Name, cost, Attack/Health, rarity gem, faction ticker, keywords, and rules text are **all separate UI elements the app draws on top**, not part of the image. So every generated asset should be:
 
-- A character/scene illustration **with no text, numbers, logos, card border, or UI chrome baked in** — not even the card name.
+- A character/scene illustration **with no text, numbers, logos, card border, or UI chrome baked in** — not even the card name. The reason is §9.6's compositor: name/cost/attack/health/rules text are drawn as real typography from the card's data, so a balance change never forces a re-generation. **One approved exception: `Stop-Loss Order`** keeps the words STOP-LOSS stamped on its envelope — a sealed envelope carries no identity without them, and the stamped word is the card's *name*, which no balance change touches. Adding to this exception list needs the same two conditions: the subject is a generic object that is unreadable without the word, and the word is the name, never a stat.
 - Portrait-oriented, roughly **4:5** (the live card frame itself is ~0.74:1 w:h, but the art window is only the upper portion of that, after cost/ticker/name-plate/stats/text-box take their share — a touch wider than the whole card reads better once cropped).
 - Composed with the subject centered and readable **small** — cards render as small as ~52×76px on a crowded mobile board, so one clear silhouette/pose beats fine detail that will just vanish. Generate at full resolution regardless (collection-screen/full-art views will show it large) — this is a composition note, not a resolution one.
 - **Rarity is not shown in the art itself** — no special glow/background/frame-tier baked in. That's the rarity-colored border + gem, already handled by CSS (`rarityColor.ts`). What can reasonably scale with rarity is ambition of *composition* (a Legendary earning a more dynamic pose/setting than a Common) — a soft guideline, not a rule; every card still gets full illustrative effort.
@@ -141,6 +141,9 @@ Anchored on the Moon Dog reference: semi-realistic/detailed illustrated characte
 
 - Work the brand's existing motifs (Section 4) into the backdrop where the card's flavor allows — the lit skyline, a monitor-glow grid floor, gold/green neon — so the world feels continuous with the site, not generic fantasy backdrops. Moon Dog's space/moon backdrop is a flavor-specific exception (the card's name/ability is literally about the moon), not the default setting for every card.
 - Sample color accents from the brand palette (Section 2) and the relevant faction color (Section 2's faction table) rather than inventing new hues — a Doggos card's accent lighting should read gold/amber, a Frogs card green, etc.
+- **Put the faction hue in the rim light and background glow, and a warm neutral key light on the subject itself** (revised 2026-09-20, session 29 — see `grok-card-prompts.md`'s v5 notes for the measurements behind this). The original wording here was read as "flood the whole scene in the faction color", which produced green-on-green Frogs, blue-on-blue Bears and red-on-black Apes where the subject shares its hue with the backdrop and stops separating. Moon Dog works partly because a warm gold dog against a cool blue-black field is *complementary* contrast — that separation is the thing to reproduce, not the hue itself.
+- **Light the subject brighter than the backdrop, and frame it as a medium shot** — head and upper body filling most of the frame, not a full-body figure standing in a wide environment. The first full pass averaged 18–30 mean luminance outside the Doggos batch (Doggos: 41), and the wide-shot framing shrank subjects to ~30% of frame height, both of which turn a card into a smudge at the ~52×76px it renders at on a crowded board.
+- **Grey is a costume, not a light source.** This faction (now Cats, formerly Normies) wears grey; the old `#a3a3a3` accent described their *clothes*, and the faction's accent has since moved to violet `#c084fc` precisely so the hex can't be misread as a lighting instruction again — their lighting should be warm ordinary office light against the cool neon chaos behind them. Briefing "grey accent lighting" produced a faction of desaturated, rain-soaked, miserable-looking figures (average saturation 68 against 126–188 for every other faction) — "plain and unremarkable" was never meant to read as "sad".
 - No watermarks, no signatures, no incidental readable text anywhere in the scene (a monitor in the background showing gibberish numbers is fine; showing actual English words is not, since it reads as a UI mistake).
 
 ### 9.3 Editions — what needs separate generation vs. what doesn't
@@ -160,10 +163,10 @@ The visual "species" for each faction's creatures, reasoned from the faction's e
 |---|---|---|
 | Doggos | Dogs (breed varies by card) in trading-floor attire — suits, ties, badges | Confident, loyal, pack-minded. Moon Dog is the established reference: tailored, composed, a little smug. |
 | Frogs | Frogs/toads, often with a glitch/warped visual edge | Chaotic, mischievous, degenerate-energy — "Frogs love chaos" is the literal flavor text on Chaos Croak. |
-| Builders | Human engineers/coders, and robots/constructs they've built | Hoodie-and-hard-hat dev culture — earnest, a little frazzled, DIY/jury-rigged where the card's flavor calls for it. |
-| Degens | Human traders (an ape/gorilla motif is fine and on-theme for Degen Ape specifically, per crypto culture's own "ape in" slang — not the default for the whole faction) | Reckless, high-stakes, gambler energy — chips, neon, wrecked or triumphant, never calm. |
-| Crypto Bros | Human VC/finance bros | Smug, flashy, gym-meets-boardroom — sunglasses, chains, oversized confidence. |
-| Normies | Ordinary human office workers | Deliberately plain and unremarkable — the visual contrast against every other faction's chaos *is* the point; a Normie card should look calm even when everything around it (Degens, Frogs) doesn't. |
+| Bears | Bears (species varies by card) in hard hats, hi-vis and hoodies, plus the exosuits/construct rigs they build — a bear always visible with the machine | Patient, industrious, unglamorous. "Builders build through the bear market" is the whole faction: still shipping while everyone else panics. |
+| Apes | Apes (chimp, gorilla, orangutan, mandrill, gibbon, macaque) in half-wrecked trading-floor kit — torn vests, loose ties, open collars | Reckless, high-stakes, gloriously overconfident — chips, neon, wrecked or triumphant, never calm. "Aping in" is the faction's own verb. |
+| Bulls | Bulls (breed and horn shape vary by card — horns are the faction silhouette) in immaculate tailoring | Smug, flashy, gym-meets-boardroom — permabulls who have never considered that the number might go down. Always a real suit, never armour. |
+| Cats | Housecats (breed and coat vary hard by card) in ordinary office-worker kit — cardigans, lanyards, rolled sleeves in soft greys | Unbothered, self-possessed, nine-lives resilient. The counter-tribe to the Doggos (cat coins against dog coins), and mechanically the heal/sustain faction — whatever happens, the cat is fine. |
 | Neutral (Items/Spells/Secrets) | **Objects, not characters** — a whetstone, boots, a ledger, a sealed order | Trading-floor gadgets/artifacts, not portraits. Keep the same lighting/palette language as the creature cards so they don't feel like a different game. |
 
 ### 9.5 Per-card visual specs

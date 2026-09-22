@@ -68,7 +68,7 @@ function enemyBoardThreat(state: MatchState, enemyId: PlayerId): number {
   }, 0);
 }
 
-/** Sum of a template's `onPlay` `damage` effects aimed at its own controller (Degens' signature "pay HP for power" cost). */
+/** Sum of a template's `onPlay` `damage` effects aimed at its own controller (Apes' signature "pay HP for power" cost). */
 function onPlaySelfDamage(template: CardTemplate): number {
   return (template.effects ?? [])
     .filter((e) => e.trigger === "onPlay" && e.action.kind === "damage" && e.action.target.kind === "selfPlayer")
@@ -87,14 +87,14 @@ function onPlayFaceDamage(template: CardTemplate): number {
  * compelling reason to anyway — roughly a quarter of max HP. Tuned empirically
  * against the bot-vs-bot win-rate sweep (see STATUS.md session 16/this
  * session): much lower (e.g. 6) under-protects, much higher (e.g. 15) makes
- * the bot too timid to actually use Degens' signature payoff and *reduces*
+ * the bot too timid to actually use Apes' signature payoff and *reduces*
  * its win rate versus this floor — this sits near the sweep's observed peak.
  */
 const SELF_DAMAGE_SAFE_HP_FLOOR = Math.round(MAX_PLAYER_HP * 0.25);
 
 /**
  * Session-16 balance-pass finding: the bot had no model at all for the risk
- * in Degens' signature "pay your own HP for power/tempo" cards — it played
+ * in Apes' signature "pay your own HP for power/tempo" cards — it played
  * them purely greedily, sometimes walking itself into (or well past) the
  * enemy's next-turn lethal range for a stat/tempo gain that didn't matter
  * because the game was about to end anyway. This is the fix: a self-damage
@@ -264,7 +264,7 @@ function guardEngagementScore(state: MatchState, playerId: PlayerId, enemyId: Pl
 /**
  * Board-slot attack order for this turn — natural slot order, unless the
  * enemy has a Guard up right now. STATUS.md session 17 diagnosed the
- * dominant Degens bot-loss pattern as low-HP/high-attack creatures dying in
+ * dominant Apes bot-loss pattern as low-HP/high-attack creatures dying in
  * forced Guard trades for nothing (attacking a Guard bare-slot-order could
  * throw a fragile glass-cannon at it first purely because it happened to sit
  * in an earlier board slot). With a Guard present, creatures are ordered by

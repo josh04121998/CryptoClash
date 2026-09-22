@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 import { withTransaction } from "./txHelper.js";
 
 /** The six real factions a player can pick as their free starting set — Neutral isn't choosable (see starterTemplateIds). */
-export const STARTING_FACTIONS: readonly Faction[] = ["Doggos", "Frogs", "Degens", "CryptoBros", "Builders", "Normies"];
+export const STARTING_FACTIONS: readonly Faction[] = ["Doggos", "Frogs", "Apes", "Bulls", "Bears", "Cats"];
 
 export class InvalidFactionError extends Error {}
 export class StartingFactionAlreadySetError extends Error {}
@@ -36,7 +36,7 @@ function starterTemplateIds(faction: Faction): string[] {
  * setStartingFaction (first choice) and the sign-in top-up path (repeat
  * visits) call.
  *
- * Builders and Degens used to have only one Common template each (Junior
+ * Bears and Apes used to have only one Common template each (Junior
  * Dev, Degen Ape) vs. 3-4 for every other faction — fixed by adding two more
  * Commons per faction (Code Monkey/Ship It, Overleveraged/Slow Burn), so
  * every faction now grants 3+ unique Commons plus the 2 Neutral ones.

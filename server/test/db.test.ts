@@ -231,9 +231,9 @@ d("accounts + decks (integration, real Postgres)", () => {
 
     it("rejects choosing a faction a second time", async () => {
       const account = await findOrCreateAccount(pool, "0xonechoiceonly");
-      await setStartingFaction(pool, account.id, "Builders");
-      await expect(setStartingFaction(pool, account.id, "Degens")).rejects.toThrow(StartingFactionAlreadySetError);
-      expect(await getStartingFaction(pool, account.id)).toBe("Builders"); // unchanged
+      await setStartingFaction(pool, account.id, "Bears");
+      await expect(setStartingFaction(pool, account.id, "Apes")).rejects.toThrow(StartingFactionAlreadySetError);
+      expect(await getStartingFaction(pool, account.id)).toBe("Bears"); // unchanged
     });
 
     it("rejects an unrecognized faction, including Neutral (not a choosable faction)", async () => {
@@ -501,7 +501,7 @@ d("accounts + decks (integration, real Postgres)", () => {
       // sharpening_stone is a Neutral Common, granted regardless of faction — still guarded.
       await expect(disenchantCards(pool, account.id, "sharpening_stone", 1)).rejects.toThrow(InvalidTemplateError);
 
-      // pump_signal is CryptoBros' Common — this account was never granted any, so it owns none yet,
+      // pump_signal is Bulls' Common — this account was never granted any, so it owns none yet,
       // but the *eligibility* check (not ownership) is what this test is really pinning down: it must
       // not throw InvalidTemplateError the way the two guarded cases above do.
       await expect(disenchantCards(pool, account.id, "pump_signal", 1)).rejects.toThrow(InsufficientCopiesError);

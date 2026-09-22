@@ -20,7 +20,7 @@ import copycat from "./assets/cards/copycat.jpg";
 import deepCroak from "./assets/cards/deep_croak.jpg";
 import primordialCroak from "./assets/cards/primordial_croak.jpg";
 import juniorDev from "./assets/cards/junior_dev.jpg";
-import codeMonkey from "./assets/cards/code_monkey.jpg";
+import codeGrinder from "./assets/cards/code_grinder.jpg";
 import shipIt from "./assets/cards/ship_it.jpg";
 import blueprint from "./assets/cards/blueprint.jpg";
 import scaffoldBot from "./assets/cards/scaffold_bot.jpg";
@@ -54,7 +54,7 @@ import shortPosition from "./assets/cards/short_position.jpg";
  * edition only for now; Foil is a pure CSS effect over this same art (never a
  * separate asset), Full Art/1st Edition are a future separate generation pass.
  *
- * Doggos, Frogs, Builders, and Degens factions complete as of
+ * Doggos, Frogs, Bears, and Apes factions complete as of
  * grok-card-prompts.md (10/10, 11/11, 13/13, 14/14 real templates —
  * Puppy/Tadpole are summon-only tokens, lowest generation priority, still
  * unart'd).
@@ -82,7 +82,7 @@ const CARD_ART: Partial<Record<string, string>> = {
   deep_croak: deepCroak,
   primordial_croak: primordialCroak,
   junior_dev: juniorDev,
-  code_monkey: codeMonkey,
+  code_grinder: codeGrinder,
   ship_it: shipIt,
   blueprint: blueprint,
   scaffold_bot: scaffoldBot,

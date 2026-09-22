@@ -121,7 +121,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   diamond_hands: {
     id: "diamond_hands",
     name: "Diamond Hands",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 4,
     rarity: "Epic",
@@ -169,7 +169,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   ember_curse: {
     id: "ember_curse",
     name: "Ember Curse",
-    faction: "Degens",
+    faction: "Apes",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -182,7 +182,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   pump_signal: {
     id: "pump_signal",
     name: "Pump Signal",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Spell",
     cost: 1,
     rarity: "Common",
@@ -192,7 +192,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   cool_down: {
     id: "cool_down",
     name: "Cool Down",
-    faction: "Normies",
+    faction: "Cats",
     type: "Spell",
     cost: 1,
     rarity: "Common",
@@ -347,12 +347,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     ],
   },
 
-  // --- Builders ("Build the machine.") — combos, spells, efficient cards,
+  // --- Bears ("Build the machine.") — combos, spells, efficient cards,
   // technical interactions. Signature mechanic: draw.
   junior_dev: {
     id: "junior_dev",
     name: "Junior Dev",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -361,10 +361,10 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Draw a card.",
     effects: [{ trigger: "onPlay", action: { kind: "draw", count: 1 } }],
   },
-  code_monkey: {
-    id: "code_monkey",
-    name: "Code Monkey",
-    faction: "Builders",
+  code_grinder: {
+    id: "code_grinder",
+    name: "Code Grinder",
+    faction: "Bears",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -375,7 +375,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   ship_it: {
     id: "ship_it",
     name: "Ship It",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -387,7 +387,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   blueprint: {
     id: "blueprint",
     name: "Blueprint",
-    faction: "Builders",
+    faction: "Bears",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -397,7 +397,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   scaffold_bot: {
     id: "scaffold_bot",
     name: "Scaffold Bot",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -409,7 +409,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   efficient_engineer: {
     id: "efficient_engineer",
     name: "Efficient Engineer",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -421,7 +421,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   rapid_prototype: {
     id: "rapid_prototype",
     name: "Rapid Prototype",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -433,7 +433,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   technical_debt: {
     id: "technical_debt",
     name: "Technical Debt",
-    faction: "Builders",
+    faction: "Bears",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -446,7 +446,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   modular_frame: {
     id: "modular_frame",
     name: "Modular Frame",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 3,
     rarity: "Rare",
@@ -458,7 +458,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   iteration_cycle: {
     id: "iteration_cycle",
     name: "Iteration Cycle",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 4,
     rarity: "Epic",
@@ -470,7 +470,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   crunch_time: {
     id: "crunch_time",
     name: "Crunch Time",
-    faction: "Builders",
+    faction: "Bears",
     type: "Spell",
     cost: 3,
     rarity: "Rare",
@@ -486,7 +486,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   full_stack_titan: {
     id: "full_stack_titan",
     name: "Full Stack Titan",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
@@ -498,7 +498,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   unicorn_startup: {
     id: "unicorn_startup",
     name: "Unicorn Startup",
-    faction: "Builders",
+    faction: "Bears",
     type: "Creature",
     cost: 7,
     rarity: "Legendary",
@@ -508,12 +508,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     effects: [{ trigger: "onDeath", action: { kind: "draw", count: 2 } }],
   },
 
-  // --- Degens ("Risk everything.") — self-damage, sacrifice, explosive
+  // --- Apes ("Risk everything.") — self-damage, sacrifice, explosive
   // turns, high risk/high reward. Signature: pay your own HP for power.
   degen_ape: {
     id: "degen_ape",
     name: "Degen Ape",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -524,7 +524,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   overleveraged: {
     id: "overleveraged",
     name: "Overleveraged",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -539,7 +539,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   slow_burn: {
     id: "slow_burn",
     name: "Slow Burn",
-    faction: "Degens",
+    faction: "Apes",
     type: "Spell",
     cost: 1,
     rarity: "Common",
@@ -552,7 +552,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   margin_call: {
     id: "margin_call",
     name: "Margin Call",
-    faction: "Degens",
+    faction: "Apes",
     type: "Spell",
     // Balance pass (session, per real playtesting data): this was a 1-cost "3 to face, 2 to
     // yourself" — a net +1 damage swing at 1 mana is far more efficient than anything else at
@@ -569,7 +569,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   rug_pull: {
     id: "rug_pull",
     name: "Rug Pull",
-    faction: "Degens",
+    faction: "Apes",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -586,7 +586,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   leverage_trade: {
     id: "leverage_trade",
     name: "Leverage Trade",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -601,7 +601,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   yolo_allin: {
     id: "yolo_allin",
     name: "YOLO All-In",
-    faction: "Degens",
+    faction: "Apes",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -614,7 +614,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   blown_account: {
     id: "blown_account",
     name: "Blown Account",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 3,
     rarity: "Rare",
@@ -625,7 +625,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   liquidated_ledger: {
     id: "liquidated_ledger",
     name: "Liquidated Ledger",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 4,
     rarity: "Epic",
@@ -640,7 +640,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   moonshot: {
     id: "moonshot",
     name: "Moonshot",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
@@ -654,7 +654,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   exit_liquidity: {
     id: "exit_liquidity",
     name: "Exit Liquidity",
-    faction: "Degens",
+    faction: "Apes",
     type: "Creature",
     cost: 6,
     rarity: "Legendary",
@@ -666,7 +666,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   short_position: {
     id: "short_position",
     name: "Short Position",
-    faction: "Degens",
+    faction: "Apes",
     type: "Secret",
     cost: 1,
     rarity: "Rare",
@@ -674,12 +674,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     effects: [{ trigger: "onEnemyPlayCreature", action: { kind: "damage", target: { kind: "triggerSource" }, amount: 2 } }],
   },
 
-  // --- Crypto Bros ("Make money. Make more money.") — energy, resource
+  // --- Bulls ("Make money. Make more money.") — energy, resource
   // generation, scaling, investment. Signature: gainEnergy / gainMaxEnergy.
   seed_round: {
     id: "seed_round",
     name: "Seed Round",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Spell",
     cost: 1,
     rarity: "Common",
@@ -689,7 +689,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   hodl_wallet: {
     id: "hodl_wallet",
     name: "HODL Wallet",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -701,7 +701,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   angel_investor: {
     id: "angel_investor",
     name: "Angel Investor",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -713,7 +713,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   venture_capital: {
     id: "venture_capital",
     name: "Venture Capital",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
@@ -723,7 +723,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   bull_run: {
     id: "bull_run",
     name: "Bull Run",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 3,
     rarity: "Rare",
@@ -735,7 +735,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   to_the_moon: {
     id: "to_the_moon",
     name: "To The Moon",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Spell",
     cost: 3,
     rarity: "Rare",
@@ -748,7 +748,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   whale_wallet: {
     id: "whale_wallet",
     name: "Whale Wallet",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 4,
     rarity: "Epic",
@@ -760,7 +760,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   compound_interest: {
     id: "compound_interest",
     name: "Compound Interest",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
@@ -771,12 +771,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   unicorn_exit: {
     id: "unicorn_exit",
     name: "Unicorn Exit",
-    faction: "CryptoBros",
+    faction: "Bulls",
     type: "Creature",
     cost: 8,
     rarity: "Legendary",
     // Balance pass: the whole point of a ramp faction is cheating something big out ahead of
-    // curve — Crypto Bros ramped Energy but had nothing above 5 cost worth ramping *into*
+    // curve — Bulls ramped Energy but had nothing above 5 cost worth ramping *into*
     // (compound_interest is just a vanilla 4/7). This is the real payoff: a genuine top-end
     // body that makes all those Seed Rounds/Whale Wallets worth playing for.
     attack: 7,
@@ -785,12 +785,12 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Guard. The ramp was worth it.",
   },
 
-  // --- Normies ("Keep it simple.") — flexible, reliable, defensive,
+  // --- Cats ("Keep it simple.") — flexible, reliable, defensive,
   // adaptable. Signature: heal (a steady, no-frills toolkit).
   steady_hand: {
     id: "steady_hand",
     name: "Steady Hand",
-    faction: "Normies",
+    faction: "Cats",
     type: "Creature",
     cost: 1,
     rarity: "Common",
@@ -801,7 +801,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   first_aid: {
     id: "first_aid",
     name: "First Aid",
-    faction: "Normies",
+    faction: "Cats",
     type: "Spell",
     cost: 1,
     rarity: "Common",
@@ -811,7 +811,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   safe_harbor: {
     id: "safe_harbor",
     name: "Safe Harbor",
-    faction: "Normies",
+    faction: "Cats",
     type: "Creature",
     cost: 2,
     rarity: "Uncommon",
@@ -823,11 +823,11 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   rainy_day_fund: {
     id: "rainy_day_fund",
     name: "Rainy Day Fund",
-    faction: "Normies",
+    faction: "Cats",
     type: "Spell",
     cost: 2,
     rarity: "Uncommon",
-    // Balance pass: Normies' Guard density + healing was winning 71% of simulated games —
+    // Balance pass: Cats' Guard density + healing was winning 71% of simulated games —
     // the strongest outlier of any faction. Trimmed from 5 to 4 HP; a small, surgical cut
     // rather than removing the card's role entirely.
     text: "Restore 4 HP.",
@@ -836,7 +836,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   adaptive_trader: {
     id: "adaptive_trader",
     name: "Adaptive Trader",
-    faction: "Normies",
+    faction: "Cats",
     type: "Creature",
     cost: 3,
     rarity: "Rare",
@@ -848,7 +848,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   old_reliable: {
     id: "old_reliable",
     name: "Old Reliable",
-    faction: "Normies",
+    faction: "Cats",
     type: "Creature",
     cost: 3,
     rarity: "Rare",
@@ -859,7 +859,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
   community_shield: {
     id: "community_shield",
     name: "Community Shield",
-    faction: "Normies",
+    faction: "Cats",
     type: "Creature",
     cost: 4,
     rarity: "Epic",
@@ -868,10 +868,10 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard. The community has your back.",
   },
-  steadfast_normie: {
-    id: "steadfast_normie",
-    name: "Steadfast Normie",
-    faction: "Normies",
+  steadfast_tabby: {
+    id: "steadfast_tabby",
+    name: "Steadfast Tabby",
+    faction: "Cats",
     type: "Creature",
     cost: 5,
     rarity: "Legendary",
@@ -1006,7 +1006,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
  * Real bug fixed 2026-09-17 (live playtest, match 1): this deck — the oldest
  * one in the file, predating every other faction's own *_SAMPLE_DECK — had
  * drifted to include 8 off-faction cards (ember_curse/diamond_hands from
- * Degens, pump_signal from Crypto Bros, cool_down from Normies), so a
+ * Apes, pump_signal from Bulls, cool_down from Cats), so a
  * Doggos match could open with a hand full of other factions' cards. Fixed
  * by replacing them with more copies of the deck's own real Doggos/Neutral
  * cards (topped up toward the 3-copy cap, same density every other faction
@@ -1042,10 +1042,10 @@ export const FROG_SAMPLE_DECK: string[] = [
   ...Array(1).fill("primordial_croak"),
 ];
 
-/** A legal 30-card Builders deck, exercising the draw/combo signature. */
-export const BUILDER_SAMPLE_DECK: string[] = [
+/** A legal 30-card Bears deck, exercising the draw/combo signature. */
+export const BEAR_SAMPLE_DECK: string[] = [
   ...Array(3).fill("junior_dev"),
-  ...Array(3).fill("code_monkey"),
+  ...Array(3).fill("code_grinder"),
   ...Array(3).fill("ship_it"),
   ...Array(1).fill("blueprint"),
   ...Array(3).fill("scaffold_bot"),
@@ -1061,8 +1061,8 @@ export const BUILDER_SAMPLE_DECK: string[] = [
   ...Array(1).fill("audit_trail"),
 ];
 
-/** A legal 30-card Degens deck, exercising the pay-your-own-HP signature. */
-export const DEGEN_SAMPLE_DECK: string[] = [
+/** A legal 30-card Apes deck, exercising the pay-your-own-HP signature. */
+export const APE_SAMPLE_DECK: string[] = [
   ...Array(3).fill("degen_ape"),
   ...Array(3).fill("overleveraged"),
   ...Array(3).fill("slow_burn"),
@@ -1081,8 +1081,8 @@ export const DEGEN_SAMPLE_DECK: string[] = [
   ...Array(1).fill("short_position"),
 ];
 
-/** A legal 30-card Crypto Bros deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
-export const CRYPTOBRO_SAMPLE_DECK: string[] = [
+/** A legal 30-card Bulls deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
+export const BULL_SAMPLE_DECK: string[] = [
   ...Array(3).fill("seed_round"),
   ...Array(3).fill("hodl_wallet"),
   ...Array(3).fill("angel_investor"),
@@ -1097,8 +1097,8 @@ export const CRYPTOBRO_SAMPLE_DECK: string[] = [
   ...Array(1).fill("unicorn_exit"),
 ];
 
-/** A legal 30-card Normies deck, exercising the heal/defensive signature. */
-export const NORMIE_SAMPLE_DECK: string[] = [
+/** A legal 30-card Cats deck, exercising the heal/defensive signature. */
+export const CAT_SAMPLE_DECK: string[] = [
   ...Array(3).fill("steady_hand"),
   ...Array(3).fill("first_aid"),
   ...Array(2).fill("safe_harbor"),
@@ -1106,7 +1106,7 @@ export const NORMIE_SAMPLE_DECK: string[] = [
   ...Array(3).fill("adaptive_trader"),
   ...Array(3).fill("old_reliable"),
   ...Array(3).fill("community_shield"),
-  ...Array(2).fill("steadfast_normie"),
+  ...Array(2).fill("steadfast_tabby"),
   ...Array(2).fill("cool_down"),
   ...Array(2).fill("reinforced_plating"),
   ...Array(3).fill("rocket_boots"),
@@ -1126,10 +1126,10 @@ export interface DeckDefinition {
 export const DECKS: DeckDefinition[] = [
   { id: "doggos", name: "Doggos", faction: "Doggos", description: "Swarm the board — more friends, more Attack.", cards: SAMPLE_DECK },
   { id: "frogs", name: "Frogs", faction: "Frogs", description: "Copy your best creature and lean into chaos.", cards: FROG_SAMPLE_DECK },
-  { id: "builders", name: "Builders", faction: "Builders", description: "Draw cards, chain combos, out-value the board.", cards: BUILDER_SAMPLE_DECK },
-  { id: "degens", name: "Degens", faction: "Degens", description: "Pay your own HP for explosive, above-rate power.", cards: DEGEN_SAMPLE_DECK },
-  { id: "cryptobros", name: "Crypto Bros", faction: "CryptoBros", description: "Ramp your Energy and scale out of control.", cards: CRYPTOBRO_SAMPLE_DECK },
-  { id: "normies", name: "Normies", faction: "Normies", description: "Simple, sturdy, defensive — hard to punish.", cards: NORMIE_SAMPLE_DECK },
+  { id: "bears", name: "Bears", faction: "Bears", description: "Draw cards, chain combos, out-value the board.", cards: BEAR_SAMPLE_DECK },
+  { id: "apes", name: "Apes", faction: "Apes", description: "Pay your own HP for explosive, above-rate power.", cards: APE_SAMPLE_DECK },
+  { id: "bulls", name: "Bulls", faction: "Bulls", description: "Ramp your Energy and scale out of control.", cards: BULL_SAMPLE_DECK },
+  { id: "cats", name: "Cats", faction: "Cats", description: "Simple, sturdy, defensive — hard to punish.", cards: CAT_SAMPLE_DECK },
 ];
 
 export const DEFAULT_DECK_ID = "doggos";

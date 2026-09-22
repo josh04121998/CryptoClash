@@ -112,7 +112,7 @@ export function LandingPage({ onEnter }: LandingPageProps) {
             The floor is <span>the battlefield</span>.
           </h1>
           <p className="landing__tagline">
-            Collect, deck-build, and clash across six crypto-native factions — Doggos, Frogs, Degens, Crypto Bros, Builders, and Normies.
+            Collect, deck-build, and clash across six crypto-native factions — Doggos, Frogs, Apes, Bulls, Bears, and Cats.
             Free to play. No wallet required to jump in.
           </p>
           <div className="landing__cta-row">
