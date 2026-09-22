@@ -19,32 +19,32 @@ import wartyPrince from "./assets/cards/warty_prince.jpg";
 import copycat from "./assets/cards/copycat.jpg";
 import deepCroak from "./assets/cards/deep_croak.jpg";
 import primordialCroak from "./assets/cards/primordial_croak.jpg";
-import juniorDev from "./assets/cards/junior_dev.jpg";
-import codeGrinder from "./assets/cards/code_grinder.jpg";
-import shipIt from "./assets/cards/ship_it.jpg";
+import cubDev from "./assets/cards/cub_dev.jpg";
+import grizzlyGrinder from "./assets/cards/grizzly_grinder.jpg";
+import shipItBruin from "./assets/cards/ship_it_bruin.jpg";
 import blueprint from "./assets/cards/blueprint.jpg";
-import scaffoldBot from "./assets/cards/scaffold_bot.jpg";
-import efficientEngineer from "./assets/cards/efficient_engineer.jpg";
-import rapidPrototype from "./assets/cards/rapid_prototype.jpg";
+import scaffoldKodiak from "./assets/cards/scaffold_kodiak.jpg";
+import efficientUrsa from "./assets/cards/efficient_ursa.jpg";
+import prototypeCub from "./assets/cards/prototype_cub.jpg";
 import technicalDebt from "./assets/cards/technical_debt.jpg";
-import modularFrame from "./assets/cards/modular_frame.jpg";
-import iterationCycle from "./assets/cards/iteration_cycle.jpg";
+import modularPanda from "./assets/cards/modular_panda.jpg";
+import iteratingBruin from "./assets/cards/iterating_bruin.jpg";
 import crunchTime from "./assets/cards/crunch_time.jpg";
-import fullStackTitan from "./assets/cards/full_stack_titan.jpg";
-import unicornStartup from "./assets/cards/unicorn_startup.jpg";
+import fullStackGrizzly from "./assets/cards/full_stack_grizzly.jpg";
+import unicornUrsa from "./assets/cards/unicorn_ursa.jpg";
 import degenApe from "./assets/cards/degen_ape.jpg";
-import overleveraged from "./assets/cards/overleveraged.jpg";
+import overleveraged_gibbon from "./assets/cards/overleveraged_gibbon.jpg";
 import slowBurn from "./assets/cards/slow_burn.jpg";
 import emberCurse from "./assets/cards/ember_curse.jpg";
 import marginCall from "./assets/cards/margin_call.jpg";
 import rugPull from "./assets/cards/rug_pull.jpg";
-import leverageTrade from "./assets/cards/leverage_trade.jpg";
+import leverageMandrill from "./assets/cards/leverage_mandrill.jpg";
 import yoloAllin from "./assets/cards/yolo_allin.jpg";
-import blownAccount from "./assets/cards/blown_account.jpg";
-import liquidatedLedger from "./assets/cards/liquidated_ledger.jpg";
-import diamondHands from "./assets/cards/diamond_hands.jpg";
-import moonshot from "./assets/cards/moonshot.jpg";
-import exitLiquidity from "./assets/cards/exit_liquidity.jpg";
+import blownOutChimp from "./assets/cards/blown_out_chimp.jpg";
+import liquidatedMacaque from "./assets/cards/liquidated_macaque.jpg";
+import diamondGorilla from "./assets/cards/diamond_gorilla.jpg";
+import moon_ape from "./assets/cards/moon_ape.jpg";
+import exitSilverback from "./assets/cards/exit_silverback.jpg";
 import shortPosition from "./assets/cards/short_position.jpg";
 
 /**
@@ -81,32 +81,32 @@ const CARD_ART: Partial<Record<string, string>> = {
   copycat,
   deep_croak: deepCroak,
   primordial_croak: primordialCroak,
-  junior_dev: juniorDev,
-  code_grinder: codeGrinder,
-  ship_it: shipIt,
+  cub_dev: cubDev,
+  grizzly_grinder: grizzlyGrinder,
+  ship_it_bruin: shipItBruin,
   blueprint: blueprint,
-  scaffold_bot: scaffoldBot,
-  efficient_engineer: efficientEngineer,
-  rapid_prototype: rapidPrototype,
+  scaffold_kodiak: scaffoldKodiak,
+  efficient_ursa: efficientUrsa,
+  prototype_cub: prototypeCub,
   technical_debt: technicalDebt,
-  modular_frame: modularFrame,
-  iteration_cycle: iterationCycle,
+  modular_panda: modularPanda,
+  iterating_bruin: iteratingBruin,
   crunch_time: crunchTime,
-  full_stack_titan: fullStackTitan,
-  unicorn_startup: unicornStartup,
+  full_stack_grizzly: fullStackGrizzly,
+  unicorn_ursa: unicornUrsa,
   degen_ape: degenApe,
-  overleveraged,
+  overleveraged_gibbon,
   slow_burn: slowBurn,
   ember_curse: emberCurse,
   margin_call: marginCall,
   rug_pull: rugPull,
-  leverage_trade: leverageTrade,
+  leverage_mandrill: leverageMandrill,
   yolo_allin: yoloAllin,
-  blown_account: blownAccount,
-  liquidated_ledger: liquidatedLedger,
-  diamond_hands: diamondHands,
-  moonshot,
-  exit_liquidity: exitLiquidity,
+  blown_out_chimp: blownOutChimp,
+  liquidated_macaque: liquidatedMacaque,
+  diamond_gorilla: diamondGorilla,
+  moon_ape,
+  exit_silverback: exitSilverback,
   short_position: shortPosition,
 };
 

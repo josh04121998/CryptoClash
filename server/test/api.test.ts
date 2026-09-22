@@ -206,7 +206,7 @@ d("/api/* over real HTTP, against real Postgres", () => {
     ...Array(3).fill("warty_lookout"),
     ...Array(3).fill("sticky_tongue"),
     ...Array(3).fill("chaos_croak"),
-    ...Array(3).fill("junior_dev"),
+    ...Array(3).fill("cub_dev"),
   ];
 
   it("rejects a deck that needs more copies than the account owns", async () => {

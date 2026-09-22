@@ -118,9 +118,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard.",
   },
-  diamond_hands: {
-    id: "diamond_hands",
-    name: "Diamond Hands",
+  diamond_gorilla: {
+    id: "diamond_gorilla",
+    name: "Diamond Gorilla",
     faction: "Apes",
     type: "Creature",
     cost: 4,
@@ -349,9 +349,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
 
   // --- Bears ("Build the machine.") — combos, spells, efficient cards,
   // technical interactions. Signature mechanic: draw.
-  junior_dev: {
-    id: "junior_dev",
-    name: "Junior Dev",
+  cub_dev: {
+    id: "cub_dev",
+    name: "Cub Dev",
     faction: "Bears",
     type: "Creature",
     cost: 1,
@@ -361,9 +361,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Draw a card.",
     effects: [{ trigger: "onPlay", action: { kind: "draw", count: 1 } }],
   },
-  code_grinder: {
-    id: "code_grinder",
-    name: "Code Grinder",
+  grizzly_grinder: {
+    id: "grizzly_grinder",
+    name: "Grizzly Grinder",
     faction: "Bears",
     type: "Creature",
     cost: 1,
@@ -372,9 +372,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 2,
     text: "Vanilla.",
   },
-  ship_it: {
-    id: "ship_it",
-    name: "Ship It",
+  ship_it_bruin: {
+    id: "ship_it_bruin",
+    name: "Ship-It Bruin",
     faction: "Bears",
     type: "Creature",
     cost: 1,
@@ -394,9 +394,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Draw two cards.",
     effects: [{ trigger: "onPlay", action: { kind: "draw", count: 2 } }],
   },
-  scaffold_bot: {
-    id: "scaffold_bot",
-    name: "Scaffold Bot",
+  scaffold_kodiak: {
+    id: "scaffold_kodiak",
+    name: "Scaffold Kodiak",
     faction: "Bears",
     type: "Creature",
     cost: 2,
@@ -406,9 +406,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard. Holds the line while you build.",
   },
-  efficient_engineer: {
-    id: "efficient_engineer",
-    name: "Efficient Engineer",
+  efficient_ursa: {
+    id: "efficient_ursa",
+    name: "Efficient Ursa",
     faction: "Bears",
     type: "Creature",
     cost: 2,
@@ -418,9 +418,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Draw a card.",
     effects: [{ trigger: "onPlay", action: { kind: "draw", count: 1 } }],
   },
-  rapid_prototype: {
-    id: "rapid_prototype",
-    name: "Rapid Prototype",
+  prototype_cub: {
+    id: "prototype_cub",
+    name: "Prototype Cub",
     faction: "Bears",
     type: "Creature",
     cost: 2,
@@ -443,9 +443,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "draw", count: 1 } },
     ],
   },
-  modular_frame: {
-    id: "modular_frame",
-    name: "Modular Frame",
+  modular_panda: {
+    id: "modular_panda",
+    name: "Modular Panda",
     faction: "Bears",
     type: "Creature",
     cost: 3,
@@ -455,9 +455,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Gain +1 Attack while next to another Builder.",
     aura: { filter: "adjacentSameFaction", attack: 1 },
   },
-  iteration_cycle: {
-    id: "iteration_cycle",
-    name: "Iteration Cycle",
+  iterating_bruin: {
+    id: "iterating_bruin",
+    name: "Iterating Bruin",
     faction: "Bears",
     type: "Creature",
     cost: 4,
@@ -483,9 +483,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       },
     ],
   },
-  full_stack_titan: {
-    id: "full_stack_titan",
-    name: "Full Stack Titan",
+  full_stack_grizzly: {
+    id: "full_stack_grizzly",
+    name: "Full Stack Grizzly",
     faction: "Bears",
     type: "Creature",
     cost: 5,
@@ -495,9 +495,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     keywords: ["Guard"],
     text: "Guard. The whole stack, defended.",
   },
-  unicorn_startup: {
-    id: "unicorn_startup",
-    name: "Unicorn Startup",
+  unicorn_ursa: {
+    id: "unicorn_ursa",
+    name: "Unicorn Ursa",
     faction: "Bears",
     type: "Creature",
     cost: 7,
@@ -521,9 +521,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 1,
     text: "All in, no plan.",
   },
-  overleveraged: {
-    id: "overleveraged",
-    name: "Overleveraged",
+  overleveraged_gibbon: {
+    id: "overleveraged_gibbon",
+    name: "Overleveraged Gibbon",
     faction: "Apes",
     type: "Creature",
     cost: 1,
@@ -583,9 +583,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
     ],
   },
-  leverage_trade: {
-    id: "leverage_trade",
-    name: "Leverage Trade",
+  leverage_mandrill: {
+    id: "leverage_mandrill",
+    name: "Leverage Mandrill",
     faction: "Apes",
     type: "Creature",
     cost: 2,
@@ -611,9 +611,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
     ],
   },
-  blown_account: {
-    id: "blown_account",
-    name: "Blown Account",
+  blown_out_chimp: {
+    id: "blown_out_chimp",
+    name: "Blown-Out Chimp",
     faction: "Apes",
     type: "Creature",
     cost: 3,
@@ -622,9 +622,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 2,
     text: "High reward, paper hands.",
   },
-  liquidated_ledger: {
-    id: "liquidated_ledger",
-    name: "Liquidated Ledger",
+  liquidated_macaque: {
+    id: "liquidated_macaque",
+    name: "Liquidated Macaque",
     faction: "Apes",
     type: "Creature",
     cost: 4,
@@ -637,9 +637,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "buffSelf", attack: 3 } },
     ],
   },
-  moonshot: {
-    id: "moonshot",
-    name: "Moonshot",
+  moon_ape: {
+    id: "moon_ape",
+    name: "Moon Ape",
     faction: "Apes",
     type: "Creature",
     cost: 5,
@@ -651,9 +651,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Deal 3 damage to yourself.",
     effects: [{ trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 3 } }],
   },
-  exit_liquidity: {
-    id: "exit_liquidity",
-    name: "Exit Liquidity",
+  exit_silverback: {
+    id: "exit_silverback",
+    name: "Exit Silverback",
     faction: "Apes",
     type: "Creature",
     cost: 6,
@@ -686,9 +686,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Gain 1 Energy this turn.",
     effects: [{ trigger: "onPlay", action: { kind: "gainEnergy", amount: 1 } }],
   },
-  hodl_wallet: {
-    id: "hodl_wallet",
-    name: "HODL Wallet",
+  hodl_bull: {
+    id: "hodl_bull",
+    name: "HODL Bull",
     faction: "Bulls",
     type: "Creature",
     cost: 1,
@@ -698,9 +698,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "At the start of your turn, gain 1 Energy this turn.",
     effects: [{ trigger: "onTurnStart", action: { kind: "gainEnergy", amount: 1 } }],
   },
-  angel_investor: {
-    id: "angel_investor",
-    name: "Angel Investor",
+  angel_bull: {
+    id: "angel_bull",
+    name: "Angel Bull",
     faction: "Bulls",
     type: "Creature",
     cost: 2,
@@ -745,9 +745,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "volatility", amount: 2 } },
     ],
   },
-  whale_wallet: {
-    id: "whale_wallet",
-    name: "Whale Wallet",
+  whale_longhorn: {
+    id: "whale_longhorn",
+    name: "Whale Longhorn",
     faction: "Bulls",
     type: "Creature",
     cost: 4,
@@ -757,9 +757,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Gain 2 Energy this turn.",
     effects: [{ trigger: "onPlay", action: { kind: "gainEnergy", amount: 2 } }],
   },
-  compound_interest: {
-    id: "compound_interest",
-    name: "Compound Interest",
+  compound_brahman: {
+    id: "compound_brahman",
+    name: "Compound Brahman",
     faction: "Bulls",
     type: "Creature",
     cost: 5,
@@ -768,17 +768,17 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 7,
     text: "Vanilla.",
   },
-  unicorn_exit: {
-    id: "unicorn_exit",
-    name: "Unicorn Exit",
+  unicorn_bull: {
+    id: "unicorn_bull",
+    name: "Unicorn Bull",
     faction: "Bulls",
     type: "Creature",
     cost: 8,
     rarity: "Legendary",
     // Balance pass: the whole point of a ramp faction is cheating something big out ahead of
     // curve — Bulls ramped Energy but had nothing above 5 cost worth ramping *into*
-    // (compound_interest is just a vanilla 4/7). This is the real payoff: a genuine top-end
-    // body that makes all those Seed Rounds/Whale Wallets worth playing for.
+    // (compound_brahman is just a vanilla 4/7). This is the real payoff: a genuine top-end
+    // body that makes all those Seed Rounds/Whale Longhorns worth playing for.
     attack: 7,
     health: 9,
     keywords: ["Guard"],
@@ -787,9 +787,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
 
   // --- Cats ("Keep it simple.") — flexible, reliable, defensive,
   // adaptable. Signature: heal (a steady, no-frills toolkit).
-  steady_hand: {
-    id: "steady_hand",
-    name: "Steady Hand",
+  steady_paw: {
+    id: "steady_paw",
+    name: "Steady Paw",
     faction: "Cats",
     type: "Creature",
     cost: 1,
@@ -808,9 +808,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Restore 3 HP.",
     effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 3 } }],
   },
-  safe_harbor: {
-    id: "safe_harbor",
-    name: "Safe Harbor",
+  harbor_tom: {
+    id: "harbor_tom",
+    name: "Harbor Tom",
     faction: "Cats",
     type: "Creature",
     cost: 2,
@@ -833,9 +833,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Restore 4 HP.",
     effects: [{ trigger: "onPlay", action: { kind: "heal", amount: 4 } }],
   },
-  adaptive_trader: {
-    id: "adaptive_trader",
-    name: "Adaptive Trader",
+  adaptive_siamese: {
+    id: "adaptive_siamese",
+    name: "Adaptive Siamese",
     faction: "Cats",
     type: "Creature",
     cost: 3,
@@ -845,9 +845,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "Gain +1 Attack while next to another Normie.",
     aura: { filter: "adjacentSameFaction", attack: 1 },
   },
-  old_reliable: {
-    id: "old_reliable",
-    name: "Old Reliable",
+  old_alley_cat: {
+    id: "old_alley_cat",
+    name: "Old Alley Cat",
     faction: "Cats",
     type: "Creature",
     cost: 3,
@@ -856,9 +856,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     health: 4,
     text: "Keep it simple.",
   },
-  community_shield: {
-    id: "community_shield",
-    name: "Community Shield",
+  community_clowder: {
+    id: "community_clowder",
+    name: "Community Clowder",
     faction: "Cats",
     type: "Creature",
     cost: 4,
@@ -1005,7 +1005,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
  *
  * Real bug fixed 2026-09-17 (live playtest, match 1): this deck — the oldest
  * one in the file, predating every other faction's own *_SAMPLE_DECK — had
- * drifted to include 8 off-faction cards (ember_curse/diamond_hands from
+ * drifted to include 8 off-faction cards (ember_curse/diamond_gorilla from
  * Apes, pump_signal from Bulls, cool_down from Cats), so a
  * Doggos match could open with a hand full of other factions' cards. Fixed
  * by replacing them with more copies of the deck's own real Doggos/Neutral
@@ -1044,68 +1044,68 @@ export const FROG_SAMPLE_DECK: string[] = [
 
 /** A legal 30-card Bears deck, exercising the draw/combo signature. */
 export const BEAR_SAMPLE_DECK: string[] = [
-  ...Array(3).fill("junior_dev"),
-  ...Array(3).fill("code_grinder"),
-  ...Array(3).fill("ship_it"),
+  ...Array(3).fill("cub_dev"),
+  ...Array(3).fill("grizzly_grinder"),
+  ...Array(3).fill("ship_it_bruin"),
   ...Array(1).fill("blueprint"),
-  ...Array(3).fill("scaffold_bot"),
-  ...Array(1).fill("efficient_engineer"),
-  ...Array(3).fill("rapid_prototype"),
+  ...Array(3).fill("scaffold_kodiak"),
+  ...Array(1).fill("efficient_ursa"),
+  ...Array(3).fill("prototype_cub"),
   ...Array(3).fill("technical_debt"),
-  ...Array(3).fill("modular_frame"),
-  ...Array(1).fill("iteration_cycle"),
+  ...Array(3).fill("modular_panda"),
+  ...Array(1).fill("iterating_bruin"),
   ...Array(2).fill("crunch_time"),
-  ...Array(1).fill("full_stack_titan"),
+  ...Array(1).fill("full_stack_grizzly"),
   ...Array(1).fill("spark_bolt"),
-  ...Array(1).fill("unicorn_startup"),
+  ...Array(1).fill("unicorn_ursa"),
   ...Array(1).fill("audit_trail"),
 ];
 
 /** A legal 30-card Apes deck, exercising the pay-your-own-HP signature. */
 export const APE_SAMPLE_DECK: string[] = [
   ...Array(3).fill("degen_ape"),
-  ...Array(3).fill("overleveraged"),
+  ...Array(3).fill("overleveraged_gibbon"),
   ...Array(3).fill("slow_burn"),
   ...Array(3).fill("margin_call"),
-  ...Array(3).fill("leverage_trade"),
+  ...Array(3).fill("leverage_mandrill"),
   ...Array(3).fill("rug_pull"),
   ...Array(1).fill("yolo_allin"),
-  ...Array(1).fill("blown_account"),
+  ...Array(1).fill("blown_out_chimp"),
   ...Array(3).fill("ember_curse"),
-  ...Array(1).fill("liquidated_ledger"),
-  ...Array(1).fill("diamond_hands"),
-  ...Array(1).fill("moonshot"),
+  ...Array(1).fill("liquidated_macaque"),
+  ...Array(1).fill("diamond_gorilla"),
+  ...Array(1).fill("moon_ape"),
   ...Array(1).fill("sharpening_stone"),
   ...Array(1).fill("bodyguard_badge"),
-  ...Array(1).fill("exit_liquidity"),
+  ...Array(1).fill("exit_silverback"),
   ...Array(1).fill("short_position"),
 ];
 
 /** A legal 30-card Bulls deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
 export const BULL_SAMPLE_DECK: string[] = [
   ...Array(3).fill("seed_round"),
-  ...Array(3).fill("hodl_wallet"),
-  ...Array(3).fill("angel_investor"),
+  ...Array(3).fill("hodl_bull"),
+  ...Array(3).fill("angel_bull"),
   ...Array(3).fill("venture_capital"),
   ...Array(3).fill("bull_run"),
   ...Array(2).fill("to_the_moon"),
-  ...Array(3).fill("whale_wallet"),
-  ...Array(2).fill("compound_interest"),
+  ...Array(3).fill("whale_longhorn"),
+  ...Array(2).fill("compound_brahman"),
   ...Array(3).fill("pump_signal"),
   ...Array(2).fill("spark_bolt"),
   ...Array(2).fill("power_core"),
-  ...Array(1).fill("unicorn_exit"),
+  ...Array(1).fill("unicorn_bull"),
 ];
 
 /** A legal 30-card Cats deck, exercising the heal/defensive signature. */
 export const CAT_SAMPLE_DECK: string[] = [
-  ...Array(3).fill("steady_hand"),
+  ...Array(3).fill("steady_paw"),
   ...Array(3).fill("first_aid"),
-  ...Array(2).fill("safe_harbor"),
+  ...Array(2).fill("harbor_tom"),
   ...Array(3).fill("rainy_day_fund"),
-  ...Array(3).fill("adaptive_trader"),
-  ...Array(3).fill("old_reliable"),
-  ...Array(3).fill("community_shield"),
+  ...Array(3).fill("adaptive_siamese"),
+  ...Array(3).fill("old_alley_cat"),
+  ...Array(3).fill("community_clowder"),
   ...Array(2).fill("steadfast_tabby"),
   ...Array(2).fill("cool_down"),
   ...Array(2).fill("reinforced_plating"),
