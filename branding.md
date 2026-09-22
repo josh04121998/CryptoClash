@@ -175,7 +175,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 
 **Correction 2026-09-12:** this table was missing three real templates that exist in `engine/src/cards.ts` — Ember Curse (Degens), Pump Signal (Crypto Bros), Cool Down (Normies) — found while building `grok-card-prompts.md`. Added below, bringing this table's count to the real 71.
 
-**Correction 2026-09-17:** four new Commons added to close the Builders/Degens single-Common gap (STATUS.md roadmap item 2) — Code Monkey, Ship It (Builders), Overleveraged, Slow Burn (Degens). Table count is now 75.
+**Correction 2026-09-17:** four new Commons added to close the Builders/Degens single-Common gap (STATUS.md roadmap item 2) — Code Monkey, Ship-It Bruin (Builders), Overleveraged Gibbon, Slow Burn (Degens). Table count is now 75.
 
 **Doggos**
 
@@ -212,37 +212,37 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 
 | Card | Rarity | Concept |
 |---|---|---|
-| Junior Dev | Common | Young coder at a laptop, hoodie, hard hat slightly too big, eager |
+| Cub Dev | Common | Young coder at a laptop, hoodie, hard hat slightly too big, eager |
 | Code Monkey | Common | A hunched coder in a hoodie chugging energy drinks, keys clacking, buried in monitors |
-| Ship It | Common | A coder shoving a glowing package out the door mid-run, sparks and loose wires trailing behind — deploying before it's ready |
+| Ship-It Bruin | Common | A coder shoving a glowing package out the door mid-run, sparks and loose wires trailing behind — deploying before it's ready |
 | Blueprint | Uncommon | A glowing holographic schematic unrolled in mid-air |
-| Scaffold Bot | Uncommon | A construction robot built from scaffolding parts, standing guard |
-| Efficient Engineer | Uncommon | Focused engineer, tool belt, checking a tablet |
-| Rapid Prototype | Uncommon | A jury-rigged, duct-taped robot sprinting, sparking and half-falling-apart — "built fast, breaks fast" |
+| Scaffold Kodiak | Uncommon | A construction robot built from scaffolding parts, standing guard |
+| Efficient Ursa | Uncommon | Focused engineer, tool belt, checking a tablet |
+| Prototype Cub | Uncommon | A jury-rigged, duct-taped robot sprinting, sparking and half-falling-apart — "built fast, breaks fast" |
 | Technical Debt | Uncommon | A crumbling, over-patched server tower held together with tape and warning signs |
-| Modular Frame | Rare | A robot built from interlocking modular blocks, another modular bot nearby |
-| Iteration Cycle | Epic | Engineer/robot inside a spinning-gear loop motif |
+| Modular Panda | Rare | A robot built from interlocking modular blocks, another modular bot nearby |
+| Iterating Bruin | Epic | Engineer/robot inside a spinning-gear loop motif |
 | Crunch Time | Rare | An exhausted, energy-drink-fueled coder pulling an all-nighter, manic energy, glowing screens |
-| Full Stack Titan | Legendary | A massive titan built from stacked tech layers — server racks, cabling, hardware |
-| Unicorn Startup | Legendary | A literal unicorn in a startup hoodie and lanyard, knowing grin, glowing horn like a tiny rocket — the visual pun is deliberate |
+| Full Stack Grizzly | Legendary | A massive titan built from stacked tech layers — server racks, cabling, hardware |
+| Unicorn Ursa | Legendary | A literal unicorn in a startup hoodie and lanyard, knowing grin, glowing horn like a tiny rocket — the visual pun is deliberate |
 
 **Degens**
 
 | Card | Rarity | Concept |
 |---|---|---|
 | Degen Ape | Common | A reckless ape/gorilla trader, chest-thumping, chaotic grin — the crypto-culture "ape in" reference |
-| Overleveraged | Common | A trader white-knuckling a leverage lever pushed past its red zone, wincing at the strain |
+| Overleveraged Gibbon | Common | A trader white-knuckling a leverage lever pushed past its red zone, wincing at the strain |
 | Slow Burn | Common | A trader watching a slow-burning ember-red fuse creep across a ledger, uneasy grin, no rush to put it out |
 | Margin Call | Uncommon | A trader mid-panic on a phone call, sweat, red warning screens behind |
 | Rug Pull | Uncommon | A literal rug yanked out from under a trader mid-fall — betrayal, chaos |
-| Leverage Trade | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
+| Leverage Mandrill | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
 | YOLO All-In | Uncommon | A trader diving headfirst into a swirling, chaotic market chart |
 | Ember Curse | Uncommon | A trader with one hand outstretched, a smoldering ember-red curse sigil crackling between his fingers, reckless grin — the mark of a slow-burning hex |
-| Blown Account | Rare | A trader with an empty wallet, dazed grin, scattered chips/coins — "high reward, paper hands" |
-| Liquidated Ledger | Epic | A trader engulfed in a wall of red liquidation numbers, still standing defiant |
-| Diamond Hands | Epic | A trader with glowing diamond-textured hands gripping a falling chart, unshaken |
-| Moonshot | Legendary | A trader riding a literal rocket trajectory, reckless triumphant grin, chaos trailing |
-| Exit Liquidity | Legendary | A trader cashing out smugly at the peak as everyone else crashes behind them — the dark crypto-culture irony is the point |
+| Blown-Out Chimp | Rare | A trader with an empty wallet, dazed grin, scattered chips/coins — "high reward, paper hands" |
+| Liquidated Macaque | Epic | A trader engulfed in a wall of red liquidation numbers, still standing defiant |
+| Diamond Gorilla | Epic | A trader with glowing diamond-textured hands gripping a falling chart, unshaken |
+| Moon Ape | Legendary | A trader riding a literal rocket trajectory, reckless triumphant grin, chaos trailing |
+| Exit Silverback | Legendary | A trader cashing out smugly at the peak as everyone else crashes behind them — the dark crypto-culture irony is the point |
 | Short Position | Rare | A shadowy, hooded figure betting against the crowd, face obscured — matches its hidden/Secret nature |
 
 **Crypto Bros**
@@ -250,27 +250,27 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Card | Rarity | Concept |
 |---|---|---|
 | Seed Round | Common | A confident handshake sealing an early deal, sunglasses |
-| HODL Wallet | Common | A bro gripping a hardware wallet tightly like a lifeline, chain jewelry, unshaken stance |
-| Angel Investor | Uncommon | A slick investor with a subtle wing motif, tailored suit, offering a check |
+| HODL Bull | Common | A bro gripping a hardware wallet tightly like a lifeline, chain jewelry, unshaken stance |
+| Angel Bull | Uncommon | A slick investor with a subtle wing motif, tailored suit, offering a check |
 | Venture Capital | Uncommon | A boardroom pitch moment — a bro presenting a hockey-stick growth chart |
 | Bull Run | Rare | A bro riding/wrangling a Wall-Street bull, chaotic momentum, other bros nearby |
 | To The Moon | Rare | A bro launching a rocket-shaped trophy/drink skyward, over-the-top hype pose |
-| Whale Wallet | Epic | A bro dwarfed by a massive whale silhouette looming behind him, signifying huge holdings |
-| Compound Interest | Legendary | An older, seasoned bro radiating quiet accumulated wealth — calm, smug, stacking-coin motifs subtly worked into the scene |
-| Unicorn Exit | Legendary | A triumphant bro atop a peak beside a golden unicorn statue — "the ramp was worth it," ultimate payoff pose, guarding it |
+| Whale Longhorn | Epic | A bro dwarfed by a massive whale silhouette looming behind him, signifying huge holdings |
+| Compound Brahman | Legendary | An older, seasoned bro radiating quiet accumulated wealth — calm, smug, stacking-coin motifs subtly worked into the scene |
+| Unicorn Bull | Legendary | A triumphant bro atop a peak beside a golden unicorn statue — "the ramp was worth it," ultimate payoff pose, guarding it |
 | Pump Signal | Common | A bro holding up a glowing green megaphone/broadcast dish blasting out a hype "pump" signal, an ascending chart arrow rippling out, wide hype grin |
 
 **Normies**
 
 | Card | Rarity | Concept |
 |---|---|---|
-| Steady Hand | Common | A plain, calm office-worker trader, unremarkable clothes, steady stance |
+| Steady Paw | Common | A plain, calm office-worker trader, unremarkable clothes, steady stance |
 | First Aid | Common | A Normie handing over a bandage/first-aid kit, caring gesture |
-| Safe Harbor | Uncommon | A Normie standing by a small literal harbor/anchor, dependable |
+| Harbor Tom | Uncommon | A Normie standing by a small literal harbor/anchor, dependable |
 | Rainy Day Fund | Uncommon | A Normie holding an umbrella over a piggy bank in the rain — prepared, sensible |
-| Adaptive Trader | Rare | A Normie calmly adjusting amid chaos, other Normies nearby, unfazed |
-| Old Reliable | Rare | An older, weathered Normie, arms crossed, unbothered — "keep it simple" |
-| Community Shield | Epic | A Normie standing in front of a small group of others, shielding them |
+| Adaptive Siamese | Rare | A Normie calmly adjusting amid chaos, other Normies nearby, unfazed |
+| Old Alley Cat | Rare | An older, weathered Normie, arms crossed, unbothered — "keep it simple" |
+| Community Clowder | Epic | A Normie standing in front of a small group of others, shielding them |
 | Steadfast Normie | Legendary | An unshaken Normie standing firm against a chaotic crashing-chart backdrop while everyone else panics — "never panic sells" |
 | Cool Down | Common | A Normie calmly placing a steady hand on an overheating, spiking monitor gauge, visibly cooling and settling it, unhurried composed expression |
 

@@ -156,7 +156,7 @@ describe("Spark Bolt", () => {
 describe("HODL", () => {
   it("gains +1 Attack at the start of each of its controller's turns", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 15);
-    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "diamond_hands"), slot: 0 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "diamond_gorilla"), slot: 0 });
     const baseAttack = getEffectiveAttack(state, "A", 0);
 
     applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B's turn
@@ -287,7 +287,7 @@ describe("Volatility & Market Events", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 31);
     applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "loyal_hound"), slot: 0 }); // 5/5
     applyIntent(state, { kind: "endTurn", playerId: "A" });
-    applyIntent(state, { kind: "playCard", playerId: "B", handIndex: giveCard(state, "B", "diamond_hands"), slot: 0 }); // 2/6
+    applyIntent(state, { kind: "playCard", playerId: "B", handIndex: giveCard(state, "B", "diamond_gorilla"), slot: 0 }); // 2/6
 
     triggerMarketEvent(state, "MARKET_CRASH");
 
@@ -345,10 +345,10 @@ describe("Bears — draw effect", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 41);
     const before = state.players.A.hand.length;
     // giveCard itself pushes into hand, so account for that +1 before the effect fires.
-    const idx = giveCard(state, "A", "junior_dev");
+    const idx = giveCard(state, "A", "cub_dev");
     applyIntent(state, { kind: "playCard", playerId: "A", handIndex: idx, slot: 0 });
 
-    // hand: +1 (junior_dev added by giveCard) -1 (played) +1 (its own draw effect) = before + 1
+    // hand: +1 (cub_dev added by giveCard) -1 (played) +1 (its own draw effect) = before + 1
     expect(state.players.A.hand.length).toBe(before + 1);
   });
 
@@ -362,9 +362,9 @@ describe("Bears — draw effect", () => {
     expect(state.players.A.hand.length).toBe(before + 2);
   });
 
-  it("Iteration Cycle draws a card at the start of every one of its controller's turns", () => {
+  it("Iterating Bruin draws a card at the start of every one of its controller's turns", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 45);
-    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "iteration_cycle"), slot: 0 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "iterating_bruin"), slot: 0 });
     const before = state.players.A.hand.length;
 
     applyIntent(state, { kind: "endTurn", playerId: "A" });
@@ -418,11 +418,11 @@ describe("Apes — self-damage effects", () => {
     expect(state.players.A.hp).toBe(aHpBefore - 2);
   });
 
-  it("Leverage Trade pays 1 HP for a permanent +2 Attack on itself", () => {
+  it("Leverage Mandrill pays 1 HP for a permanent +2 Attack on itself", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 55);
     const aHpBefore = state.players.A.hp;
 
-    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "leverage_trade"), slot: 0 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "leverage_mandrill"), slot: 0 });
 
     expect(state.players.A.hp).toBe(aHpBefore - 1);
     expect(getEffectiveAttack(state, "A", 0)).toBe(5); // base 3 + buffSelf 2
@@ -700,19 +700,19 @@ describe("bot AI", () => {
 
   it("declines a self-damage creature that would step into the enemy board's current lethal-swing range, even above the flat HP floor", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
-    // Leverage Trade: a Creature, not a Spell — deal 1 damage to yourself, gain +2 Attack.
-    state.players.A.hand = ["leverage_trade"];
+    // Leverage Mandrill: a Creature, not a Spell — deal 1 damage to yourself, gain +2 Attack.
+    state.players.A.hand = ["leverage_mandrill"];
     state.players.A.energy = state.players.A.maxEnergy = 10;
     state.players.A.hp = 11; // comfortably above the flat safety floor on its own
 
     // Two 5-attack creatures on the enemy board sum to 10 effective attack — playing
-    // Leverage Trade would drop A to 10 HP, at or below that full-swing threat next turn.
+    // Leverage Mandrill would drop A to 10 HP, at or below that full-swing threat next turn.
     placeCreature(state, "B", 0, "loyal_hound");
     placeCreature(state, "B", 1, "loyal_hound");
 
     takeBotTurn(state, "A");
 
-    expect(state.players.A.hand).toContain("leverage_trade"); // left unplayed
+    expect(state.players.A.hand).toContain("leverage_mandrill"); // left unplayed
     expect(state.players.A.hp).toBe(11); // no self-damage taken
     expect(state.players.A.board.every((slot) => slot === null)).toBe(true); // never summoned
   });
@@ -721,34 +721,34 @@ describe("bot AI", () => {
 describe("Deathrattle", () => {
   it("fires on death in combat, dealing damage to the enemy of the dead creature's controller", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 71);
-    placeCreature(state, "A", 0, "exit_liquidity"); // 7/3
-    placeCreature(state, "B", 0, "loyal_hound"); // 5/5 — trades and kills Exit Liquidity
+    placeCreature(state, "A", 0, "exit_silverback"); // 7/3
+    placeCreature(state, "B", 0, "loyal_hound"); // 5/5 — trades and kills Exit Silverback
     const bHpBefore = state.players.B.hp;
 
     applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "creature", playerId: "B", slot: 0 } });
 
-    expect(state.players.A.board[0]).toBeNull(); // Exit Liquidity died to the 5 damage back
+    expect(state.players.A.board[0]).toBeNull(); // Exit Silverback died to the 5 damage back
     expect(state.players.B.hp).toBe(bHpBefore - 3); // its Deathrattle hit B (the enemy of controller A)
   });
 
   it("drains the whole pending queue when two Deathrattle creatures die in the same trade", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 73);
-    placeCreature(state, "A", 0, "exit_liquidity"); // 7/3, Deathrattle: deal 3 to enemy player
+    placeCreature(state, "A", 0, "exit_silverback"); // 7/3, Deathrattle: deal 3 to enemy player
     placeCreature(state, "B", 0, "alpha_dog"); // 6/7, Deathrattle: summon two 1/1 Puppies
     const bHpBefore = state.players.B.hp;
 
     applyIntent(state, { kind: "attack", playerId: "A", attackerSlot: 0, target: { type: "creature", playerId: "B", slot: 0 } });
 
-    expect(state.players.A.board[0]).toBeNull(); // Exit Liquidity died (took 6, had 3 HP)
+    expect(state.players.A.board[0]).toBeNull(); // Exit Silverback died (took 6, had 3 HP)
     expect(state.players.B.board.some((c) => c?.templateId === "alpha_dog")).toBe(false); // Alpha Dog died (took 7, had 7 HP)
-    expect(state.players.B.hp).toBe(bHpBefore - 3); // Exit Liquidity's Deathrattle still fired
+    expect(state.players.B.hp).toBe(bHpBefore - 3); // Exit Silverback's Deathrattle still fired
     const puppies = state.players.B.board.filter((c) => c?.templateId === "puppy");
     expect(puppies.length).toBe(2); // Alpha Dog's Deathrattle also fired, filling its own vacated slot
   });
 
   it("does not fire for a creature that was silenced before it died", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 75);
-    placeCreature(state, "A", 0, "exit_liquidity");
+    placeCreature(state, "A", 0, "exit_silverback");
     state.players.A.board[0]!.silenced = true;
     placeCreature(state, "B", 0, "loyal_hound");
     const bHpBefore = state.players.B.hp;
@@ -781,7 +781,7 @@ describe("Silence", () => {
 
   it("stops future onTurnStart triggers but does not undo attack/health already granted", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 79);
-    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "diamond_hands"), slot: 0 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "diamond_gorilla"), slot: 0 });
     const baseAttack = getEffectiveAttack(state, "A", 0);
 
     applyIntent(state, { kind: "endTurn", playerId: "A" }); // -> B

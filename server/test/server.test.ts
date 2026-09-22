@@ -126,7 +126,7 @@ const AGGRO_DECK = Array(3).fill([
   "shield_pup",
   "moon_dog",
   "guard_dog",
-  "diamond_hands",
+  "diamond_gorilla",
   "loyal_hound",
   "shadow_pup",
   "leap_frog",

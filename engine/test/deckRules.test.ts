@@ -40,7 +40,7 @@ describe("validateDeck", () => {
       "guard_dog",
       "shadow_pup",
       "moon_dog",
-      "diamond_hands",
+      "diamond_gorilla",
       "loyal_hound",
       "puppy_swarm",
       "pack_rush",

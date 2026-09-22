@@ -38,7 +38,7 @@ function starterTemplateIds(faction: Faction): string[] {
  *
  * Bears and Apes used to have only one Common template each (Junior
  * Dev, Degen Ape) vs. 3-4 for every other faction — fixed by adding two more
- * Commons per faction (Code Monkey/Ship It, Overleveraged/Slow Burn), so
+ * Commons per faction (Code Monkey/Ship-It Bruin, Overleveraged Gibbon/Slow Burn), so
  * every faction now grants 3+ unique Commons plus the 2 Neutral ones.
  *
  * Three queries regardless of pool size — bulk upsert editions, bulk-read
