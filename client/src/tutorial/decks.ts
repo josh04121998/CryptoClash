@@ -2,7 +2,7 @@
  * Fixed tutorial decks (ordered). Used with createMatch(..., { tutorial: true, preserveDeckOrder: true })
  * and a fixed seed so teaching beats fire reliably.
  *
- * Player: Normies starter (heal/defend fantasy, readable).
+ * Player: Cats starter (heal/defend fantasy, readable).
  * Opponent: watered-down Doggos (swarm pressure + one Guard).
  */
 export const TUTORIAL_SEED = 20260909;
@@ -32,12 +32,12 @@ export const TUTORIAL_PLAYER_DECK: string[] = [
   "rainy_day_fund",
   "old_reliable",
   "adaptive_trader",
-  "steadfast_normie",
+  "steadfast_tabby",
   "rocket_boots",
   "cool_down",
   "reinforced_plating",
   "community_shield",
-  "steadfast_normie",
+  "steadfast_tabby",
   "stop_loss_order",
 ];
 

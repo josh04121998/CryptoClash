@@ -340,7 +340,7 @@ describe("Volatility & Market Events", () => {
   });
 });
 
-describe("Builders — draw effect", () => {
+describe("Bears — draw effect", () => {
   it("a creature's onPlay draw adds a card to its controller's hand", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 41);
     const before = state.players.A.hand.length;
@@ -406,7 +406,7 @@ describe("Frogs — copyRandomFriendly effect", () => {
   });
 });
 
-describe("Degens — self-damage effects", () => {
+describe("Apes — self-damage effects", () => {
   it("Margin Call damages the enemy player and its own controller", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 53);
     const aHpBefore = state.players.A.hp;
@@ -429,7 +429,7 @@ describe("Degens — self-damage effects", () => {
   });
 });
 
-describe("Normies — heal effect", () => {
+describe("Cats — heal effect", () => {
   it("First Aid restores HP, clamped to MAX_PLAYER_HP", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 57);
     state.players.A.hp = 29;
@@ -443,7 +443,7 @@ describe("Normies — heal effect", () => {
   });
 });
 
-describe("Crypto Bros — energy effects", () => {
+describe("Bulls — energy effects", () => {
   it("Seed Round grants extra Energy for the current turn only, without raising maxEnergy", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 59);
     // Bypass giveCard here — it forces energy/maxEnergy to 10/10, which would
@@ -588,7 +588,7 @@ describe("bot AI", () => {
     expect(getAdjacentSlots(landedSlot)).toContain(2);
   });
 
-  // STATUS.md session 17's diagnosed Degens board-recovery gap: attacking a mandatory
+  // STATUS.md session 17's diagnosed Apes board-recovery gap: attacking a mandatory
   // Guard target in bare board-slot order could throw a fragile low-HP/high-attack
   // creature at it first purely because it sat in an earlier slot, dying for nothing
   // while a safer creature elsewhere on the board could have cleared the Guard instead.
@@ -666,7 +666,7 @@ describe("bot AI", () => {
   });
 
   // Session 16 balance-pass follow-up: the bot previously had no self-damage-risk
-  // model at all — it would play a Degens "pay your own HP" card purely for the
+  // model at all — it would play a Apes "pay your own HP" card purely for the
   // value/tempo gain, blind to how low that left its own HP. These three cases
   // exercise the fix (isSelfDamageTooRisky in bot.ts).
   it("declines a self-damage spell that would drop it critically low with nothing to gain from the risk", () => {

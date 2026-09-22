@@ -14,14 +14,14 @@ export function factionTicker(faction: Faction): string {
       return "DOG";
     case "Frogs":
       return "FRG";
-    case "Degens":
-      return "DGN";
-    case "CryptoBros":
-      return "CBR";
-    case "Builders":
-      return "BLD";
-    case "Normies":
-      return "NRM";
+    case "Apes":
+      return "APE";
+    case "Bulls":
+      return "BUL";
+    case "Bears":
+      return "BER";
+    case "Cats":
+      return "CAT";
     case "Neutral":
       return "NTR";
     default:

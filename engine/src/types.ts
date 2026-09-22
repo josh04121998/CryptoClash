@@ -7,10 +7,10 @@ export type PlayerId = "A" | "B";
 export type Faction =
   | "Doggos"
   | "Frogs"
-  | "Degens"
-  | "CryptoBros"
-  | "Builders"
-  | "Normies"
+  | "Apes"
+  | "Bulls"
+  | "Bears"
+  | "Cats"
   | "Neutral";
 
 export type CardType = "Creature" | "Spell" | "Item" | "Secret";
@@ -44,15 +44,15 @@ export type EffectAction =
   | { kind: "volatility"; amount: number }
   /** Section 14: ongoing damage — amountPerTurn damage at the end of every turn, for `turns` turns. */
   | { kind: "burn"; target: TargetSelector; amountPerTurn: number; turns: number }
-  /** Controller draws `count` cards (Builders faction signature — card advantage/combo enabler). */
+  /** Controller draws `count` cards (Bears faction signature — card advantage/combo enabler). */
   | { kind: "draw"; count: number }
   /** Frogs faction signature — summons a copy of `count` random *other* friendly creatures into empty slots; fizzles (per-copy) if there's no source or no room. */
   | { kind: "copyRandomFriendly"; count: number }
-  /** Normies faction signature — controller's own player gains `amount` HP, clamped to MAX_PLAYER_HP. */
+  /** Cats faction signature — controller's own player gains `amount` HP, clamped to MAX_PLAYER_HP. */
   | { kind: "heal"; amount: number }
-  /** CryptoBros faction signature — controller gains `amount` Energy immediately this turn, clamped to MAX_ENERGY (doesn't raise maxEnergy). */
+  /** Bulls faction signature — controller gains `amount` Energy immediately this turn, clamped to MAX_ENERGY (doesn't raise maxEnergy). */
   | { kind: "gainEnergy"; amount: number }
-  /** CryptoBros faction signature — controller's maxEnergy (and current energy) permanently increases by `amount`, clamped to MAX_ENERGY. */
+  /** Bulls faction signature — controller's maxEnergy (and current energy) permanently increases by `amount`, clamped to MAX_ENERGY. */
   | { kind: "gainMaxEnergy"; amount: number }
   /** Items' "permanent upgrade" flavor — permanently buffs whatever creature `target` resolves to (no-op if it resolves to a player). */
   | { kind: "buffTarget"; target: TargetSelector; attack?: number; health?: number }
