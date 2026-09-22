@@ -10,6 +10,25 @@ Ready-to-paste prompts for every card illustration, generated from `branding.md`
 
 **2026-09-17 addition:** 4 new Commons closing the Builders/Degens single-Common gap (STATUS.md roadmap item 2) — Code Monkey, Ship It (Builders), Overleveraged, Slow Burn (Degens).
 
+**v6 — 2026-09-22 (session 30): five cards reinstated; v5 over-applied its own metrics to already-signed-off art.** The user pushed back on two counts and was right on both.
+
+**Signed-off art was reopened on a metric alone.** v5 flagged `Shadow Pup` (Doggos, accepted session 24), and `Warty Lookout`, `Frog Swarm` and `Deep Croak` (Frogs, accepted session 27) — four cards that had already passed a human review. Re-opened at full size, all four are good:
+- **Shadow Pup** was flagged for luminance under 14. It is a *Stealth* card called Shadow Pup — a black dog on a dark floor is the concept, and the gold rim light plus the lit skyline behind it separate the silhouette cleanly. The metric measured the intent and called it a defect.
+- **Deep Croak** was flagged for green-on-green hue collision, but carries strong *value* contrast — a dark subject against lit water and a glowing skyline. Hue collision only matters when value collapses with it.
+- **Frog Swarm** is one of the brightest images in the whole roster; it was flagged on hue alone.
+- **Warty Lookout** had already been regenerated once in session 27 to fix the missing headset. That fix landed — headset present, no pseudo-text, subject clearly lit. Flagging it again was pure churn.
+
+**Standing rule from this:** *a card a human has already accepted is not reopened by a measurement.* Luminance, saturation and subject-scale numbers are for triaging **un-reviewed** batches; they are evidence, never a verdict. The only thing that reopens signed-off art is a hard brief violation — baked text on a card that does not have an approved exception, or the wrong faction colour.
+
+**`Stop-Loss Order` keeps its stamped name — approved exception.** v5 flagged the image for having STOP-LOSS stamped across the envelope. The user's counter: strip the words and you cannot tell what the card is showing. That is correct for this card specifically. A sealed envelope is a generic object; unlike a dog, a frog or a robot, it carries no identity of its own, and the stamp is what makes it a stop-loss order rather than mail. A replacement concept (a bear trap clamped on a falling candlestick) was proposed and rejected as tonally wrong — horror, not trading-floor. The general no-baked-text rule stands for the other 77 cards and its reason is unchanged (`branding.md` §9.6's compositor draws name/cost/attack/health as real typography so a balance change never forces a regeneration). This exception is narrow and safe because the stamped word is the card's **name**, which never changes with balance — no stat, no rules text, no rarity is baked in.
+
+**Work order accordingly: 27 cards flagged, not 32.**
+1. **Broken / unreadable (3):** Pump Signal (wrong faction colour), Short Position, Slow Burn (both genuinely unreadable at board size — un-reviewed art, not signed off).
+2. **Normies (9):** unchanged — the grey-lighting fault was in the prompt itself, and none of the nine has been reviewed and accepted.
+3. **Degens (7 more), Builders (4), Crypto Bros (3 more), Sharpening Stone, Tadpole.**
+
+---
+
 **v5 — 2026-09-20 (session 29): full-roster art review; the two shared style blocks rewritten, Normies re-briefed, 32 cards sent back.** All 78 generated images were reviewed at full size, as per-faction contact sheets, and simulated at true board size (52×76px through `.card-face__art`'s real `cover` / `top center` crop). The user's read — "the dogs look cool, the other factions look a tad boring" — held up, and measurement found three systemic causes rather than a run of weak rolls:
 
 - **Underexposure.** Mean luminance by faction (0–255): Doggos **40.8**, Normies 38.8, Frogs 29.7, Neutral 26.1, Crypto Bros 26.0, Builders 25.2, **Degens 18.6**. Ten individual cards sit under 20 — effectively black rectangles on a board. The accepted Doggos batch is the *only* one lit like a finished game.
@@ -24,7 +43,7 @@ Ready-to-paste prompts for every card illustration, generated from `branding.md`
 
 **Two hard brief violations found:** `Stop-Loss Order` has the words **STOP-LOSS** stamped across it, and `Pump Signal` is still rendered in Frogs green rather than the faction's `#facc15` — the latter was already caught in v4, rewritten, and never regenerated. None of v4's four Crypto Bros regens were ever done; they are carried forward here.
 
-**Work order — 32 cards flagged `⟲`, tiered so the Grok grind has a sane sequence:**
+**Work order — 32 cards flagged `⟲`, tiered so the Grok grind has a sane sequence** *(superseded by v6 above: 5 of these were reinstated, leaving 27)*:
 1. **Broken / unreadable (6):** Stop-Loss Order (baked text), Pump Signal (wrong faction colour), Shadow Pup, Short Position, Slow Burn, Warty Lookout (all under 14 mean luminance — black shapes on a black field).
 2. **Normies (9):** the single biggest visual win, and the only faction needing a concept change rather than a re-roll.
 3. **Degens (7 more), Builders (4), Crypto Bros (3 more), Frogs (2 more), Sharpening Stone, Tadpole.**
@@ -353,7 +372,7 @@ Objects/artifacts, not characters (`branding.md` §9.4) — same lighting/palett
 > A ledger or scroll stamped with glowing audit seals, a redacted-document aesthetic. Terminal-green (`#00e28a`) rim light and background glow, with a bright warm key light on the object itself so it separates cleanly from the backdrop. Semi-realistic illustrated object/artifact art, same rendering register as the character cards — anime-adjacent, real lighting and shading. The object fills most of the frame, close to the camera, lit brightly against the backdrop — a rich, deep-contrast scene, never a murky near-black one. Dark trading-floor backdrop kept simple behind it, thin scanline texture, soft neon glow. Portrait orientation, roughly 2:3 aspect ratio, subject centered, clean readable shape even at thumbnail size. No text, no numbers, no logos, no watermark, no signature, no card border or frame, no readable words anywhere in the scene.
 
 ### Stop-Loss Order — Rare (`stop_loss_order`)
-> A sealed manila order envelope tilted toward the camera, closed with a cracked blood-red wax seal stamped with a plain downward-pointing arrow glyph, a gold cord wound around it. Absolutely no writing, no letters, no words, no numbers and no stamped text anywhere on the envelope or the seal — the previous version rendered the words STOP-LOSS across it, which breaks the brief; the seal carries a wordless arrow symbol only. Brightly lit, close to camera. Gold (`#f2b705`) rim light and background glow, with a warm neutral key light on the object itself so it separates cleanly from the backdrop. Semi-realistic illustrated object/artifact art, same rendering register as the character cards — anime-adjacent, real lighting and shading. The object fills most of the frame, close to the camera, lit brightly against the backdrop — a rich, deep-contrast scene, never a murky near-black one. Dark trading-floor backdrop kept simple behind it, thin scanline texture, soft neon glow. Portrait orientation, roughly 2:3 aspect ratio, subject centered, clean readable shape even at thumbnail size. No text, no numbers, no logos, no watermark, no signature, no card border or frame, no readable words anywhere in the scene.
+> A sealed manila order envelope tilted toward the camera, closed with a cracked blood-red wax seal, a gold cord wound around it, the words STOP-LOSS stamped across the face in worn red ink. **This card is the one approved exception to the no-baked-text rule** (v6) — the envelope carries no identity without the stamp, and the stamped word is the card's name, which never changes with balance. Stamp the name only: no numbers, no rules text, no other lettering anywhere. Brightly lit, close to camera. Gold (`#f2b705`) rim light and background glow, with a warm neutral key light on the object itself so it separates cleanly from the backdrop. Semi-realistic illustrated object/artifact art, same rendering register as the character cards — anime-adjacent, real lighting and shading. The object fills most of the frame, close to the camera, lit brightly against the backdrop — a rich, deep-contrast scene, never a murky near-black one. Dark trading-floor backdrop kept simple behind it, thin scanline texture, soft neon glow. Portrait orientation, roughly 2:3 aspect ratio, subject centered, clean readable shape even at thumbnail size. No text, no numbers, no logos, no watermark, no signature, no card border or frame, no readable words anywhere in the scene.
 
 ---
 
@@ -405,9 +424,9 @@ One reusable frame/border shell per rarity, no card-specific content — the sec
 
 Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v5 work order above).
 
-**Doggos:** ☑ Fast Fang · ☑ Pup Scout · ☑ Shield Pup · ☑ Puppy Swarm · ☑ Pack Rush · ☑ Moon Dog · ☑ Guard Dog · ☑ Loyal Hound · ☑ Alpha Dog · ⟲ Shadow Pup (regen)
+**Doggos:** ☑ Fast Fang · ☑ Pup Scout · ☑ Shield Pup · ☑ Puppy Swarm · ☑ Pack Rush · ☑ Moon Dog · ☑ Guard Dog · ☑ Loyal Hound · ☑ Alpha Dog · ☑ Shadow Pup
 
-**Frogs:** ☑ Leap Frog · ⟲ Warty Lookout (regen) · ⟲ Frog Swarm (regen) · ☑ Sticky Tongue · ☑ Mimic Frog · ☑ Chaos Croak · ☑ Glitch Toad · ☑ Warty Prince · ☑ Copycat · ⟲ Deep Croak (regen) · ☑ Primordial Croak
+**Frogs:** ☑ Leap Frog · ☑ Warty Lookout · ☑ Frog Swarm · ☑ Sticky Tongue · ☑ Mimic Frog · ☑ Chaos Croak · ☑ Glitch Toad · ☑ Warty Prince · ☑ Copycat · ☑ Deep Croak · ☑ Primordial Croak
 
 **Builders:** ☑ Junior Dev · ⟲ Code Monkey (regen) · ☑ Ship It · ☑ Blueprint · ⟲ Scaffold Bot (regen) · ⟲ Efficient Engineer (regen) · ☑ Rapid Prototype · ☑ Technical Debt · ☑ Modular Frame · ☑ Iteration Cycle · ☑ Crunch Time · ☑ Full Stack Titan · ⟲ Unicorn Startup (regen)
 
@@ -419,7 +438,7 @@ Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v5 w
 
 *(all 9 re-briefed in v5 — the grey-lighting fault was faction-wide, so the whole set regenerates together for coherence)*
 
-**Neutral:** ☑ Spark Bolt · ⟲ Sharpening Stone (regen) · ☑ Rocket Boots · ☑ Reinforced Plating · ☑ Bodyguard Badge · ☑ Power Core · ☑ Audit Trail · ⟲ Stop-Loss Order (regen)
+**Neutral:** ☑ Spark Bolt · ⟲ Sharpening Stone (regen) · ☑ Rocket Boots · ☑ Reinforced Plating · ☑ Bodyguard Badge · ☑ Power Core · ☑ Audit Trail · ☑ Stop-Loss Order *(keeps its stamped name — approved exception, see v6)*
 
 **Tokens:** ☑ Puppy · ⟲ Tadpole (regen)
 
