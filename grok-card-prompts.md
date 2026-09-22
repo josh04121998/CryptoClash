@@ -484,7 +484,7 @@ Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v7 w
 
 **Frogs:** ☑ Leap Frog · ☑ Warty Lookout · ☑ Frog Swarm · ☑ Sticky Tongue · ☑ Mimic Frog · ☑ Chaos Croak · ☑ Glitch Toad · ☑ Warty Prince · ☑ Copycat · ☑ Deep Croak · ☑ Primordial Croak — *faction complete, untouched by the recast*
 
-**Bears (was Builders — all 13 recast, every card regenerates):** ⟲ Cub Dev · ⟲ Grizzly Grinder · ⟲ Ship-It Bruin · ⟲ Blueprint · ⟲ Scaffold Kodiak · ⟲ Efficient Ursa · ⟲ Prototype Cub · ⟲ Technical Debt · ⟲ Modular Panda · ⟲ Iterating Bruin · ⟲ Crunch Time · ⟲ Full Stack Grizzly · ⟲ Unicorn Ursa
+**Bears (was Builders):** ☑ Cub Dev · ☑ Grizzly Grinder · ☑ Ship-It Bruin · ☑ Blueprint · ☑ Scaffold Kodiak · ☑ Efficient Ursa · ☑ Prototype Cub · ☑ Technical Debt · ☑ Modular Panda · ☑ Iterating Bruin · ☑ Crunch Time · ☑ Full Stack Grizzly · ☑ Unicorn Ursa — **13/13 accepted and wired (session 32)**
 
 **Apes (was Degens — all 14 recast):** ⟲ Degen Ape · ⟲ Overleveraged Gibbon · ⟲ Slow Burn · ⟲ Ember Curse · ⟲ Margin Call · ⟲ Rug Pull · ⟲ Leverage Mandrill · ⟲ YOLO All-In · ⟲ Blown-Out Chimp · ⟲ Liquidated Macaque · ⟲ Diamond Gorilla · ⟲ Moon Ape · ⟲ Exit Silverback · ⟲ Short Position
 
