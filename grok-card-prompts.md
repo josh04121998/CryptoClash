@@ -104,7 +104,7 @@ None of the 4 regenerated yet — that's the user's own background Grok work to 
 
 1. Paste a card's **Prompt** block into Grok exactly as written. Don't paraphrase it — the wording is deliberate (see the negative constraints below).
 2. Before accepting a result, check it against `branding.md` §9.1's rules: no text/numbers/logos/watermarks/card-border baked in, reads as one clear silhouette even shrunk small, no rarity-specific glow/frame in the art itself.
-3. Save the accepted image as `client/src/assets/cards/{id}.jpg` (the id is given after each card name below — this is `cardArt.ts`'s lookup key, same convention Moon Dog already uses).
+3. Save the accepted image as `client/src/assets/cards/{id}.jpg` (that is the only copy the game reads; staging folders under `branding/assets/Cards/` are scratch and get cleared once a faction is wired) (the id is given after each card name below — this is `cardArt.ts`'s lookup key, same convention Moon Dog already uses).
 4. Tick it off the checklist at the end of this doc.
 5. **Generate every card's Standard illustration first, in full, before touching Full Art/Ultra/Secret Edition art or the frame templates** — those are lower-priority, later-stage work (`collectibility.md` §8/§10, `branding.md` §9.3).
 
@@ -430,7 +430,7 @@ One reusable frame/border shell per rarity, no card-specific content — the sec
 **v2.0 — minimalist redesign (2026-09-14).** Replaces everything below with a completely different, much simpler direction. The v1.x ornate-fantasy-metal design (bat-wing corners, faceted gem sockets, four carved regions) is dropped entirely in favor of a clean, modern, Pokémon-style border, decided after comparing accepted candidates directly. Why the switch, and what carries over as settled fact for this new design:
 
 - **Two boxes only, not four.** No separate name-plate band, no separate footer strip, no gem sockets baked into the frame at all. Cost/attack/health badges and the name are already drawn by the compositor as CSS shapes (`tools/card-render/template.html`, proven working on the shipped Moon Dog render) sitting on *top* of this frame image — the frame itself only needs to provide (1) an art box and (2) a description box, stacked with nothing else.
-- **Card fills the canvas edge to edge.** The accepted reference (`branding/assets/Rarity/grok-image-12c745e5-...jpg`) has only ~2–3% margin around the card and a clearly visible ~3%-width border — not a small card floating on a padded canvas (a rejected candidate had ~10% dead margin on each side and a border so thin it nearly disappeared).
+- **Card fills the canvas edge to edge.** The accepted reference (since renamed — the Rarity sources are now `branding/assets/Rarity/{common,uncommon,rare,epic,legendary}.jpg`) has only ~2–3% margin around the card and a clearly visible ~3%-width border — not a small card floating on a padded canvas (a rejected candidate had ~10% dead margin on each side and a border so thin it nearly disappeared).
 - **Box proportions: ~56% art, ~36% description**, with the remaining ~8% as top/bottom border margin. Measured directly off the accepted reference and cross-checked against a real product-photo mockup the box sizing was compared to — both land within a point of each other, so this split is confirmed right, not a guess.
 - **Interior fill color no longer matters and is not specified.** Earlier versions of this doc demanded an exact `#0b120e` match for chroma-keying purposes. That was solving a problem the current compositor design doesn't have: both boxes get fully painted over by code (art image in box 1, a drawn panel + text in box 2), so whatever flat color Grok renders is invisible in the final card either way. Plain black (what the accepted reference happens to use) is fine.
 - **No ornamentation.** No corner brackets, no gem sockets, no icons — a single border stroke, rounded corners, nothing else besides the material treatment below. This is a deliberate simplification, not a placeholder; don't add detail back in without discussing it first.
@@ -477,4 +477,4 @@ Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v7 w
 
 **Tokens:** ☑ Puppy · ⟲ Tadpole (regen)
 
-**Rarity frames:** ☑ Common · ☑ Uncommon · ☐ Rare · ☐ Epic · ☐ Legendary
+**Rarity frames:** ☑ Common · ☑ Uncommon · ☑ Rare · ☑ Epic · ☑ Legendary — *all five generated, processed and wired (`client/src/assets/frames/`, imported by `frameArt.ts`); sources in `branding/assets/Rarity/`*
