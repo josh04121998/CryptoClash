@@ -46,6 +46,16 @@ import diamondGorilla from "./assets/cards/diamond_gorilla.jpg";
 import moon_ape from "./assets/cards/moon_ape.jpg";
 import exitSilverback from "./assets/cards/exit_silverback.jpg";
 import shortPosition from "./assets/cards/short_position.jpg";
+import seedRound from "./assets/cards/seed_round.jpg";
+import hodlBull from "./assets/cards/hodl_bull.jpg";
+import angelBull from "./assets/cards/angel_bull.jpg";
+import ventureCapital from "./assets/cards/venture_capital.jpg";
+import bullRun from "./assets/cards/bull_run.jpg";
+import toTheMoon from "./assets/cards/to_the_moon.jpg";
+import whaleLonghorn from "./assets/cards/whale_longhorn.jpg";
+import compoundBrahman from "./assets/cards/compound_brahman.jpg";
+import unicornBull from "./assets/cards/unicorn_bull.jpg";
+import pumpSignal from "./assets/cards/pump_signal.jpg";
 
 /**
  * templateId -> illustration. Sparse on purpose — branding.md Section 9's art
@@ -108,6 +118,16 @@ const CARD_ART: Partial<Record<string, string>> = {
   moon_ape,
   exit_silverback: exitSilverback,
   short_position: shortPosition,
+  seed_round: seedRound,
+  hodl_bull: hodlBull,
+  angel_bull: angelBull,
+  venture_capital: ventureCapital,
+  bull_run: bullRun,
+  to_the_moon: toTheMoon,
+  whale_longhorn: whaleLonghorn,
+  compound_brahman: compoundBrahman,
+  unicorn_bull: unicornBull,
+  pump_signal: pumpSignal,
 };
 
 export function cardArt(templateId: string): string | undefined {
