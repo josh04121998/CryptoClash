@@ -418,11 +418,11 @@ describe("Apes — self-damage effects", () => {
     expect(state.players.A.hp).toBe(aHpBefore - 2);
   });
 
-  it("Leverage Mandrill pays 1 HP for a permanent +2 Attack on itself", () => {
+  it("Leverage Gorilla pays 1 HP for a permanent +2 Attack on itself", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 55);
     const aHpBefore = state.players.A.hp;
 
-    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "leverage_mandrill"), slot: 0 });
+    applyIntent(state, { kind: "playCard", playerId: "A", handIndex: giveCard(state, "A", "leverage_gorilla"), slot: 0 });
 
     expect(state.players.A.hp).toBe(aHpBefore - 1);
     expect(getEffectiveAttack(state, "A", 0)).toBe(5); // base 3 + buffSelf 2
@@ -700,19 +700,19 @@ describe("bot AI", () => {
 
   it("declines a self-damage creature that would step into the enemy board's current lethal-swing range, even above the flat HP floor", () => {
     const state = createMatch(SAMPLE_DECK, SAMPLE_DECK, 23);
-    // Leverage Mandrill: a Creature, not a Spell — deal 1 damage to yourself, gain +2 Attack.
-    state.players.A.hand = ["leverage_mandrill"];
+    // Leverage Gorilla: a Creature, not a Spell — deal 1 damage to yourself, gain +2 Attack.
+    state.players.A.hand = ["leverage_gorilla"];
     state.players.A.energy = state.players.A.maxEnergy = 10;
     state.players.A.hp = 11; // comfortably above the flat safety floor on its own
 
     // Two 5-attack creatures on the enemy board sum to 10 effective attack — playing
-    // Leverage Mandrill would drop A to 10 HP, at or below that full-swing threat next turn.
+    // Leverage Gorilla would drop A to 10 HP, at or below that full-swing threat next turn.
     placeCreature(state, "B", 0, "loyal_hound");
     placeCreature(state, "B", 1, "loyal_hound");
 
     takeBotTurn(state, "A");
 
-    expect(state.players.A.hand).toContain("leverage_mandrill"); // left unplayed
+    expect(state.players.A.hand).toContain("leverage_gorilla"); // left unplayed
     expect(state.players.A.hp).toBe(11); // no self-damage taken
     expect(state.players.A.board.every((slot) => slot === null)).toBe(true); // never summoned
   });
