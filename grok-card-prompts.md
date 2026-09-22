@@ -478,7 +478,9 @@ One reusable frame/border shell per rarity, no card-specific content — the sec
 
 ## Progress checklist
 
-Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v7 work order above).
+Legend: ☑ generated and accepted · ⚠ accepted and wired but with a noted flaw · ⟲ flagged for regeneration.
+
+**All 77 cards are generated, accepted and wired as of session 32.** Only two optional improvements remain, both noted inline below: `Angel Bull` (too close to Seed Round) and `Steadfast Tabby` (human bystanders).
 
 **Doggos:** ☑ Fast Fang · ☑ Pup Scout · ☑ Shield Pup · ☑ Puppy Swarm · ☑ Pack Rush · ☑ Moon Dog · ☑ Guard Dog · ☑ Loyal Hound · ☑ Alpha Dog · ☑ Shadow Pup — *faction complete, untouched by the recast*
 
@@ -490,10 +492,10 @@ Legend: ☑ generated and accepted · ⟲ flagged for regeneration (see the v7 w
 
 **Bulls (was Crypto Bros):** ☑ Seed Round · ☑ HODL Bull · ⚠ Angel Bull *(wired, but near-identical to Seed Round — prompt rewritten, regen recommended)* · ☑ Venture Capital · ☑ Bull Run · ☑ To The Moon · ☑ Whale Longhorn · ☑ Compound Brahman · ☑ Unicorn Bull · ☑ Pump Signal — **10/10 wired (session 32)**
 
-**Cats (was Normies — all 9 recast):** ⟲ Steady Paw · ⟲ First Aid · ⟲ Harbor Tom · ⟲ Rainy Day Fund · ⟲ Adaptive Siamese · ⟲ Old Alley Cat · ⟲ Community Clowder · ⟲ Steadfast Tabby · ⟲ Cool Down
+**Cats (was Normies):** ☑ Steady Paw · ☑ First Aid · ☑ Harbor Tom · ☑ Rainy Day Fund · ☑ Adaptive Siamese · ☑ Old Alley Cat · ☑ Community Clowder · ⚠ Steadfast Tabby *(wired; the panicking bystanders rendered as humans — the only humans left anywhere in the cast)* · ☑ Cool Down — **9/9 wired (session 32)**
 
-**Neutral** *(objects, unaffected by the recast)*: ☑ Spark Bolt · ⟲ Sharpening Stone (regen) · ☑ Rocket Boots · ☑ Reinforced Plating · ☑ Bodyguard Badge · ☑ Power Core · ☑ Audit Trail · ☑ Stop-Loss Order *(keeps its stamped name — approved exception, see v6)*
+**Neutral** *(objects, unaffected by the recast)*: ☑ Spark Bolt · ☑ Sharpening Stone · ☑ Rocket Boots · ☑ Reinforced Plating · ☑ Bodyguard Badge · ☑ Power Core · ☑ Audit Trail · ☑ Stop-Loss Order *(keeps its stamped name — approved exception, see v6)*
 
-**Tokens:** ☑ Puppy · ⟲ Tadpole (regen)
+**Tokens:** ☑ Puppy · ☑ Tadpole — *kept as generated; the user accepted it rather than regenerating*
 
 **Rarity frames:** ☑ Common · ☑ Uncommon · ☑ Rare · ☑ Epic · ☑ Legendary — *all five generated, processed and wired (`client/src/assets/frames/`, imported by `frameArt.ts`); sources in `branding/assets/Rarity/`*

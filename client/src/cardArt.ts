@@ -56,6 +56,25 @@ import whaleLonghorn from "./assets/cards/whale_longhorn.jpg";
 import compoundBrahman from "./assets/cards/compound_brahman.jpg";
 import unicornBull from "./assets/cards/unicorn_bull.jpg";
 import pumpSignal from "./assets/cards/pump_signal.jpg";
+import steadyPaw from "./assets/cards/steady_paw.jpg";
+import firstAid from "./assets/cards/first_aid.jpg";
+import harborTom from "./assets/cards/harbor_tom.jpg";
+import rainyDayFund from "./assets/cards/rainy_day_fund.jpg";
+import adaptiveSiamese from "./assets/cards/adaptive_siamese.jpg";
+import oldAlleyCat from "./assets/cards/old_alley_cat.jpg";
+import communityClowder from "./assets/cards/community_clowder.jpg";
+import steadfastTabby from "./assets/cards/steadfast_tabby.jpg";
+import coolDown from "./assets/cards/cool_down.jpg";
+import sparkBolt from "./assets/cards/spark_bolt.jpg";
+import sharpeningStone from "./assets/cards/sharpening_stone.jpg";
+import rocketBoots from "./assets/cards/rocket_boots.jpg";
+import reinforcedPlating from "./assets/cards/reinforced_plating.jpg";
+import bodyguardBadge from "./assets/cards/bodyguard_badge.jpg";
+import powerCore from "./assets/cards/power_core.jpg";
+import auditTrail from "./assets/cards/audit_trail.jpg";
+import stopLossOrder from "./assets/cards/stop_loss_order.jpg";
+import puppy from "./assets/cards/puppy.jpg";
+import tadpole from "./assets/cards/tadpole.jpg";
 
 /**
  * templateId -> illustration. Sparse on purpose — branding.md Section 9's art
@@ -128,6 +147,25 @@ const CARD_ART: Partial<Record<string, string>> = {
   compound_brahman: compoundBrahman,
   unicorn_bull: unicornBull,
   pump_signal: pumpSignal,
+  steady_paw: steadyPaw,
+  first_aid: firstAid,
+  harbor_tom: harborTom,
+  rainy_day_fund: rainyDayFund,
+  adaptive_siamese: adaptiveSiamese,
+  old_alley_cat: oldAlleyCat,
+  community_clowder: communityClowder,
+  steadfast_tabby: steadfastTabby,
+  cool_down: coolDown,
+  spark_bolt: sparkBolt,
+  sharpening_stone: sharpeningStone,
+  rocket_boots: rocketBoots,
+  reinforced_plating: reinforcedPlating,
+  bodyguard_badge: bodyguardBadge,
+  power_core: powerCore,
+  audit_trail: auditTrail,
+  stop_loss_order: stopLossOrder,
+  puppy,
+  tadpole,
 };
 
 export function cardArt(templateId: string): string | undefined {
