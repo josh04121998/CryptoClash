@@ -235,7 +235,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 | Slow Burn | Common | A trader watching a slow-burning ember-red fuse creep across a ledger, uneasy grin, no rush to put it out |
 | Margin Call | Uncommon | A trader mid-panic on a phone call, sweat, red warning screens behind |
 | Rug Pull | Uncommon | A literal rug yanked out from under a trader mid-fall — betrayal, chaos |
-| Leverage Mandrill | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
+| Leverage Gorilla | Uncommon | A trader balanced on a tightrope over a leverage bar, risky poise |
 | YOLO All-In | Uncommon | A trader diving headfirst into a swirling, chaotic market chart |
 | Ember Curse | Uncommon | A trader with one hand outstretched, a smoldering ember-red curse sigil crackling between his fingers, reckless grin — the mark of a slow-burning hex |
 | Blown-Out Chimp | Rare | A trader with an empty wallet, dazed grin, scattered chips/coins — "high reward, paper hands" |

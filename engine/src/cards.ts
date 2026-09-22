@@ -583,9 +583,9 @@ export const CARD_POOL: Record<string, CardTemplate> = {
       { trigger: "onPlay", action: { kind: "damage", target: { kind: "selfPlayer" }, amount: 2 } },
     ],
   },
-  leverage_mandrill: {
-    id: "leverage_mandrill",
-    name: "Leverage Mandrill",
+  leverage_gorilla: {
+    id: "leverage_gorilla",
+    name: "Leverage Gorilla",
     faction: "Apes",
     type: "Creature",
     cost: 2,
@@ -1067,7 +1067,7 @@ export const APE_SAMPLE_DECK: string[] = [
   ...Array(3).fill("overleveraged_gibbon"),
   ...Array(3).fill("slow_burn"),
   ...Array(3).fill("margin_call"),
-  ...Array(3).fill("leverage_mandrill"),
+  ...Array(3).fill("leverage_gorilla"),
   ...Array(3).fill("rug_pull"),
   ...Array(1).fill("yolo_allin"),
   ...Array(1).fill("blown_out_chimp"),

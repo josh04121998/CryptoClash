@@ -38,7 +38,7 @@ import slowBurn from "./assets/cards/slow_burn.jpg";
 import emberCurse from "./assets/cards/ember_curse.jpg";
 import marginCall from "./assets/cards/margin_call.jpg";
 import rugPull from "./assets/cards/rug_pull.jpg";
-import leverageMandrill from "./assets/cards/leverage_mandrill.jpg";
+import leverageGorilla from "./assets/cards/leverage_gorilla.jpg";
 import yoloAllin from "./assets/cards/yolo_allin.jpg";
 import blownOutChimp from "./assets/cards/blown_out_chimp.jpg";
 import liquidatedMacaque from "./assets/cards/liquidated_macaque.jpg";
@@ -100,7 +100,7 @@ const CARD_ART: Partial<Record<string, string>> = {
   ember_curse: emberCurse,
   margin_call: marginCall,
   rug_pull: rugPull,
-  leverage_mandrill: leverageMandrill,
+  leverage_gorilla: leverageGorilla,
   yolo_allin: yoloAllin,
   blown_out_chimp: blownOutChimp,
   liquidated_macaque: liquidatedMacaque,
