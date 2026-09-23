@@ -7,6 +7,7 @@ import { CollectionScreen } from "./components/CollectionScreen.js";
 import { CraftingScreen } from "./components/CraftingScreen.js";
 import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
 import { EventBanner } from "./components/EventBanner.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
 import { LandingPage } from "./components/LandingPage.js";
@@ -123,17 +124,35 @@ export default function App() {
 
   if (mode === "landing") return <LandingPage onEnter={enterMenuFromLanding} />;
 
+  // The three match screens carry by far the most render complexity in the app
+  // (77 cards, animations, live server state), so they are where a render error
+  // is most likely and where blanking the whole app would hurt most. Boundaried
+  // individually, each recovering to the menu: a crash costs one match, not the
+  // session. `key={mode}` remounts the boundary on every screen change, so a
+  // caught error can never persist into the next match.
   if (mode === "tutorial") {
     return (
-      <TutorialMatch
-        onPracticeAi={() => setMode("pick-local")}
-        onMainMenu={() => setMode("menu")}
-      />
+      <ErrorBoundary key={mode} where="tutorial" onRecover={() => setMode("menu")}>
+        <TutorialMatch onPracticeAi={() => setMode("pick-local")} onMainMenu={() => setMode("menu")} />
+      </ErrorBoundary>
     );
   }
 
-  if (mode === "local") return <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />;
-  if (mode === "online") return <OnlineMatch deckCards={deckCards} token={wallet.token} onExit={() => setMode("menu")} />;
+  if (mode === "local") {
+    return (
+      <ErrorBoundary key={mode} where="local-match" onRecover={() => setMode("menu")}>
+        <LocalMatch deckCards={deckCards} onExit={() => setMode("menu")} />
+      </ErrorBoundary>
+    );
+  }
+
+  if (mode === "online") {
+    return (
+      <ErrorBoundary key={mode} where="online-match" onRecover={() => setMode("menu")}>
+        <OnlineMatch deckCards={deckCards} token={wallet.token} onExit={() => setMode("menu")} />
+      </ErrorBoundary>
+    );
+  }
 
   if (mode === "pick-local" || mode === "pick-online") {
     return (

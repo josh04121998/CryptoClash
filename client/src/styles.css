@@ -3020,3 +3020,46 @@ button {
     font-size: 0.75rem;
   }
 }
+
+/*
+ * ErrorBoundary's default panel. Deliberately plain and centred: it renders
+ * when something has already gone wrong, so it must not depend on anything
+ * clever — no custom fonts beyond the stack, no animation, no layout that
+ * could itself fail.
+ */
+.error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.error-boundary__panel {
+  max-width: 30rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-bright);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+
+.error-boundary__panel h2 {
+  margin: 0 0 0.6rem;
+  color: var(--accent);
+  font-family: var(--font-display);
+}
+
+.error-boundary__panel p {
+  margin: 0 0 1.1rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.error-boundary__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}

@@ -395,6 +395,9 @@ describe("the allowlist", () => {
       "craft_action",
       "daily_claimed",
       "screen_view",
+      // Not a funnel step — the ErrorBoundary's crash report. Added after the
+      // original contract was frozen; see shared/src/index.ts.
+      "client_error",
     ]);
   });
 

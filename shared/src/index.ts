@@ -170,6 +170,13 @@ export const TELEMETRY_EVENT_NAMES = [
   "craft_action",
   "daily_claimed",
   "screen_view",
+  // Not a funnel step: a crash report. The client has no error tracking of its
+  // own, so a render error that blanks the app (see client/src/ErrorBoundary.tsx)
+  // or a server-reported crash would otherwise be completely invisible — nobody
+  // would know it happened, least of all at launch when it matters most. Props
+  // carry only `where` and a truncated error name/message, never a stack trace
+  // or anything a user typed.
+  "client_error",
 ] as const;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];
