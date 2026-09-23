@@ -7,6 +7,7 @@ import { findOrCreateAccount } from "../src/accounts.js";
 import { getMyAchievements } from "../src/achievementsRepo.js";
 import { issueSessionToken } from "../src/auth.js";
 import { getBalance } from "../src/coinsRepo.js";
+import { deckFaction } from "../src/matchesRepo.js";
 import { createMatchServer, MatchServerHandle } from "../src/createMatchServer.js";
 import { runMigrations } from "../src/migrate.js";
 import { getMyRank } from "../src/rankRepo.js";
@@ -730,6 +731,301 @@ d("match rewards (Coins), authenticated (integration, real Postgres)", () => {
       const stats = await getReferralStats(pool, referrer.accountId);
       expect(stats.rewarded).toBe(1);
       expect(stats.pending).toBe(0);
+
+      aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
+});
+
+/**
+ * Pure, no database needed — the deck-archetype derivation the `matches` row's
+ * per-seat faction columns are built from (matchesRepo.ts).
+ */
+describe("deck faction derivation", () => {
+  it("labels each pre-built deck with its own faction, counting only that faction's cards", async () => {
+    const { DECKS } = await import("@cryptoclash/engine");
+    for (const deck of DECKS) {
+      const { faction, cardCount } = deckFaction(deck.cards);
+      expect(faction).toBe(deck.faction);
+      // Every pre-built deck is mostly its own faction plus a few Neutral staples — never a
+      // bare plurality that a differently-shaped custom deck could tip over.
+      expect(cardCount).toBeGreaterThan(deck.cards.length / 2);
+      expect(cardCount).toBeLessThanOrEqual(deck.cards.length);
+    }
+  });
+
+  it("reports Neutral with a zero count for a deck that has no faction cards at all", () => {
+    // Neutral staples plus ids that aren't in the pool at all — neither may throw, and neither
+    // may invent a faction. (Not a legal deck; deckFaction never validates, it only describes.)
+    expect(deckFaction(["sharpening_stone", "not_a_real_card_id", "sharpening_stone"])).toEqual({
+      faction: "Neutral",
+      cardCount: 0,
+    });
+    expect(deckFaction([])).toEqual({ faction: "Neutral", cardCount: 0 });
+  });
+});
+
+/**
+ * Durable match records (server/migrations/0014_matches.sql). Every one of these drives a real
+ * match over real websockets and then asserts on the row the match server actually wrote —
+ * matchRoom.ts's recording is fire-and-forget (`.catch(() => {})`), so there is no message to
+ * await and nothing would fail loudly if it silently stopped working.
+ */
+d("durable match records (integration, real Postgres)", () => {
+  let pool: Pool;
+
+  beforeAll(async () => {
+    process.env.JWT_SECRET = "test-secret-do-not-use-in-prod";
+    pool = new Pool({ connectionString: databaseUrl, ssl: process.env.DATABASE_SSL === "false" ? undefined : { rejectUnauthorized: false } });
+    await runMigrations(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+  });
+
+  // Both hooks: other describes in this file play real matches too, so a row from one of them
+  // must not leak into these counts, and these rows must not leak out.
+  beforeEach(async () => {
+    await pool.query("delete from matches");
+  });
+
+  afterEach(async () => {
+    await pool.query("delete from matches");
+    await pool.query("delete from decks");
+    await pool.query("delete from accounts");
+  });
+
+  interface MatchRow {
+    winner: "A" | "B" | "Draw";
+    end_reason: "conclusion" | "forfeit" | "abandon";
+    turns: number;
+    duration_ms: number;
+    a_account_id: string | null;
+    b_account_id: string | null;
+    a_faction: string;
+    b_faction: string;
+    a_faction_cards: number;
+    b_faction_cards: number;
+    a_hp: number;
+    b_hp: number;
+    started_at: Date;
+    ended_at: Date;
+  }
+
+  /**
+   * Same best-effort/no-message-to-await reasoning as waitForQuestProgress above: the insert is
+   * fired at the instant the match ends and nothing chains a WS message to it, so poll briefly
+   * rather than assuming it has already landed.
+   */
+  async function waitForMatchRows(count: number): Promise<MatchRow[]> {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const rows = (await pool.query<MatchRow>("select * from matches order by ended_at")).rows;
+      if (rows.length >= count) return rows;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`expected ${count} recorded match row(s); none ever arrived`);
+  }
+
+  async function accountToken(walletAddress: string): Promise<{ accountId: string; token: string }> {
+    const account = await findOrCreateAccount(pool, walletAddress);
+    const token = await issueSessionToken({ accountId: account.id, walletAddress: account.walletAddress });
+    return { accountId: account.id, token };
+  }
+
+  it(
+    "records a real engine-decided conclusion, with both seats' accounts, factions, turn count and duration",
+    async () => {
+      const accountA = await accountToken("0xmatchrecordconcludea");
+      const accountB = await accountToken("0xmatchrecordconcludeb");
+
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpMatch({ a: accountA.token, b: accountB.token });
+      const { winner } = await playMatchToConclusion(aSocket, bSocket, aPlayerId, bPlayerId, foundA.state, 15000);
+
+      const [row] = await waitForMatchRows(1);
+      expect(row.end_reason).toBe("conclusion");
+      expect(row.winner).toBe(winner);
+      expect(row.turns).toBeGreaterThan(0);
+      expect(row.duration_ms).toBeGreaterThanOrEqual(0);
+      expect(row.ended_at.getTime()).toBeGreaterThanOrEqual(row.started_at.getTime());
+
+      // Each seat's account is attributed to the seat that actually played it.
+      const accountIdFor: Record<PlayerId, string> = {
+        [aPlayerId]: accountA.accountId,
+        [bPlayerId]: accountB.accountId,
+      } as Record<PlayerId, string>;
+      expect(row.a_account_id).toBe(accountIdFor.A);
+      expect(row.b_account_id).toBe(accountIdFor.B);
+
+      // AGGRO_DECK is 7 Doggos templates x3 plus three off-faction ones — a real plurality, and
+      // the same derivation on both seats since both played it.
+      expect(row.a_faction).toBe("Doggos");
+      expect(row.b_faction).toBe("Doggos");
+      expect(row.a_faction_cards).toBe(21);
+      expect(row.b_faction_cards).toBe(21);
+
+      // The only win condition is HP <= 0 (engine matchOps.ts's checkWin), so a decided
+      // conclusion always leaves the loser at or below zero and the winner above it. This is
+      // what makes a_hp/b_hp a usable "how decisive was it" signal rather than noise.
+      const hpFor: Record<"A" | "B", number> = { A: row.a_hp, B: row.b_hp };
+      if (winner === "Draw") {
+        expect(hpFor.A).toBeLessThanOrEqual(0);
+        expect(hpFor.B).toBeLessThanOrEqual(0);
+      } else {
+        expect(hpFor[winner]).toBeGreaterThan(0);
+        expect(hpFor[enemyOf(winner)]).toBeLessThanOrEqual(0);
+      }
+
+      aSocket.close();
+      bSocket.close();
+    },
+    25000,
+  );
+
+  it(
+    "records an intentional Leave as a forfeit, distinguishably from a real conclusion",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId } = await setUpMatch();
+
+      send(aSocket, { type: "leave" });
+      const stateMsg = await nextMessage(bSocket);
+      expect(stateMsg.type).toBe("state");
+
+      const [row] = await waitForMatchRows(1);
+      expect(row.end_reason).toBe("forfeit");
+      // The forfeiting seat loses; the remaining player is the recorded winner.
+      expect(row.winner).toBe(bPlayerId);
+      expect(row.winner).not.toBe(aPlayerId);
+      // Nobody has been damaged — a forfeit's HP is simply whatever it was when the seat quit.
+      expect(row.a_hp).toBe(30);
+      expect(row.b_hp).toBe(30);
+      expect(row.turns).toBeGreaterThan(0);
+
+      aSocket.close();
+      bSocket.close();
+    },
+    20000,
+  );
+
+  it(
+    "records a lapsed disconnect grace period as an abandon, not a forfeit",
+    async () => {
+      // A short grace period (the same createMatchServer option the forfeit test above uses) so
+      // this doesn't wait out the real ~45s default.
+      const shortServer = await createMatchServer(0, { graceMs: 300 });
+      try {
+        const shortUrl = `ws://localhost:${shortServer.port}`;
+        const a = await connect(shortUrl);
+        const b = await connect(shortUrl);
+        send(a, { type: "findMatch", cards: AGGRO_DECK });
+        await nextMessage(a); // queued
+        send(b, { type: "findMatch", cards: AGGRO_DECK });
+        const [, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+        if (foundB.type !== "matchFound") throw new Error("unreachable");
+
+        a.close();
+        await nextMessage(b); // opponentDisconnected
+        const stateMsg = await nextMessage(b, 3000); // the forfeit's winner-set broadcast
+        expect(stateMsg.type).toBe("state");
+
+        const [row] = await waitForMatchRows(1);
+        // The distinction this column exists for: a dropped connection is an infrastructure
+        // signal, a Leave click a game-design one. Same game outcome, two recorded reasons.
+        expect(row.end_reason).toBe("abandon");
+        expect(row.winner).toBe(foundB.playerId);
+        // Anonymous on both sides — no token was ever sent. A null account is a recorded row,
+        // not a skipped one.
+        expect(row.a_account_id).toBeNull();
+        expect(row.b_account_id).toBeNull();
+        // Duration spans the grace period, as documented on the column — this is why duration
+        // averages have to filter to end_reason = 'conclusion'.
+        expect(row.duration_ms).toBeGreaterThanOrEqual(300);
+
+        b.close();
+      } finally {
+        await shortServer.close();
+      }
+    },
+    20000,
+  );
+
+  it(
+    "derives each seat's faction from the deck that seat actually played",
+    async () => {
+      const { FROG_SAMPLE_DECK } = await import("@cryptoclash/engine");
+      const a = await connect();
+      const b = await connect();
+      send(a, { type: "findMatch", cards: FROG_SAMPLE_DECK });
+      await nextMessage(a); // queued
+      send(b, { type: "findMatch", cards: AGGRO_DECK });
+      const [foundA, foundB] = await Promise.all([nextMessage(a), nextMessage(b)]);
+      if (foundA.type !== "matchFound" || foundB.type !== "matchFound") throw new Error("unreachable");
+
+      // Ended by a Leave rather than played out, so this test is about the faction columns only
+      // and doesn't depend on a frog deck being drivable by the scripted player above.
+      send(a, { type: "leave" });
+      await nextMessage(b);
+
+      const [row] = await waitForMatchRows(1);
+      const factionFor: Record<PlayerId, string> = { A: row.a_faction, B: row.b_faction };
+      expect(factionFor[foundA.playerId]).toBe("Frogs");
+      expect(factionFor[foundB.playerId]).toBe("Doggos");
+
+      a.close();
+      b.close();
+    },
+    20000,
+  );
+
+  it(
+    "records a match exactly once, even when a concluded match is then left by both players",
+    async () => {
+      const { aSocket, bSocket, aPlayerId, bPlayerId, foundA } = await setUpMatch();
+      await playMatchToConclusion(aSocket, bSocket, aPlayerId, bPlayerId, foundA.state, 15000);
+      await waitForMatchRows(1);
+
+      // handleLeave on an already-concluded match takes the "just tear down" branch, and a
+      // socket close after that reaches handleDisconnect — neither may produce a second row.
+      send(aSocket, { type: "leave" });
+      send(bSocket, { type: "leave" });
+      aSocket.close();
+      bSocket.close();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const rows = (await pool.query<MatchRow>("select * from matches")).rows;
+      expect(rows.length).toBe(1);
+      expect(rows[0].end_reason).toBe("conclusion");
+    },
+    25000,
+  );
+
+  it(
+    "keeps the match record when a participating account is deleted, degrading that seat to anonymous",
+    async () => {
+      const accountA = await accountToken("0xmatchrecorddeletea");
+      const accountB = await accountToken("0xmatchrecorddeleteb");
+
+      const { aSocket, bSocket, aPlayerId, bPlayerId } = await setUpMatch({ a: accountA.token, b: accountB.token });
+      send(aSocket, { type: "leave" });
+      await nextMessage(bSocket);
+      const [before] = await waitForMatchRows(1);
+      expect([before.a_account_id, before.b_account_id].sort()).toEqual([accountA.accountId, accountB.accountId].sort());
+
+      // `on delete set null`, deliberately unlike every other account-scoped table's cascade:
+      // deleting one player must not delete the record of a game their opponent played.
+      await pool.query("delete from accounts where id = $1", [accountA.accountId]);
+
+      const [after] = (await pool.query<MatchRow>("select * from matches")).rows;
+      expect(after).toBeDefined();
+      const accountIdFor: Record<PlayerId, string | null> = { A: after.a_account_id, B: after.b_account_id };
+      expect(accountIdFor[aPlayerId]).toBeNull();
+      expect(accountIdFor[bPlayerId]).toBe(accountB.accountId);
+      // Every gameplay fact survives the deletion.
+      expect(after.end_reason).toBe("forfeit");
+      expect(after.a_faction).toBe("Doggos");
+      expect(after.turns).toBeGreaterThan(0);
 
       aSocket.close();
       bSocket.close();
