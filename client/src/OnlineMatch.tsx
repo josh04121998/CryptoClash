@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmModal } from "./components/ConfirmModal.js";
+import { LocalMatch } from "./LocalMatch.js";
 import { MatchView } from "./components/MatchView.js";
 import { MuteToggle } from "./components/MuteToggle.js";
+import { shouldFallBackToBot, shouldShowQueueHint } from "./queueFallback.js";
 import { playRewardSound } from "./sound.js";
 import { useOnlineMatch } from "./useOnlineMatch.js";
 
@@ -16,6 +18,11 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   const [logOpen, setLogOpen] = useState(false);
   const [queuedSeconds, setQueuedSeconds] = useState(0);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  // Set once the queue gives up and hands over to a bot match (see queueFallback.ts).
+  const [botFallback, setBotFallback] = useState(false);
+  // Set when the player explicitly goes back to wait for a real opponent, which
+  // suppresses the automatic fallback from re-firing 20 seconds later.
+  const [waitingByChoice, setWaitingByChoice] = useState(false);
 
   useEffect(() => {
     connect(deckCards, token ?? undefined);
@@ -31,6 +38,16 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
     const timer = setInterval(() => setQueuedSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
   }, [status]);
+
+  // Nobody to match with: stop spinning and give the player an actual game.
+  // Drops the queue slot first so the server isn't holding a session that has
+  // already moved on — re-queuing goes through "Wait for a real opponent".
+  useEffect(() => {
+    if (!shouldFallBackToBot({ status, queuedSeconds, waitingByChoice })) return;
+    disconnect();
+    setBotFallback(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, queuedSeconds, waitingByChoice]);
 
   const prevRewardRef = useRef(reward);
   useEffect(() => {
@@ -50,6 +67,35 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   function requestLeave() {
     if (status === "in-match" && state && !state.winner) setConfirmingLeave(true);
     else handleExit();
+  }
+
+  function backToQueue() {
+    setBotFallback(false);
+    setWaitingByChoice(true);
+    connect(deckCards, token ?? undefined);
+  }
+
+  // Reuses LocalMatch wholesale rather than rebuilding a board: it already owns
+  // the bot loop, the match log, New Match, and confirm-before-leaving.
+  if (botFallback) {
+    return (
+      <LocalMatch
+        deckCards={deckCards}
+        onExit={onExit}
+        subtitle="practice — vs. bot"
+        notice={
+          <>
+            <span>
+              No one else was queued, so you're playing the bot. This is a practice match — it doesn't count toward rank, quests or the
+              leaderboard.
+            </span>
+            <button type="button" onClick={backToQueue}>
+              Wait for a real opponent
+            </button>
+          </>
+        }
+      />
+    );
   }
 
   return (
@@ -105,9 +151,11 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
           {status === "queued" && (
             <>
               <p>Looking for an opponent…{queuedSeconds > 0 ? ` (${queuedSeconds}s)` : ""}</p>
-              {queuedSeconds >= 20 && (
+              {shouldShowQueueHint({ status, queuedSeconds, waitingByChoice }) && (
                 <p className="connect-status__hint">
-                  Nobody's queued right now — try Play vs AI instead, or hang tight and we'll match you the moment someone joins.
+                  {waitingByChoice
+                    ? "Still nobody queued — we'll match you the moment someone joins."
+                    : "Nobody's queued right now — we'll start you against the bot shortly, and match you the moment a real opponent joins."}
                 </p>
               )}
               <button type="button" onClick={handleExit}>

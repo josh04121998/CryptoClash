@@ -2982,3 +2982,41 @@ button {
     margin-bottom: 88px;
   }
 }
+
+/*
+ * Play Online's bot-fallback disclosure (OnlineMatch.tsx -> LocalMatch's `notice`).
+ * In-flow above the board rather than a fixed pill like .reconnect-banner: this one
+ * is permanent for the whole match and carries an action, so it must never sit on
+ * top of the board or pulse for attention it doesn't need.
+ */
+.bot-fallback-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.9rem;
+  margin: 0.4rem auto 0;
+  max-width: 62rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.bot-fallback-banner button {
+  flex: none;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+}
+
+/* Phone: let the text own the row and drop the action beneath it. */
+@media (max-width: 540px) {
+  .bot-fallback-banner {
+    margin-inline: 0.5rem;
+    font-size: 0.75rem;
+  }
+}

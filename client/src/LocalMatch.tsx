@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { ConfirmModal } from "./components/ConfirmModal.js";
 import { MatchView } from "./components/MatchView.js";
 import { MuteToggle } from "./components/MuteToggle.js";
@@ -7,11 +7,19 @@ import { useMatch } from "./useMatch.js";
 export interface LocalMatchProps {
   deckCards: string[];
   onExit: () => void;
+  /** Replaces the header's "practice — vs. bot" subtitle. */
+  subtitle?: string;
+  /**
+   * Shown above the board as a persistent banner. Play Online uses it to say
+   * why the player ended up against the bot and that it awards nothing — the
+   * fallback is disclosed, never passed off as a human opponent.
+   */
+  notice?: ReactNode;
 }
 
 type PendingConfirm = { title: string; action: "restart" | "exit" } | null;
 
-export function LocalMatch({ deckCards, onExit }: LocalMatchProps) {
+export function LocalMatch({ deckCards, onExit, subtitle, notice }: LocalMatchProps) {
   const { state, dispatch, restart, lastError } = useMatch(deckCards);
   const [logOpen, setLogOpen] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
@@ -33,7 +41,7 @@ export function LocalMatch({ deckCards, onExit }: LocalMatchProps) {
     <div className="app">
       <header className="app-bar">
         <h1>FLOORWARS</h1>
-        <span className="app-bar__subtitle">practice — vs. bot</span>
+        <span className="app-bar__subtitle">{subtitle ?? "practice — vs. bot"}</span>
         <div className="app-bar__actions">
           <MuteToggle />
           <button type="button" onClick={() => setLogOpen((o) => !o)}>
@@ -47,6 +55,12 @@ export function LocalMatch({ deckCards, onExit }: LocalMatchProps) {
           </button>
         </div>
       </header>
+
+      {notice && (
+        <div className="bot-fallback-banner" role="status">
+          {notice}
+        </div>
+      )}
 
       <MatchView
         state={state}
