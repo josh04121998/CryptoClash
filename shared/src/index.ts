@@ -138,3 +138,70 @@ export type ServerMessage =
   // Also re-sent on a successful `reconnect` if the reward already fired while
   // that player was disconnected, so a late reconnect doesn't miss the banner.
   | { type: "matchReward"; coinsEarned: number; balance: number };
+
+/**
+ * Telemetry (session 33). The event-name allowlist lives here, in the shared protocol
+ * package, for the same reason ClientMessage/ServerMessage do: it's a wire contract both
+ * sides have to agree on. The *server* is the authority — it re-checks every name against
+ * this list and silently drops anything else (see telemetryRepo.ts and POST /api/telemetry);
+ * the client imports it so that a typo is a compile error rather than an event that
+ * silently vanishes in production.
+ *
+ * Deliberately no free text anywhere: no event carries user-entered strings, and no IP,
+ * wallet address, user agent or referrer is ever stored. Identity is an internal account
+ * uuid (which the server resolves from the bearer token itself — the client never sends
+ * one) plus a random client-generated anon_id that buckets a browser, not a person.
+ */
+export const TELEMETRY_EVENT_NAMES = [
+  "app_open",
+  "landing_cta",
+  "tutorial_offered",
+  "tutorial_started",
+  "tutorial_completed",
+  "tutorial_skipped",
+  "wallet_connect_started",
+  "wallet_connected",
+  "deck_saved",
+  "match_started",
+  "match_ended",
+  "queue_waited",
+  "bot_fallback_shown",
+  "pack_opened",
+  "craft_action",
+  "daily_claimed",
+  "screen_view",
+] as const;
+
+export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];
+
+const TELEMETRY_EVENT_NAME_SET: ReadonlySet<string> = new Set(TELEMETRY_EVENT_NAMES);
+
+export function isTelemetryEventName(name: unknown): name is TelemetryEventName {
+  return typeof name === "string" && TELEMETRY_EVENT_NAME_SET.has(name);
+}
+
+/** A flat bag of primitives only — never nested, never free text. */
+export type TelemetryProps = Record<string, string | number | boolean>;
+
+export interface TelemetryEvent {
+  name: TelemetryEventName;
+  /** Client clock, epoch ms. The server records its own `created_at` alongside it — clock skew is real. */
+  ts: number;
+  props?: TelemetryProps;
+}
+
+/** The POST /api/telemetry request body. `accountId` is never sent — the server resolves it from the optional bearer token. */
+export interface TelemetryBatch {
+  anonId: string;
+  events: TelemetryEvent[];
+}
+
+/** Batch/prop caps. Enforced server-side (the client is never trusted); exported so the client batches to the same numbers. */
+export const TELEMETRY_MAX_BATCH_SIZE = 50;
+export const TELEMETRY_MAX_PROP_KEYS = 10;
+export const TELEMETRY_MAX_PROP_STRING_LENGTH = 64;
+
+/** 16–64 chars of [a-z0-9]. A `crypto.randomUUID()` with the dashes stripped is 32, comfortably inside that. */
+export function isValidAnonId(anonId: unknown): anonId is string {
+  return typeof anonId === "string" && /^[a-z0-9]{16,64}$/.test(anonId);
+}

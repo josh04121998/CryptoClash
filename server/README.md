@@ -41,6 +41,12 @@ Wallet-as-identity (`architecture.md` Section 9, deliberately overridden for thi
 - `PUT /api/decks/:id` (auth) `{ name, cards }` → `{ deck }`, `404` if the deck doesn't exist or belongs to someone else.
 - `DELETE /api/decks/:id` (auth) → `204`, same `404` behavior.
 
+### Telemetry API
+
+`POST /api/telemetry` `{ anonId, events: [{ name, ts, props? }] }` → `202 { accepted }`. Product analytics ingest (session 33) — see `src/telemetryRepo.ts` and `migrations/0013_analytics_events.sql`. Auth is *optional*: with a valid `Authorization: Bearer` the server resolves the account id itself (the client never sends one), without it the batch is stored anonymously, which is most of the funnel. `anonId` is a client-generated 16–64 char `[a-z0-9]` browser bucket, not a person.
+
+`400` only for a malformed envelope (bad `anonId`, or `events` outside 1–50). Individually-invalid events — a name that isn't on the allowlist (`TELEMETRY_EVENT_NAMES` in `@cryptoclash/protocol`), an unusable `ts`, props that aren't a flat bag of ≤ 10 primitive values with strings ≤ 64 chars — are dropped silently and the rest of the batch still lands, so the response never reveals what the allowlist contains. Rate limited to 120 batches/min per IP. Never stores an IP, wallet address, user agent or referrer. Unrelated to `/api/events/*`, which is the live-ops Coins-multiplier feature.
+
 Required environment variables (missing `DATABASE_URL` makes `/api/*` return `503` rather than crash the whole server — the WebSocket match server keeps working either way):
 
 | Var | Purpose |
