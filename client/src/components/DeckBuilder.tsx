@@ -1,6 +1,7 @@
-import { CARD_POOL, CardTemplate, DECK_SIZE, MAX_COPIES_PER_CARD, validateDeck } from "@cryptoclash/engine";
+import { CARD_POOL, CardTemplate, DECK_SIZE, Faction, MAX_COPIES_PER_CARD, validateDeck } from "@cryptoclash/engine";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
+import { track } from "../telemetry.js";
 import { CardFace } from "./CardFace.js";
 
 export interface DeckBuilderProps {
@@ -15,6 +16,31 @@ export interface DeckBuilderProps {
 const POOL_CARDS: CardTemplate[] = Object.values(CARD_POOL)
   .filter((t) => !t.token)
   .sort((a, b) => (a.faction === b.faction ? a.cost - b.cost : a.faction.localeCompare(b.faction)));
+
+/**
+ * A deck has no stored faction — it's whatever it's mostly built out of. Neutral
+ * (Items) isn't a deck identity, so it only wins if there is literally nothing
+ * else in there. The return value is always a member of the engine's `Faction`
+ * union, never a free-text string: the contract requires props values to come
+ * from a fixed set the client already has.
+ */
+function dominantFaction(cards: string[]): Faction {
+  const counts = new Map<Faction, number>();
+  for (const id of cards) {
+    const faction = CARD_POOL[id]?.faction;
+    if (!faction || faction === "Neutral") continue;
+    counts.set(faction, (counts.get(faction) ?? 0) + 1);
+  }
+  let best: Faction = "Neutral";
+  let bestCount = 0;
+  for (const [faction, count] of counts) {
+    if (count > bestCount) {
+      best = faction;
+      bestCount = count;
+    }
+  }
+  return best;
+}
 
 export function DeckBuilder({ token, existing, onSaved, onCancel, onHome }: DeckBuilderProps) {
   const [name, setName] = useState(existing?.name ?? "New Deck");
@@ -72,6 +98,9 @@ export function DeckBuilder({ token, existing, onSaved, onCancel, onHome }: Deck
       } else {
         await apiFetch("/api/decks", { method: "POST", token, body: JSON.stringify({ name, cards }) });
       }
+      // Deliberately not the deck *name* — that's user free text, which the
+      // contract forbids in props.
+      track("deck_saved", { faction: dominantFaction(cards) });
       onSaved();
     } catch (e) {
       setSaveError((e as Error).message);

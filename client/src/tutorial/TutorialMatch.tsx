@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmModal } from "../components/ConfirmModal.js";
 import { MatchView } from "../components/MatchView.js";
 import { MuteToggle } from "../components/MuteToggle.js";
+import { track } from "../telemetry.js";
 import { markTutorialCompleted, markTutorialSkipped } from "../tutorialStorage.js";
 import { coachFor, spotlightFor } from "./beats.js";
 import { CoachCard } from "./CoachCard.js";
@@ -19,14 +20,50 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
   const [logOpen, setLogOpen] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
 
+  // Ref guards, not state: StrictMode double-invokes mount effects in dev, and
+  // `state` is mutated in place by the engine so the winner effect can re-run
+  // for reasons other than the winner changing.
+  const startedRef = useRef(false);
+  const endedRef = useRef(false);
+
+  // Fires for both entry points (the offer modal's "Learn the floor" and the
+  // menu's Tutorial button) precisely once, because both just mount this.
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    track("tutorial_started");
+    track("match_started", { mode: "tutorial" });
+  }, []);
+
+  useEffect(() => {
+    if (!state.winner || endedRef.current) return;
+    endedRef.current = true;
+    track("match_ended", {
+      mode: "tutorial",
+      result: state.winner === "Draw" ? "draw" : state.winner === "A" ? "win" : "loss",
+      turns: state.turnNumber,
+    });
+  }, [state.winner, state.turnNumber]);
+
+  /** Leaving the tutorial before the board resolves is an abandoned match, whichever exit was used. */
+  const trackAbandonIfUnfinished = () => {
+    if (state.winner || endedRef.current) return;
+    endedRef.current = true;
+    track("match_ended", { mode: "tutorial", result: "abandoned", turns: state.turnNumber });
+  };
+
   const finish = (next: "ai" | "menu") => {
     markTutorialCompleted();
+    track("tutorial_completed");
+    trackAbandonIfUnfinished();
     if (next === "ai") onPracticeAi();
     else onMainMenu();
   };
 
   const abandon = () => {
     markTutorialSkipped();
+    track("tutorial_skipped");
+    trackAbandonIfUnfinished();
     onMainMenu();
   };
 

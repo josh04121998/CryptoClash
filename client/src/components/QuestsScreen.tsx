@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
 import { playRewardSound } from "../sound.js";
+import { track } from "../telemetry.js";
 
 export interface QuestsScreenProps {
   token: string;
@@ -65,6 +66,7 @@ export function QuestsScreen({ token, balance, onBalanceChange, onBack, onHome }
       });
       onBalanceChange(result.balance);
       setDaily((d) => (d ? { ...d, claimedToday: true, streak: result.streak } : d));
+      track("daily_claimed");
       playRewardSound();
     } catch (e) {
       setActionError((e as Error).message);
