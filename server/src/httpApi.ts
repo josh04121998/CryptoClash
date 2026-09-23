@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Faction, validateDeck } from "@cryptoclash/engine";
+import { isValidAnonId, TELEMETRY_MAX_BATCH_SIZE, type TelemetryEvent } from "@cryptoclash/protocol";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import {
@@ -37,6 +38,7 @@ import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeErro
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
 import { getMyRank, getTopRank } from "./rankRepo.js";
 import { getReferralStats, recordReferralSignup } from "./referralsRepo.js";
+import { insertTelemetryEvents, validateTelemetryEvent } from "./telemetryRepo.js";
 import { AlreadyClaimedThisWeekError, claimWeekly, getWeeklyStatus } from "./weeklyRepo.js";
 
 /** Same reasoning as createMatchServer's CLIENT_ORIGIN: reflect one configured origin, or allow all in dev. */
@@ -580,6 +582,52 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       }
       res.writeHead(204, corsHeaders());
       res.end();
+      return true;
+    }
+
+    // Product telemetry ingest (session 33) — see telemetryRepo.ts. Nothing to do with
+    // /api/events/* above, which is the live-ops Coins-multiplier feature; this is the
+    // client-side funnel/analytics firehose.
+    if (url.pathname === "/api/telemetry" && req.method === "POST") {
+      // Far higher volume than the auth routes (a client flushes a batch every few seconds
+      // while the tab is open), so a 30/min auth-shaped budget would reject real traffic. 120
+      // batches/min per IP is ~2/s — many times what one honest tab produces, still a hard
+      // ceiling of 120 x 50 = 6,000 events/min from a single IP, and forgiving of the
+      // several-players-behind-one-NAT case that a per-IP limiter can't distinguish from abuse.
+      // NODE_ENV=test bypasses this inside checkRateLimit, same as the auth routes.
+      if (!checkRateLimit("telemetry", getClientIp(req), 120, 60_000)) {
+        sendJson(res, 429, { error: "Too many requests. Please try again shortly." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { anonId?: unknown; events?: unknown };
+      if (!isValidAnonId(body.anonId)) {
+        sendJson(res, 400, { error: "anonId is required and must be 16-64 characters of [a-z0-9]." });
+        return true;
+      }
+      if (!Array.isArray(body.events) || body.events.length === 0 || body.events.length > TELEMETRY_MAX_BATCH_SIZE) {
+        sendJson(res, 400, { error: `events must be an array of 1 to ${TELEMETRY_MAX_BATCH_SIZE} entries.` });
+        return true;
+      }
+      // Optional auth, same soft posture as the /api/leaderboard/* routes: a missing or invalid
+      // token just means anonymous attribution rather than a 401. Most of the funnel this table
+      // exists to measure happens before a wallet is ever connected. The client never sends an
+      // account id — it's resolved here, from the token, or it's null.
+      const accountId = await requireAccount(req);
+      // Individually-invalid events (unknown name, unusable ts, illegal props) are dropped
+      // silently and the rest of the batch still lands — and the response is a 202 either way,
+      // so this never leaks which names are on the allowlist.
+      const events = body.events
+        .map(validateTelemetryEvent)
+        .filter((event): event is TelemetryEvent => event !== null);
+      let accepted = 0;
+      try {
+        accepted = await insertTelemetryEvents(pool, { anonId: body.anonId, accountId, events });
+      } catch (e) {
+        // Best-effort by contract: a telemetry write failing must never surface as an error to
+        // a player. Logged (the only signal this path has) and reported as 0 accepted.
+        console.error("[telemetry] insert failed:", (e as Error).message);
+      }
+      sendJson(res, 202, { accepted });
       return true;
     }
 
