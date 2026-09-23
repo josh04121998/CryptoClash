@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
 import { rarityColor } from "../rarityColor.js";
 import { playRevealSound, playRewardSound } from "../sound.js";
+import { track } from "../telemetry.js";
 import { CardFace } from "./CardFace.js";
 
 export interface CraftingScreenProps {
@@ -93,6 +94,7 @@ export function CraftingScreen({ token, startingFaction, onBack, onHome }: Craft
       setDust(result.balance);
       setOwned((o) => ({ ...o, [template.id]: Math.max(0, (o[template.id] ?? 0) - count) }));
       setDisenchantQty((q) => ({ ...q, [template.id]: 1 }));
+      track("craft_action", { action: "disenchant" });
       playRewardSound();
     } catch (e) {
       setActionError((e as Error).message);
@@ -112,6 +114,7 @@ export function CraftingScreen({ token, startingFaction, onBack, onHome }: Craft
       });
       setDust(result.balance);
       setOwned((o) => ({ ...o, [template.id]: (o[template.id] ?? 0) + 1 }));
+      track("craft_action", { action: "craft" });
       playRevealSound(true);
     } catch (e) {
       setActionError((e as Error).message);

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
 import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
 import { playRevealSound } from "../sound.js";
+import { track } from "../telemetry.js";
 import { CardFace } from "./CardFace.js";
 
 const EXCITING_RARITIES: ReadonlySet<Rarity> = new Set(["Rare", "Epic", "Legendary", "Mythic", "Genesis"]);
@@ -53,6 +54,8 @@ export function PacksScreen({ token, balance, onBalanceChange, onBack, onHome }:
         body: JSON.stringify({ packType }),
       });
       onBalanceChange(result.balance);
+      // packType is one of the server's own pack ids (GET /api/packs), never free text.
+      track("pack_opened", { packType });
       setRevealedCards(result.cards);
       setRevealedCount(0);
       // Reveal one card at a time rather than dumping the whole pack at once —

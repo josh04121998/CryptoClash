@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SiweMessage } from "siwe";
 import { apiFetch } from "./api.js";
 import { consumeStoredReferralCode } from "./referral.js";
+import { track } from "./telemetry.js";
 
 const STORAGE_KEY = "cryptoclash.session";
 
@@ -181,6 +182,9 @@ export function useWallet() {
       setToken(result.token);
       setActiveProvider(eth);
       setStatus("connected");
+      // SIWE verify succeeded — the one point at which "connected a wallet" is
+      // actually true. No address is ever passed: the contract forbids PII.
+      track("wallet_connected");
     } catch (e) {
       setStatus("error");
       setError((e as Error).message);

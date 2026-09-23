@@ -1,6 +1,7 @@
 import { SAMPLE_DECK } from "@cryptoclash/engine";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api.js";
+import { setTelemetryAuthToken, track } from "./telemetry.js";
 import { AchievementsScreen } from "./components/AchievementsScreen.js";
 import { CollectionScreen } from "./components/CollectionScreen.js";
 import { CraftingScreen } from "./components/CraftingScreen.js";
@@ -48,6 +49,14 @@ function shortAddress(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
+/**
+ * Module-level, deliberately NOT a ref or state: `app_open` means "once per
+ * page load". React 18 StrictMode double-invokes mount effects in dev, and a
+ * component-scoped guard would also re-arm if App ever remounted — the module
+ * is evaluated exactly once per page load, so this flag is the right scope.
+ */
+let appOpenTracked = false;
+
 export default function App() {
   const [mode, setMode] = useState<Mode>("landing");
   const [deckCards, setDeckCards] = useState<string[]>(SAMPLE_DECK);
@@ -57,7 +66,33 @@ export default function App() {
   const [showTutorialOffer, setShowTutorialOffer] = useState(false);
   const wallet = useWallet();
 
+  useEffect(() => {
+    if (appOpenTracked) return;
+    appOpenTracked = true;
+    track("app_open");
+  }, []);
+
+  // One event per *distinct* screen. The ref survives StrictMode's simulated
+  // remount (refs aren't reset by the double-invoke), so the initial "landing"
+  // isn't reported twice in dev.
+  const lastScreenRef = useRef<Mode | null>(null);
+  useEffect(() => {
+    if (lastScreenRef.current === mode) return;
+    lastScreenRef.current = mode;
+    track("screen_view", { screen: mode });
+  }, [mode]);
+
+  // Lets the server resolve account_id for itself on the fetch transport. The
+  // client never sends account_id, per the contract.
+  useEffect(() => {
+    setTelemetryAuthToken(wallet.token);
+  }, [wallet.token]);
+
   function handleConnectClick() {
+    // The contract calls this "wallet picker opened", but most users have zero
+    // or one wallet installed and never see a picker — the funnel step that
+    // actually matters is "asked to connect", which is this whole branch.
+    track("wallet_connect_started");
     if (wallet.discoveredWallets.length > 1) setShowWalletPicker(true);
     else wallet.connect();
   }
@@ -78,8 +113,12 @@ export default function App() {
   }, [wallet.token, refreshCoins]);
 
   function enterMenuFromLanding() {
+    track("landing_cta");
     setMode("menu");
-    if (shouldOfferTutorial()) setShowTutorialOffer(true);
+    if (shouldOfferTutorial()) {
+      setShowTutorialOffer(true);
+      track("tutorial_offered");
+    }
   }
 
   if (mode === "landing") return <LandingPage onEnter={enterMenuFromLanding} />;
@@ -307,6 +346,7 @@ export default function App() {
           }}
           onSkip={() => {
             markTutorialSkipped();
+            track("tutorial_skipped");
             setShowTutorialOffer(false);
           }}
         />

@@ -3,6 +3,7 @@ import { ConfirmModal } from "./components/ConfirmModal.js";
 import { MatchView } from "./components/MatchView.js";
 import { MuteToggle } from "./components/MuteToggle.js";
 import { playRewardSound } from "./sound.js";
+import { track } from "./telemetry.js";
 import { useOnlineMatch } from "./useOnlineMatch.js";
 
 export interface OnlineMatchProps {
@@ -32,6 +33,38 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
     return () => clearInterval(timer);
   }, [status]);
 
+  // Telemetry state. Refs, not React state: nothing renders off them, and they
+  // have to survive StrictMode's dev double-invoke of the mount effects.
+  //
+  // NOTE: `queue_waited` and `bot_fallback_shown` are deliberately NOT wired
+  // here — they belong with the bot-fallback branch, which isn't in this
+  // checkout, and are being wired on that branch instead.
+  const startedRef = useRef(false);
+  const endedRef = useRef(false);
+
+  useEffect(() => {
+    if (status !== "in-match" || startedRef.current) return;
+    startedRef.current = true;
+    track("match_started", { mode: "online" });
+  }, [status]);
+
+  useEffect(() => {
+    if (!state?.winner || !playerId || endedRef.current) return;
+    endedRef.current = true;
+    track("match_ended", {
+      mode: "online",
+      result: state.winner === "Draw" ? "draw" : state.winner === playerId ? "win" : "loss",
+      turns: state.turnNumber,
+    });
+  }, [state, playerId]);
+
+  /** Re-queueing ("Find another match" / "Retry") is a whole new match — re-arm both guards. */
+  function findMatch() {
+    startedRef.current = false;
+    endedRef.current = false;
+    connect(deckCards, token ?? undefined);
+  }
+
   const prevRewardRef = useRef(reward);
   useEffect(() => {
     if (reward && reward !== prevRewardRef.current) playRewardSound();
@@ -39,6 +72,12 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   }, [reward]);
 
   function handleExit() {
+    // Walking out of a live, winner-less match is an abandon — same event as a
+    // real finish, different `result`.
+    if (status === "in-match" && state && !state.winner && !endedRef.current) {
+      endedRef.current = true;
+      track("match_ended", { mode: "online", result: "abandoned", turns: state.turnNumber });
+    }
     disconnect();
     onExit();
   }
@@ -118,7 +157,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
           {status === "opponent-left" && (
             <>
               <p>Your opponent disconnected.</p>
-              <button type="button" onClick={() => connect(deckCards, token ?? undefined)}>
+              <button type="button" onClick={findMatch}>
                 Find another match
               </button>
             </>
@@ -126,7 +165,7 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
           {status === "error" && (
             <>
               <p>Couldn't reach the match server.</p>
-              <button type="button" onClick={() => connect(deckCards, token ?? undefined)}>
+              <button type="button" onClick={findMatch}>
                 Retry
               </button>
             </>
