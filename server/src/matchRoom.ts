@@ -4,6 +4,7 @@ import { NetworkMatchState, ServerMessage, serializeState } from "@cryptoclash/p
 import { recordMatchOutcomeForAchievements } from "./achievementsRepo.js";
 import { awardMatchResult, MatchOutcome } from "./coinsRepo.js";
 import { getPool } from "./db.js";
+import { deckFaction, MatchEndReason, recordMatch } from "./matchesRepo.js";
 import { awardRankPoints } from "./rankRepo.js";
 import { recordQuestProgress } from "./questsRepo.js";
 import { rewardReferrerIfPending } from "./referralsRepo.js";
@@ -51,11 +52,31 @@ export class MatchRoom implements RoomHandle {
   private sessions: Record<PlayerId, Session>;
   private readonly reconnectTokens: Record<PlayerId, string>;
   private readonly seatAccountIds: Record<PlayerId, string | null>;
+  /**
+   * The 30 card ids each seat actually started the match with. Captured here
+   * rather than read off `this.sessions[p].cards` at the end, because a
+   * reconnect swaps in a brand-new Session whose `cards` is still the default
+   * deck it was constructed with (see createMatchServer.ts) — reading it later
+   * would mis-record the faction of anyone who reconnected mid-match.
+   */
+  private readonly seatCards: Record<PlayerId, string[]>;
+  /** Wall clock at room creation (both seats filled) — the start of `matches.duration_ms`. */
+  private readonly startedAt = Date.now();
   private readonly graceMs: number;
   private readonly onEndedCallback?: (room: MatchRoom) => void;
   private disconnectTimers: Partial<Record<PlayerId, ReturnType<typeof setTimeout>>> = {};
   private endTimer: ReturnType<typeof setTimeout> | null = null;
   private ended = false;
+  /**
+   * Guards the one-row-per-match telemetry insert (matchesRepo.ts has no
+   * idempotency of its own). Both existing end paths are already guarded
+   * against re-entry — `conclude()` only fires on the undecided->decided
+   * transition, and `forfeit()` returns early once `state.winner` is set — so
+   * this is belt-and-braces rather than the sole guard, but it makes
+   * "recorded exactly once" a property of this flag alone instead of an
+   * emergent property of two other conditions in two other methods.
+   */
+  private recorded = false;
 
   constructor(sessionA: Session, sessionB: Session, options: MatchRoomOptions = {}) {
     this.sessions = { A: sessionA, B: sessionB };
@@ -64,6 +85,7 @@ export class MatchRoom implements RoomHandle {
     // Captured once, at seat assignment — stays the "owner of this seat" for reconnect-matching
     // purposes even if a later reconnect attempt's token resolves to a different account.
     this.seatAccountIds = { A: sessionA.accountId, B: sessionB.accountId };
+    this.seatCards = { A: sessionA.cards, B: sessionB.cards };
     this.graceMs = options.graceMs ?? RECONNECT_GRACE_MS;
     this.onEndedCallback = options.onEnded;
   }
@@ -130,6 +152,7 @@ export class MatchRoom implements RoomHandle {
   private conclude(winner: PlayerId | "Draw") {
     (["A", "B"] as PlayerId[]).forEach((p) => this.clearDisconnectTimer(p));
     this.awardMatchRewards(winner);
+    this.recordMatchOutcome(winner, "conclusion");
     this.scheduleTeardown(POST_MATCH_HOLD_MS);
   }
 
@@ -184,7 +207,10 @@ export class MatchRoom implements RoomHandle {
     if (this.state.winner !== null) return; // already decided — nothing to hold open for
     this.clearDisconnectTimer(playerId);
     this.send(other(playerId), { type: "opponentDisconnected", graceMs: this.graceMs });
-    this.disconnectTimers[playerId] = setTimeout(() => this.forfeit(playerId), this.graceMs);
+    // "abandon", not "forfeit": nobody chose to end this match, a connection died and nobody
+    // came back. The two are recorded distinguishably because one is a game-design signal and
+    // the other an infrastructure one — see matchesRepo.ts's MatchEndReason.
+    this.disconnectTimers[playerId] = setTimeout(() => this.forfeit(playerId, "abandon"), this.graceMs);
   }
 
   /** An intentional "Leave" click (the `leave` message) — ends the match for the opponent immediately, no grace period. */
@@ -193,14 +219,22 @@ export class MatchRoom implements RoomHandle {
     if (!playerId || this.ended) return;
     this.clearDisconnectTimer(playerId);
     if (this.state.winner === null) {
-      this.forfeit(playerId);
+      this.forfeit(playerId, "forfeit");
     } else {
       // Already concluded (this is a post-match "Leave"/exit) — just let the room tear down.
       this.scheduleTeardown(0);
     }
   }
 
-  private forfeit(playerId: PlayerId) {
+  /**
+   * `reason` distinguishes the two ways a seat can stop playing: "forfeit" (an
+   * intentional Leave click, via handleLeave) and "abandon" (a dropped socket
+   * whose reconnect grace period lapsed, via handleDisconnect's timer). Both
+   * produce an identical *game* outcome — a real decided winner — and are
+   * deliberately indistinguishable to the remaining player; they are only
+   * told apart in the recorded match row.
+   */
+  private forfeit(playerId: PlayerId, reason: Extract<MatchEndReason, "forfeit" | "abandon">) {
     if (this.ended || this.state.winner !== null) return; // a real win may have landed first — see conclude()
     this.clearDisconnectTimer(playerId);
     this.clearDisconnectTimer(other(playerId));
@@ -212,7 +246,64 @@ export class MatchRoom implements RoomHandle {
     // since there's always a real decided winner to show by the time a forfeit happens.
     this.broadcastState();
     this.awardMatchRewards(winner);
+    this.recordMatchOutcome(winner, reason);
     this.scheduleTeardown(POST_MATCH_HOLD_MS);
+  }
+
+  /**
+   * Writes the one durable `matches` row for this match (matchesRepo.ts /
+   * 0014_matches.sql) — the record game balance is tuned against, and the only
+   * place a match's turn count, duration, per-seat faction and *how it ended*
+   * survive at all.
+   *
+   * Called from exactly the three paths a match can end on, all of which
+   * funnel through conclude() or forfeit():
+   *   conclude()        -> "conclusion"  (engine-decided: HP to 0, fatigue, draw)
+   *   handleLeave()     -> "forfeit"     (intentional Leave, no grace period)
+   *   handleDisconnect()-> "abandon"     (grace period lapsed, no reconnect)
+   * A match that simply never ends (both sides gone, process restarted) is
+   * never recorded — an accepted gap, not a silent partial row.
+   *
+   * Best-effort in exactly the same way as awardMatchRewards above: a missing
+   * DATABASE_URL or a failing insert is swallowed. This must never crash a
+   * match or change its outcome. Unlike the reward calls, it records anonymous
+   * matches too — an anonymous seat is a null account_id, not a skipped row;
+   * dropping those would bias every balance number towards wallet-linked
+   * players, who are not a random sample of the playerbase.
+   */
+  private recordMatchOutcome(winner: PlayerId | "Draw", endReason: MatchEndReason) {
+    if (this.recorded) return;
+    this.recorded = true;
+    let pool;
+    try {
+      pool = getPool();
+    } catch {
+      return;
+    }
+    // Snapshotted synchronously, before the await — the state keeps no history and the
+    // post-match hold window (POST_MATCH_HOLD_MS) is still live at this point.
+    const seats = { A: this.seatRecord("A"), B: this.seatRecord("B") };
+    recordMatch(pool, {
+      winner,
+      endReason,
+      turns: this.state.turnNumber,
+      durationMs: Date.now() - this.startedAt,
+      startedAt: new Date(this.startedAt),
+      seats,
+    }).catch(() => {});
+  }
+
+  private seatRecord(playerId: PlayerId) {
+    const { faction, cardCount } = deckFaction(this.seatCards[playerId]);
+    return {
+      // The seat's canonical account (captured at seat assignment), not the current session's
+      // — same reasoning as createMatchServer.ts's reconnect handler: a reconnect must not
+      // re-attribute a match to whoever's token happened to be presented.
+      accountId: this.seatAccountIds[playerId],
+      faction,
+      factionCards: cardCount,
+      hp: this.state.players[playerId].hp,
+    };
   }
 
   /**
