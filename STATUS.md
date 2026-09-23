@@ -410,7 +410,17 @@ No fixed roadmap beyond the immediate next step — this project is being driven
 - **Task C died mid-run on the account's monthly spend limit** and never reported. Its work was uncommitted in its worktree; it was reviewed, committed and verified by hand rather than discarded or trusted. Worth knowing the failure mode: a swarm agent can leave good work stranded, so check the worktree before assuming a failed agent produced nothing.
 - **Swarm lesson, cost me a correction mid-flight:** agent worktrees branch from **`origin/main`, not local `main`**. Task B was told to read three files that existed only in my unpushed commit, so it could not see them. Either push first, or tell each agent exactly what its baseline is.
 
-**NOT YET DEPLOYED — and the ordering matters.** Migrations `0013` and `0014` must be applied to production **before** this code ships, or every telemetry write and every match record fails against tables that do not exist. That is precisely the trap `0009` fell into (sessions 23→25, real 500s) and that `0012` looked like this morning. The client degrades silently by design, and `matchRoom` swallows its failure, so a wrong-order deploy would not crash anything — it would just quietly record nothing, which is worse, because it looks fine.
+**DEPLOYED AND VERIFIED IN PRODUCTION (session 33).** Migrations `0013`/`0014` were applied **before** the code shipped — the ordering the `0009` incident (sessions 23→25, real 500s) and this morning's `0012` scare both argue for. Sequence, with the verification at each step rather than at the end:
+
+1. **State checked first:** 12 migrations applied, neither new table present, data as expected (4 accounts, 24 editions, 65 instances, 2 decks).
+2. **Both migrations dry-run against the real production schema inside a rolled-back transaction** — not just against the empty test container they were written on. Confirmed 2 tables, the `match_seats` view, 6 indexes, 3 foreign keys, and existing data untouched; then rolled back.
+3. **Applied for real, then verified directly** against `information_schema`/`pg_indexes` rather than trusting the migrate command's own output: `_migrations` at 14, `analytics_events` 7 columns, `matches` 15, view present, 6 indexes, existing row counts unchanged.
+4. **Pushed** (8 commits, `66187a3..2ff06af`). Both deploys auto-triggered.
+5. **Waited for the new build using `/api/telemetry` itself as the liveness probe** — it 404s on the old build, so a 202 is proof the new code is serving. Live after ~118s.
+6. **Proved the whole path in production**, not just the HTTP status: posted a real event and confirmed the row reached production Postgres. Then **deleted the deploy-check row** so it cannot pollute the first genuine funnel data.
+7. **Regression check:** `/api/leaderboard/wins`, `/win-rate`, `/events/active`, `/craft/rates`, `/packs` and the client all 200.
+
+Production is now at 0 telemetry rows and 0 match rows, waiting for real traffic — which is the point: the instrumentation is in place *before* players arrive, so the one-shot first-player data is actually captured.
 
 
 **Open question raised, not acted on:** this is now the second migration to sit unapplied behind live code (`0009` across sessions 23–25, causing real 500s; `0012` here, which turned out fine). Nothing runs migrations on boot — `runMigrations` is called only from `runMigrate.ts`, by hand. Whether the server should migrate on deploy is the user's call and was explicitly offered, not assumed.
