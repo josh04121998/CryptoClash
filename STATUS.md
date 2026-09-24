@@ -1,6 +1,6 @@
 # FLOORWARS — Status
 
-### Last updated: 2026-09-23 (session 33)
+### Last updated: 2026-09-24 (session 34)
 
 ---
 
@@ -369,6 +369,13 @@ The full system (rarity ladder, editions, serial numbers, duplicate-protection/c
 
 No fixed roadmap beyond the immediate next step — this project is being driven conversationally, one milestone at a time, working autonomously and only surfacing genuine decisions.
 
+**Session 34 (2026-09-24) — picked up session 33's own uncommitted work, verified it, and shipped it: Privacy/Terms pages, and a real reporting command for the telemetry that shipped last session.** Found on resume: `privacy.html`/`terms.html`, a `LandingPage.tsx`/`styles.css` footer linking them, `server/src/runReport.ts`, and `server/sql/funnel.sql` were all sitting as uncommitted working-tree changes from session 33, never verified or committed. Nothing here was written from scratch this session — the work was checking it was actually correct, then landing it.
+
+- **Cross-checked every event name and column against the real source of truth rather than trusting the file contents.** `runReport.ts`/`funnel.sql` query `app_open`, `landing_cta`, `queue_waited`, `bot_fallback_shown`, `client_error`, etc. — every one matches the frozen allowlist in `shared/src/index.ts` exactly, and the `matches`/`match_seats` query matches `0014_matches.sql`'s real columns (`end_reason`, `turns`, `duration_ms`) exactly. `privacy.html`/`terms.html` cross-link each other and the pre-existing `litepaper.html` correctly; `LandingPage.tsx`'s new footer nav points at real files, not placeholders.
+- **Verified rather than assumed working:** `tsc --noEmit` clean on both `server` and `client`; `vite build` succeeds and both new HTML files land in `dist/` (Vite's `public/` copy, unprompted check rather than trusting the convention); 91/91 client tests, 59/59 engine tests; server's non-DB-dependent tests (30/30) green. Docker wasn't running locally, so the DB-backed server suite (127 tests) skipped gracefully rather than being run — same graceful-skip behavior the suite has always had without `DATABASE_URL`, not a new gap, but worth a real Postgres run before the next production migration.
+- **This closes item 1 of session 33's "still open for release" list** (no privacy/terms anywhere in the client) — see that list below, now down to 3 items. `npm run report --workspace=server` is new and not yet run against production (0 telemetry rows there as of session 33 — nothing to report yet).
+- Committed (`9a81b66`), not yet pushed — ask before pushing/deploying since these are public-facing legal pages.
+
 **Session 33 (2026-09-23) — verified production rather than trusting this file; nothing was broken, and nothing needed building.** Picked up from "where did we get to last session," which surfaced session 32's open caveat that migration `0012` had not been applied to production. It had been. Same shape as session 18: **the caveat was stale, and the session's real output is that this file no longer says something false.**
 
 - **Checked the deployed halves first, before touching the database.** Railway deploy `a2fbfd6f` succeeded 2026-09-22T18:34Z from `main`, and the live Vercel bundle (`/assets/index-pEbGTfcB.js`) contains `leverage_gorilla` 5× and `leverage_mandrill` 0× — so the code half of the rename was definitely live, which is what made a missing `0012` worth chasing.
@@ -431,8 +438,8 @@ Production is now at 0 telemetry rows and 0 match rows, waiting for real traffic
 - **Verified:** 8 new `ErrorBoundary` tests using `@testing-library/react` (already a devDependency, previously unused for component tests — this closes task B's own "nothing renders" gap for at least this component), **91/91 client** (83 → 91), 157/157 server against a real Postgres with all 14 migrations from empty, 59/59 engine, `tsc` clean across four packages, `vite build` clean, and the rewritten entrypoint confirmed to still boot and serve.
 
 **Still open for release, and none of it is code I should write unprompted:**
-1. **No privacy policy or terms anywhere in the client** — and this session added product analytics on top of an existing wallet-connect flow. Not a blocker for a closed test; it is one for a public launch, and it is the user's call what it says.
-2. **Every economy number is still untuned.** Now instrumented and waiting on traffic — that was the whole point of the telemetry — but nothing can be tuned until real players generate data.
+1. ~~No privacy policy or terms anywhere in the client~~ — **closed session 34**: `privacy.html`/`terms.html`, linked from the landing page footer. Committed but not yet pushed/deployed — see session 34's entry above.
+2. **Every economy number is still untuned.** Now instrumented and waiting on traffic — that was the whole point of the telemetry — but nothing can be tuned until real players generate data. `npm run report --workspace=server` (session 34) is the command to check once there's traffic.
 3. **The on-chain/token layer** (roadmap item 11) is the actual go-to-market per Section 0 and remains deliberately last and unstarted.
 4. **`ADMIN_SECRET` is not set in production**, so `/api/admin/events` returns 501 — fails closed, which is correct, but it also means Market Events cannot be run in production until it is set.
 
