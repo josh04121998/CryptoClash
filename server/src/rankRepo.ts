@@ -1,4 +1,6 @@
 import type { Pool } from "pg";
+import { applyCoinDeltaOnClient } from "./ledger.js";
+import { withTransaction } from "./txHelper.js";
 
 /**
  * Ranked progression (spec.md Section 21's "Ranked progression") — deliberately scoped to just
@@ -49,13 +51,20 @@ export interface RankTier {
 
 /**
  * Tier thresholds — Bronze/Silver/Gold/Platinum/Diamond, a familiar ladder shape borrowed the
- * same way craftingRepo.ts anchored Dust values to Hearthstone's disenchant economy. First
- * design pass, not tuned against real play data.
+ * same way craftingRepo.ts anchored Dust values to Hearthstone's disenchant economy.
+ *
+ * Retuned 2026-09-24 (session 34), a reasoned pass with no play data yet: at the original
+ * spacing (0/150/400/800/1500) a ~50%-win-rate player nets only ~+5 points/game on average
+ * (WIN_RANK_POINTS/LOSS_RANK_POINTS/DRAW_RANK_POINTS below), which worked out to roughly 30
+ * games just to reach Silver — the *first* of five tiers. Flattened Silver/Gold so a median
+ * player sees real movement early (Bronze→Silver in ~3 wins, Silver→Gold in ~7 more);
+ * Platinum/Diamond are untouched and stay the genuine, engaged-player-only climb. Still a first
+ * pass — revisit once `npm run report --workspace=server` shows a real ranked-play distribution.
  */
 export const RANK_TIERS: RankTier[] = [
   { name: "Bronze", minPoints: 0 },
-  { name: "Silver", minPoints: 150 },
-  { name: "Gold", minPoints: 400 },
+  { name: "Silver", minPoints: 60 },
+  { name: "Gold", minPoints: 200 },
   { name: "Platinum", minPoints: 800 },
   { name: "Diamond", minPoints: 1500 },
 ];
@@ -69,17 +78,60 @@ export function tierForPoints(points: number): RankTier {
 }
 
 /**
+ * One-time Coins reward the first time an account's points cross into a tier (session 34) —
+ * every other progression system here (quests, dailies, weeklies, achievements) pays Coins;
+ * ranked was the one flagged exception. Bronze is deliberately absent: it's where every account
+ * starts, so "first reached" doesn't mean anything for it. Roughly scaled to the achievement
+ * rewards below it in ambition (achievementsRepo.ts's win_10=300/win_50=1000) — Diamond, the
+ * genuine top-tier grail, pays the most of anything in the game's earn economy on purpose.
+ */
+export const RANK_TIER_REWARDS: Partial<Record<string, number>> = {
+  Silver: 150,
+  Gold: 300,
+  Platinum: 600,
+  Diamond: 1200,
+};
+
+/**
  * Called once per Play Online match, per participant with a real account (matchRoom.ts) — same
  * best-effort posture as recordQuestProgress/recordAchievementProgress: a failure here should
  * never crash a match or block the Coins award.
+ *
+ * Also awards any newly-crossed tier's one-time Coins bonus, in the same transaction as the
+ * points insert — not a separate follow-up call, so there's no window where a crash between the
+ * two could record the tier crossing without ever paying for it (or vice versa). `tierForPoints`
+ * is checked against every reward-eligible tier at or below the new total, not just the one
+ * tier just crossed, so an account that somehow jumps more than one tier in a single match
+ * (unlikely at today's point deltas, but not impossible after a future retune) still gets paid
+ * for all of them — `on conflict do nothing` makes any tier it already holds a no-op.
  */
 export async function awardRankPoints(pool: Pool, accountId: string, outcome: MatchOutcomeForRank): Promise<void> {
   const amount = pointsForOutcome(outcome);
-  await pool.query("insert into rank_points_transactions (account_id, amount, reason) values ($1, $2, $3)", [
-    accountId,
-    amount,
-    RANK_REASON[outcome],
-  ]);
+  await withTransaction(pool, async (client) => {
+    await client.query("insert into rank_points_transactions (account_id, amount, reason) values ($1, $2, $3)", [
+      accountId,
+      amount,
+      RANK_REASON[outcome],
+    ]);
+
+    const totalResult = await client.query<{ total: string }>(
+      "select coalesce(sum(amount), 0)::int as total from rank_points_transactions where account_id = $1",
+      [accountId],
+    );
+    const total = Math.max(Number(totalResult.rows[0].total), 0);
+
+    for (const tier of RANK_TIERS) {
+      const reward = RANK_TIER_REWARDS[tier.name];
+      if (reward === undefined || total < tier.minPoints) continue;
+      const inserted = await client.query(
+        "insert into rank_tier_rewards (account_id, tier_name, coins_awarded) values ($1, $2, $3) on conflict do nothing returning tier_name",
+        [accountId, tier.name, reward],
+      );
+      if (inserted.rowCount) {
+        await applyCoinDeltaOnClient(client, accountId, reward, `rank_tier:${tier.name}`);
+      }
+    }
+  });
 }
 
 export interface RankStatus {

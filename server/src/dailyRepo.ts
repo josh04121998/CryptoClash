@@ -9,10 +9,16 @@ export class AlreadyClaimedTodayError extends Error {}
  * 0-6 for streak days 1-7 — rewards climb through the week and spike on day
  * 7, then the cycle repeats rather than capping the streak outright, so a
  * long streak keeps paying out (day 8 = day 1's rate again) instead of
- * plateauing at day 7 forever. First-pass numbers, not tuned — same caveat as
- * every other economy constant in coinsRepo.ts/packsRepo.ts/craftingRepo.ts.
+ * plateauing at day 7 forever.
+ *
+ * Retuned 2026-09-24 (session 34) — cut ~30%, same pass and same reasoning as
+ * questsRepo.ts's QUEST_DEFS: this table plus quests plus weeklyRepo.ts's
+ * WEEKLY_REWARDS worked out to ~3.5 free packs/week for an engaged player,
+ * well past the Hearthstone-gold precedent the rest of the economy is
+ * anchored to. Still a first pass, now just a better-anchored one — revisit
+ * once `npm run report --workspace=server` has real traffic to show.
  */
-export const DAILY_REWARDS = [50, 60, 75, 90, 110, 140, 250];
+export const DAILY_REWARDS = [35, 40, 50, 65, 75, 100, 175];
 
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);

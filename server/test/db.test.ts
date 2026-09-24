@@ -37,7 +37,7 @@ import {
   MIN_GAMES_FOR_WIN_RATE,
 } from "../src/leaderboardRepo.js";
 import { runMigrations } from "../src/migrate.js";
-import { awardRankPoints, getMyRank, getTopRank, RANK_TIERS } from "../src/rankRepo.js";
+import { awardRankPoints, getMyRank, getTopRank, RANK_TIER_REWARDS, RANK_TIERS } from "../src/rankRepo.js";
 import {
   getOrCreateReferralCode,
   getReferralStats,
@@ -47,6 +47,7 @@ import {
 import { createDeck, deleteDeck, listDecks, updateDeck } from "../src/decksRepo.js";
 import {
   claimQuest,
+  QUEST_DEFS,
   QuestAlreadyClaimedError,
   QuestNotCompleteError,
   recordQuestProgress,
@@ -642,14 +643,15 @@ d("accounts + decks (integration, real Postgres)", () => {
 
     it("claims a completed quest exactly once, crediting Coins", async () => {
       const account = await findOrCreateAccount(pool, "0xquestclaim");
+      const reward = QUEST_DEFS.find((q) => q.id === "play_1")!.rewardCoins;
       await recordQuestProgress(pool, account.id, "play");
       const result = await claimQuest(pool, account.id, "play_1");
-      expect(result.coinsEarned).toBe(50);
-      expect(result.balance).toBe(50);
-      expect(await getBalance(pool, account.id)).toBe(50);
+      expect(result.coinsEarned).toBe(reward);
+      expect(result.balance).toBe(reward);
+      expect(await getBalance(pool, account.id)).toBe(reward);
 
       await expect(claimQuest(pool, account.id, "play_1")).rejects.toThrow(QuestAlreadyClaimedError);
-      expect(await getBalance(pool, account.id)).toBe(50); // unchanged — no double-credit
+      expect(await getBalance(pool, account.id)).toBe(reward); // unchanged — no double-credit
     });
 
     it("rejects claiming an incomplete or unknown quest", async () => {
@@ -947,12 +949,12 @@ d("accounts + decks (integration, real Postgres)", () => {
       await awardRankPoints(pool, account.id, "win");
       await awardRankPoints(pool, account.id, "win");
       await awardRankPoints(pool, account.id, "loss");
-      // 20 + 20 - 10 = 30 points — still Bronze (min 0), below Silver's 150.
+      // 20 + 20 - 10 = 30 points — still Bronze (min 0), below Silver's 60.
       const status = await getMyRank(pool, account.id);
       expect(status.points).toBe(30);
       expect(status.tier.name).toBe("Bronze");
       expect(status.nextTier?.name).toBe("Silver");
-      expect(status.pointsToNextTier).toBe(150 - 30);
+      expect(status.pointsToNextTier).toBe(60 - 30);
     });
 
     it("floors a net-negative points total at 0 rather than going negative", async () => {
@@ -994,6 +996,35 @@ d("accounts + decks (integration, real Postgres)", () => {
       const cStatus = await getMyRank(pool, c.id);
       expect(cStatus.rank).toBeNull();
       expect(cStatus.points).toBe(0);
+    });
+
+    it("pays a one-time Coins bonus the first time a match crosses into a new tier", async () => {
+      const account = await findOrCreateAccount(pool, "0xranktierreward");
+      // 2 wins = 40 points — still Bronze (min 0, min 60 for Silver), no bonus yet.
+      await awardRankPoints(pool, account.id, "win");
+      await awardRankPoints(pool, account.id, "win");
+      expect(await getBalance(pool, account.id)).toBe(0);
+
+      // A 3rd win crosses 60 (Silver) — pays RANK_TIER_REWARDS.Silver exactly once.
+      await awardRankPoints(pool, account.id, "win");
+      expect((await getMyRank(pool, account.id)).tier.name).toBe("Silver");
+      expect(await getBalance(pool, account.id)).toBe(RANK_TIER_REWARDS.Silver);
+
+      // Re-crossing the same tier boundary (a loss then a win nets back to the same total)
+      // must not pay Silver's bonus a second time.
+      await awardRankPoints(pool, account.id, "loss");
+      await awardRankPoints(pool, account.id, "win");
+      expect(await getBalance(pool, account.id)).toBe(RANK_TIER_REWARDS.Silver);
+    });
+
+    it("pays every tier's bonus at once when a single match jumps more than one tier", async () => {
+      const account = await findOrCreateAccount(pool, "0xrankmultijump");
+      // Pre-seed points just under Gold's 200 without going through awardRankPoints, so the
+      // *next* real match award has to cross Silver and Gold in the same insert.
+      await pool.query("insert into rank_points_transactions (account_id, amount, reason) values ($1, 185, 'seed')", [account.id]);
+      await awardRankPoints(pool, account.id, "win"); // 185 + 20 = 205 — crosses both Silver (60) and Gold (200)
+      expect((await getMyRank(pool, account.id)).tier.name).toBe("Gold");
+      expect(await getBalance(pool, account.id)).toBe(RANK_TIER_REWARDS.Silver! + RANK_TIER_REWARDS.Gold!);
     });
   });
 

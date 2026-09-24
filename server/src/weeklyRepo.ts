@@ -8,10 +8,13 @@ export class AlreadyClaimedThisWeekError extends Error {}
  * A 4-week escalating cycle (spec.md Section 21's "Weekly rewards") — same shape as
  * dailyRepo.ts's DAILY_REWARDS but on a weekly cadence and a shorter table (a week is a much
  * bigger ask than a day, so 4 steps felt right before cycling, rather than reusing 7). Cycles
- * exactly like the daily table: week 5 pays week 1's rate again, not capped. First-pass numbers,
- * not tuned — same caveat as every other economy constant in this codebase.
+ * exactly like the daily table: week 5 pays week 1's rate again, not capped.
+ *
+ * Retuned 2026-09-24 (session 34) — cut ~30%, same pass as dailyRepo.ts's DAILY_REWARDS and
+ * questsRepo.ts's QUEST_DEFS; see either for the full reasoning (all three combined were ~3-5x
+ * more generous than the Hearthstone-gold precedent this economy anchors to elsewhere).
  */
-export const WEEKLY_REWARDS = [300, 450, 650, 1000];
+export const WEEKLY_REWARDS = [200, 300, 450, 700];
 
 /**
  * ISO-8601 week ("2026-W37", UTC) for `date` — https://en.wikipedia.org/wiki/ISO_week_date.

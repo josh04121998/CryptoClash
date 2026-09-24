@@ -23,13 +23,24 @@ export interface QuestDef {
  * Reset daily (see `day` below) — everyone gets the same three quests each
  * day, no per-account variety yet. Only Play Online advances these (see
  * matchRoom.ts) — Play vs AI has no server-validated outcome, same reasoning
- * it's excluded from Coins match rewards (coinsRepo.ts). First-pass reward
- * numbers, not tuned.
+ * it's excluded from Coins match rewards (coinsRepo.ts).
+ *
+ * Retuned 2026-09-24 (session 34), a reasoned pass with no play data yet
+ * (production telemetry was still at 0 events at the time — see STATUS.md):
+ * the original 50/150/100 (300/day cap), combined with dailyRepo.ts's and
+ * weeklyRepo.ts's own rewards, worked out to roughly 3.5 free packs/week for
+ * a daily-engaged player — 3-5x more generous than the Hearthstone gold
+ * economy this game's Dust values (craftingRepo.ts) are otherwise anchored
+ * to. Cut ~30% across all three free-earn sources (this file, DAILY_REWARDS,
+ * WEEKLY_REWARDS) to protect the cash-shop's "whales buy more shots at
+ * rares" lever (STATUS.md Section 0) without gutting the free loop. Still a
+ * first pass — revisit with `npm run report --workspace=server` once real
+ * traffic exists.
  */
 export const QUEST_DEFS: QuestDef[] = [
-  { id: "play_1", description: "Play 1 match", goal: 1, rewardCoins: 50, track: "play" },
-  { id: "play_3", description: "Play 3 matches", goal: 3, rewardCoins: 150, track: "play" },
-  { id: "win_1", description: "Win 1 match", goal: 1, rewardCoins: 100, track: "win" },
+  { id: "play_1", description: "Play 1 match", goal: 1, rewardCoins: 35, track: "play" },
+  { id: "play_3", description: "Play 3 matches", goal: 3, rewardCoins: 105, track: "play" },
+  { id: "win_1", description: "Win 1 match", goal: 1, rewardCoins: 70, track: "win" },
 ];
 
 const QUEST_BY_ID = new Map(QUEST_DEFS.map((q) => [q.id, q]));
