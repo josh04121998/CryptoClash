@@ -2788,6 +2788,29 @@ button {
   color: var(--text-dim);
 }
 
+.landing__footer-line {
+  margin: 0 0 0.6rem;
+}
+
+.landing__footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  justify-content: center;
+}
+
+.landing__footer-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.landing__footer-links a:hover,
+.landing__footer-links a:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 /* Events banner (spec.md Section 21's "Events" earn source — see EventBanner.tsx) */
 
 .event-banner {

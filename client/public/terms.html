@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Floorwars — Terms</title>
+<meta name="description" content="The rules for using Floorwars while it is in development: what it is, what it is not, and what we promise." />
+<meta property="og:title" content="Floorwars — Terms" />
+<meta property="og:description" content="The rules for using Floorwars while it is in development: what it is, what it is not, and what we promise." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@playfloorwars" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #050907;
+    --panel: #0d1512;
+    --panel-alt: #101c16;
+    --border: #22322b;
+    --border-bright: #2e5c46;
+    --text: #dfeee7;
+    --text-dim: #7e9389;
+    --gold: #f2b705;
+    --green: #00e28a;
+    --hp: #ff6b62;
+    --glow-gold: rgba(242, 183, 5, 0.14);
+    --glow-green: rgba(0, 226, 138, 0.14);
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(circle at 12% 0%, var(--glow-green) 0%, transparent 40%),
+      radial-gradient(circle at 88% 8%, var(--glow-gold) 0%, transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--green); }
+  a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding-inline: 20px; }
+
+  header.hero { padding-block: 2.6rem 1.8rem; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+    margin: 0.3rem 0 0.4rem;
+  }
+  h1 .dot { color: var(--gold); }
+  .standfirst { color: var(--text-dim); margin: 0; text-wrap: balance; }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+  .hero-links a {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+  }
+  .hero-links a:hover { border-color: var(--gold); color: var(--gold); }
+
+  main { padding-block: 2rem 3rem; }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    margin: 2.2rem 0 0.7rem;
+    color: var(--gold);
+  }
+  h2:first-of-type { margin-top: 0; }
+  p, li { color: var(--text); }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: 0.35rem; }
+  .callout {
+    border: 1px solid var(--border-bright);
+    border-left-width: 3px;
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 0.9rem 1.1rem;
+    margin: 1.4rem 0;
+  }
+  .callout p { margin: 0; }
+  .callout.warn { border-left-color: var(--hp); }
+  .callout.note { border-left-color: var(--green); }
+
+  footer { border-top: 1px solid var(--border); padding-block: 1.6rem 2.6rem; color: var(--text-dim); font-size: 0.85rem; }
+  footer a { margin-right: 1rem; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Terms · v1.0 · 2026-09-23</span>
+    <h1>Terms<span class="dot">.</span></h1>
+    <p class="standfirst">The rules for using Floorwars while it is in development. Short, because the game is young and we would rather not pretend otherwise.</p>
+    <div class="hero-links">
+      <a href="/">← Back to the game</a>
+      <a href="/litepaper.html">Litepaper</a>
+      <a href="/privacy.html">Privacy</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <h2>What this is</h2>
+    <p>
+      Floorwars is a trading-card game you play in a browser. By using it you accept what is on this page. If you do not, that
+      is fine — do not use it.
+    </p>
+
+    <div class="callout warn">
+      <p>
+        <strong>Floorwars is in active development.</strong> Things will change, break, and occasionally be reset. Card stats,
+        rewards, odds and prices are all being balanced and will move. Treat anything you have in the game as temporary until
+        we say otherwise.
+      </p>
+    </div>
+
+    <h2>It is a game, not a financial product</h2>
+    <p>
+      Coins, Dust, cards, packs and ranks exist inside the game. They have no cash value, we do not offer to buy them back,
+      and they are not an investment, a security, or a stake in anything.
+    </p>
+    <p>
+      Nothing in the game, the litepaper, or anything we post is financial or investment advice. We are not licensed to give
+      any, and we are not giving any. If you make a financial decision because of something you read here, that decision is
+      yours alone.
+    </p>
+
+    <h2>Wallets</h2>
+    <p>
+      You never need a wallet to play. If you connect one, you are connecting it yourself, through software we do not control,
+      and you remain responsible for it.
+    </p>
+    <div class="callout note">
+      <p>
+        We will never ask for your seed phrase or private key, and we never need them. Anyone who asks you for them —
+        anywhere, claiming to be us — is trying to steal from you.
+      </p>
+    </div>
+    <p>
+      Signing in asks your wallet to sign a message proving you control the address. It does not move funds and does not grant
+      us spending permission.
+    </p>
+
+    <h2>Playing fairly</h2>
+    <p>Do not:</p>
+    <ul>
+      <li>automate play, script the client, or run bots to farm rewards;</li>
+      <li>abuse the referral system with accounts you control;</li>
+      <li>exploit a bug for gain instead of telling us about it;</li>
+      <li>attack the service, or try to reach other players' data;</li>
+      <li>use the game where doing so breaks your local law.</li>
+    </ul>
+    <p>
+      If you do, we may remove progress obtained that way or close the account. We would much rather hear about a bug than
+      find out you farmed it — tell us and we will say thank you.
+    </p>
+
+    <h2>Your account</h2>
+    <p>
+      Your account is tied to your wallet address. If you lose access to that wallet, we cannot recover the account — there is
+      no password to reset and no other identifier we hold. That is the trade-off of wallet sign-in, and it is worth
+      understanding before you rely on it.
+    </p>
+    <p>You can ask us to delete your account at any time. See <a href="/privacy.html">Privacy</a>.</p>
+
+    <h2>What we promise, and what we do not</h2>
+    <p>
+      We promise to run the game as well as we can and to be straight with you about what it is.
+    </p>
+    <p>
+      We do not promise it will be available, uninterrupted, bug-free, or preserved forever. It is provided as it is. To the
+      fullest extent the law allows, we are not liable for losses arising from using it — and given that nothing in it has
+      cash value, the honest expectation is that the worst case is lost time and a lost card collection.
+    </p>
+
+    <h2>Content</h2>
+    <p>
+      The game, its cards, art, and text are ours. Enjoy them, screenshot them, stream them, post them. Do not pass them off
+      as your own or use them to make something that pretends to be Floorwars.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      These terms will change as the game grows, particularly if on-chain ownership arrives. The version and date at the top
+      change when they do, and material changes will be described rather than quietly slipped in.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a>.
+    </p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">Play</a>
+    <a href="/litepaper.html">Litepaper</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a>
+  </div>
+</footer>
+
+</body>
+</html>

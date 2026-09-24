@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Floorwars — Privacy</title>
+<meta name="description" content="Exactly what Floorwars stores, what it never stores, and how to get rid of it." />
+<meta property="og:title" content="Floorwars — Privacy" />
+<meta property="og:description" content="Exactly what Floorwars stores, what it never stores, and how to get rid of it." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@playfloorwars" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #050907;
+    --panel: #0d1512;
+    --panel-alt: #101c16;
+    --border: #22322b;
+    --border-bright: #2e5c46;
+    --text: #dfeee7;
+    --text-dim: #7e9389;
+    --gold: #f2b705;
+    --green: #00e28a;
+    --hp: #ff6b62;
+    --glow-gold: rgba(242, 183, 5, 0.14);
+    --glow-green: rgba(0, 226, 138, 0.14);
+    --font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(circle at 12% 0%, var(--glow-green) 0%, transparent 40%),
+      radial-gradient(circle at 88% 8%, var(--glow-gold) 0%, transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--green); }
+  a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding-inline: 20px; }
+
+  header.hero { padding-block: 2.6rem 1.8rem; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+    margin: 0.3rem 0 0.4rem;
+  }
+  h1 .dot { color: var(--gold); }
+  .standfirst { color: var(--text-dim); margin: 0; text-wrap: balance; }
+  .hero-links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.1rem; }
+  .hero-links a {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid var(--border-bright);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+  }
+  .hero-links a:hover { border-color: var(--gold); color: var(--gold); }
+
+  main { padding-block: 2rem 3rem; }
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    margin: 2.2rem 0 0.7rem;
+    color: var(--gold);
+  }
+  h2:first-of-type { margin-top: 0; }
+  h3 { font-family: var(--font-display); font-size: 1rem; margin: 1.4rem 0 0.4rem; }
+  p, li { color: var(--text); }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: 0.35rem; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+  }
+  .callout {
+    border: 1px solid var(--border-bright);
+    border-left-width: 3px;
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 0.9rem 1.1rem;
+    margin: 1.4rem 0;
+  }
+  .callout p { margin: 0; }
+  .callout.never { border-left-color: var(--green); }
+  .callout.warn { border-left-color: var(--hp); }
+
+  .table-scroll { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; min-width: 460px; }
+  th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+
+  footer { border-top: 1px solid var(--border); padding-block: 1.6rem 2.6rem; color: var(--text-dim); font-size: 0.85rem; }
+  footer a { margin-right: 1rem; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Privacy · v1.0 · 2026-09-23</span>
+    <h1>Privacy<span class="dot">.</span></h1>
+    <p class="standfirst">What Floorwars stores, what it never stores, and how to get rid of it. Written to be read, not to be survived.</p>
+    <div class="hero-links">
+      <a href="/">← Back to the game</a>
+      <a href="/litepaper.html">Litepaper</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <h2>The short version</h2>
+    <p>
+      You can play Floorwars without giving us anything. No account, no wallet, no email. If you connect a wallet, we store
+      your public wallet address and the game progress attached to it — nothing else about you.
+    </p>
+
+    <div class="callout never">
+      <p>
+        <strong>We never ask for, receive, or store:</strong> your name, email address, phone number, postal address, date of
+        birth, government ID, payment card details, your wallet's private key, or your seed phrase. Nobody will ever ask you
+        for a seed phrase on this site. If something claiming to be Floorwars does, it isn't us.
+      </p>
+    </div>
+
+    <h2>What gets stored, and when</h2>
+
+    <h3>1. Before you do anything</h3>
+    <p>
+      Nothing is stored on our servers when you land on the site. You can read the litepaper, play the tutorial, and play
+      against the AI without anything of yours reaching us. Those modes run entirely in your browser.
+    </p>
+
+    <h3>2. In your own browser</h3>
+    <p>
+      Floorwars uses <strong>no cookies at all</strong>. It stores a few values in your browser's local storage, which stay on
+      your device and are cleared whenever you clear site data:
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Key</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><code>cryptoclash.anonId</code></td><td>A random identifier created by your browser. It is not derived from anything about you, and it identifies a browser, not a person.</td></tr>
+          <tr><td><code>cryptoclash.session</code></td><td>Your sign-in token, if you connected a wallet. It is what keeps you signed in.</td></tr>
+          <tr><td><code>cryptoclash.muted</code></td><td>Whether you muted the sound.</td></tr>
+          <tr><td><code>cryptoclash.tutorialCompleted</code><br /><code>cryptoclash.tutorialSkipped</code></td><td>So we stop offering you the tutorial.</td></tr>
+          <tr><td><code>cryptoclash.referralCode</code></td><td>Set only if you arrived through someone's invite link, so their reward can be credited.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3. If you connect a wallet</h3>
+    <p>
+      Connecting uses Sign-In With Ethereum: your wallet signs a message to prove you control the address. That signature
+      proves control and nothing more — it cannot move funds, and we never see your private key.
+    </p>
+    <p>We then store, against your wallet address:</p>
+    <ul>
+      <li>your public wallet address, lowercased, and when the account was created;</li>
+      <li>your card collection, saved decks, Coins, Dust, and packs;</li>
+      <li>your quests, daily and weekly rewards, achievements, and ranked progress;</li>
+      <li>your referral code and whether an invite has been credited;</li>
+      <li>records of the online matches you play — the result, how it ended, how long it ran, and which factions were used.</li>
+    </ul>
+    <p>
+      A wallet address is a pseudonymous identifier: it does not name you, but a public blockchain may let it be linked to
+      other activity. That is inherent to using a wallet anywhere, not specific to Floorwars — worth knowing before you connect one.
+    </p>
+
+    <h3>4. Product analytics</h3>
+    <p>
+      To know whether the game is any good, we record a small, fixed list of named events — things like "the app opened", "a
+      match started", "a pack was opened". Each event carries the random browser identifier above, and your account id if you
+      are signed in.
+    </p>
+    <p>
+      The list of event names is fixed in the code and enforced on our server: anything not on the list is discarded. The
+      extra detail attached to an event only ever comes from a fixed set of values we chose in advance — a faction name, a
+      match result, a number of turns. <strong>Nothing you type ever goes into analytics</strong>, including your deck names.
+    </p>
+
+    <div class="callout never">
+      <p>
+        <strong>Analytics events never contain</strong> your IP address, your wallet address, your browser's user-agent
+        string, the page you arrived from, or any free text. There is no advertising network, no cross-site tracking, and no
+        third-party tracking pixel anywhere in the game.
+      </p>
+    </div>
+
+    <h3>5. Your IP address</h3>
+    <p>
+      Our server sees your IP address, as every web server does. It is used in memory only, to stop one source hammering
+      sign-in or analytics, and it is never written to our database. Our hosting providers keep their own connection logs (see
+      below).
+    </p>
+
+    <h2>Who else is involved</h2>
+    <p>We keep this list short on purpose. As of this version, it is:</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Who</th><th>What for</th></tr></thead>
+        <tbody>
+          <tr><td>Vercel</td><td>Hosts the website, and provides a basic page-view counter. It reports visit counts, not individual people.</td></tr>
+          <tr><td>Railway</td><td>Runs the game server and the database holding everything in section 3.</td></tr>
+          <tr><td>Your wallet provider</td><td>Whichever wallet you choose to connect. Its own terms and privacy policy apply to it, not ours.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>We do not sell your data, and we do not share it with advertisers. There is nothing to sell.</p>
+
+    <h2>How long it is kept</h2>
+    <ul>
+      <li><strong>Browser storage</strong> — until you clear your site data. You control this entirely.</li>
+      <li><strong>Account and game progress</strong> — until you ask us to delete it.</li>
+      <li><strong>Analytics events and match records</strong> — kept as long as they are useful for improving the game. If your account is deleted, these are detached from it rather than destroyed: they keep the game's aggregate statistics honest, but stop pointing at you.</li>
+    </ul>
+
+    <h2>Getting rid of it</h2>
+    <p>
+      For anything in your browser: clear site data for this site, and it is gone. We cannot see it and cannot recover it.
+    </p>
+    <p>
+      For your account: ask, and we will delete the account and the progress attached to it. Because a wallet address is the
+      only identifier we hold, you will need to prove you control that wallet — the same signature you use to sign in.
+    </p>
+    <p>
+      Depending on where you live you may also have the right to request a copy of what we hold, to have it corrected, or to
+      object to analytics. Ask and we will do it; we would rather not hold data you do not want us to have.
+    </p>
+
+    <h2>Children</h2>
+    <p>
+      Floorwars is not designed or intended for children under 13, and we do not knowingly collect anything from them.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      If this changes in a way that affects what we collect, the version and date at the top of this page will change and the
+      difference will be described here rather than quietly slipped in.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Reach us at <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a> for
+      anything on this page, including deletion requests.
+    </p>
+
+    <div class="callout warn">
+      <p>
+        <strong>Floorwars is in development.</strong> It is a game, not a financial product. Nothing here is financial advice,
+        and nothing in the game is an investment. See the <a href="/terms.html">Terms</a>.
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">Play</a>
+    <a href="/litepaper.html">Litepaper</a>
+    <a href="/terms.html">Terms</a>
+    <a href="https://x.com/playfloorwars" target="_blank" rel="noopener noreferrer">@playfloorwars</a>
+  </div>
+</footer>
+
+</body>
+</html>

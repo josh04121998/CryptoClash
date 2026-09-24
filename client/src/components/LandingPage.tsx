@@ -171,7 +171,23 @@ export function LandingPage({ onEnter }: LandingPageProps) {
           </div>
         </section>
 
-        <footer className="landing__footer">FLOORWARS — early access. Balance, odds, and rewards are still first-pass numbers.</footer>
+        <footer className="landing__footer">
+          <p className="landing__footer-line">FLOORWARS — early access. Balance, odds, and rewards are still first-pass numbers.</p>
+          {/* Reachable from the front door rather than buried: the game collects
+              analytics and takes a wallet connection, so the pages describing
+              both should be one click away, not findable only by URL. */}
+          <nav className="landing__footer-links" aria-label="Legal and reference">
+            <a href={LITEPAPER_URL} target="_blank" rel="noopener noreferrer">
+              Litepaper
+            </a>
+            <a href="/privacy.html" target="_blank" rel="noopener noreferrer">
+              Privacy
+            </a>
+            <a href="/terms.html" target="_blank" rel="noopener noreferrer">
+              Terms
+            </a>
+          </nav>
+        </footer>
       </div>
     </div>
   );
