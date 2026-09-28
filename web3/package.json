@@ -1,0 +1,31 @@
+{
+  "name": "@cryptoclash/web3",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat ignition deploy ignition/modules/FloorwarsCards.ts --network robinhoodTestnet",
+    "smoke:testnet": "hardhat run scripts/testnetSmoke.ts --network robinhoodTestnet",
+    "generate-wallet": "tsx scripts/generateWallet.ts"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^4.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": ">=10.0.10",
+    "@types/node": "^22.8.5",
+    "chai": "^6.2.2",
+    "dotenv": "^16.4.5",
+    "hardhat": "^3.18.0",
+    "mocha": "^12.0.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

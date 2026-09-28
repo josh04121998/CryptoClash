@@ -5,6 +5,7 @@
     "engine",
     "shared",
     "server",
-    "client"
+    "client",
+    "web3"
   ]
 }
