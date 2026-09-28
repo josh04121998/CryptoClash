@@ -144,6 +144,18 @@ button {
 }
 
 .table {
+  /* Card/slot sizing lives here as custom properties so every tier (default, compact,
+     extra-small below) has one source of truth instead of repeating width/height on
+     .board-slot/.card-face--board/.card-face--hand at each breakpoint. Default tier is a
+     fluid clamp bounded by both vw and vh (min() of the two) rather than vw alone, so a
+     wide-but-short window doesn't overflow before the compact breakpoint kicks in — it
+     floors at today's fixed sizes (unchanged look on typical desktop widths) and grows on
+     genuinely large screens instead of sitting fixed-size forever. */
+  --board-card-w: clamp(120px, min(8vw, 14vh), 170px);
+  --board-card-h: calc(var(--board-card-w) * 1.31667);
+  --hand-card-w: clamp(150px, min(10vw, 17vh), 210px);
+  --hand-card-h: calc(var(--hand-card-w) * 1.4);
+
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -153,7 +165,11 @@ button {
   /* Extra clearance so the fixed End Turn button (see .end-turn-btn) never sits on top of the
      last hand-row card at the bottom of the scroll area. */
   padding-bottom: 4.2rem;
-  max-width: 900px;
+  /* Was a flat 900px cap — centered a small, constant-size board with large empty margins on
+     any screen wider than that, which is what read as "squished" on big monitors. Now grows
+     with the viewport (up to a ceiling so it doesn't sprawl on an ultrawide) instead of
+     staying fixed. */
+  max-width: min(1500px, 96vw);
   margin: 0 auto;
   width: 100%;
   min-height: 0;
@@ -226,8 +242,8 @@ button {
 
 .board-slot {
   position: relative;
-  width: 120px;
-  height: 158px;
+  width: var(--board-card-w, 120px);
+  height: var(--board-card-h, 158px);
 }
 
 .board-slot--empty {
@@ -270,9 +286,15 @@ button {
 }
 
 .volatility-meter__fill {
+  width: 100%;
   height: 100%;
   background: linear-gradient(90deg, var(--energy), var(--danger));
-  transition: width 0.3s ease;
+  /* transform: scaleX() (set inline, per current volatility) instead of animating `width` —
+     `width` is a layout-triggering property; scaling from a fixed-width box only touches
+     compositing. transform-origin keeps the scale growing from the left edge, same visual
+     result a width change gave. */
+  transform-origin: left center;
+  transition: transform 0.3s ease;
 }
 
 @keyframes volatility-pulse {
@@ -363,7 +385,9 @@ button {
    row eats exactly the vertical space this project's "battlefield feels crushed" feedback called
    out. flex-wrap above stays on as a fallback for a genuinely full 10-card hand on a narrow phone. */
 .hand-row > div:not(:first-child) {
-  margin-left: -70px;
+  /* ~46.7% overlap, matching the ratio the old fixed -70px/150px width used — ties to
+     --hand-card-w so the fan stays visually consistent as card size scales per breakpoint. */
+  margin-left: calc(var(--hand-card-w) * -0.467);
 }
 
 .hand-row > div:hover,
@@ -466,15 +490,19 @@ button {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
+/* Fallback values (150x210 / 120x158) apply outside .table — Collection/DeckBuilder/
+   Crafting/Packs render .card-face--hand without the match view's sizing custom
+   properties in scope, and .card-face--board is battlefield-only but gets one too for
+   safety. */
 .card-face--hand {
-  width: 150px;
-  height: 210px;
+  width: var(--hand-card-w, 150px);
+  height: var(--hand-card-h, 210px);
   flex-shrink: 0;
 }
 
 .card-face--board {
-  width: 120px;
-  height: 158px;
+  width: var(--board-card-w, 120px);
+  height: var(--board-card-h, 158px);
 }
 
 .card-face--selected {
@@ -773,6 +801,75 @@ button {
   text-decoration: underline dotted;
   text-decoration-color: rgba(245, 197, 66, 0.5);
   text-underline-offset: 2px;
+}
+
+/* Board-only discoverability affordance + hover preview (see CardFace.tsx's doc comment) — a
+   board minion shows no name/text by design, and tapping it to inspect had no visual hint that
+   it did anything. The badge is a small always-on hint (works for touch, which never triggers
+   :hover); the preview itself is CSS-:hover/:focus-visible only, so it naturally never shows on
+   touch (no persistent hover there) without needing any JS input-type detection. */
+.card-face__info-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 23%;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(8, 10, 8, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* `top`/`left` (set inline, per-instance) pin this to the hovered/focused card's own top-center
+   point in viewport coordinates — `position: fixed` so it escapes .card-face's own
+   `overflow: hidden` (see CardFace.tsx's comment) regardless of where in the DOM it sits. Only
+   rendered while hovered/focused (React mounts/unmounts it), so no opacity/visibility toggle
+   needed here. */
+.card-face__hover-tip {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
+  width: 220px;
+  max-width: min(220px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  background: var(--panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text);
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.card-face__hover-tip-name {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.card-face__hover-tip-keywords {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: var(--text-dim);
+}
+
+.card-face__hover-tip-text {
+  color: var(--text);
 }
 
 /* Concrete per-size numbers (cost/ticker/body/stat-gem dimensions and font
@@ -1801,19 +1898,11 @@ button {
    get forced into a narrow layout just because the browser window happens to be short. */
 
 @media (max-width: 640px), (max-height: 760px) {
-  .hand-row > div:not(:first-child) {
-    margin-left: -52px;
-  }
-
-  .board-slot,
-  .card-face--board {
-    width: 90px;
-    height: 119px;
-  }
-
-  .card-face--hand {
-    width: 112px;
-    height: 157px;
+  .table {
+    --board-card-w: 90px;
+    --board-card-h: 119px;
+    --hand-card-w: 112px;
+    --hand-card-h: 157px;
   }
 
   .card-face--hand .card-face__name {
@@ -2031,7 +2120,11 @@ button {
 .card-face__popup,
 .player-header__popup {
   position: absolute;
-  left: 50%;
+  /* --popup-offset (set inline per instance) spreads multiple concurrent popups apart
+     horizontally so two near-simultaneous hits don't fully overlap — see useDamagePopup.ts.
+     Independent of the keyframe's own `transform`, which still does its usual centering
+     (translateX(-50%)) relative to whatever this resolves to, plus the float/scale animation. */
+  left: calc(50% + var(--popup-offset, 0px));
   top: 40%;
   transform: translate(-50%, 0);
   font-family: var(--font-mono);
@@ -2362,15 +2455,11 @@ button {
     gap: 0.3rem;
   }
 
-  .board-slot,
-  .card-face--board {
-    width: 68px;
-    height: 90px;
-  }
-
-  .card-face--hand {
-    width: 88px;
-    height: 123px;
+  .table {
+    --board-card-w: 68px;
+    --board-card-h: 90px;
+    --hand-card-w: 88px;
+    --hand-card-h: 123px;
   }
 
   .card-face--hand .card-face__name {
@@ -3085,4 +3174,46 @@ button {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
+}
+
+/* Reduced-motion coverage for everything else in this file — only card-inspect's flip and the
+   win/lose confetti strips had this before. Placed at the very end of the file (not next to each
+   animation's own rule) purely so cascade order guarantees it wins regardless of where in the
+   file the base `animation` rule it's overriding lives — several of these (the tutorial spotlight
+   glows, the End Turn ready-pulse) are declared well after where this would otherwise sit.
+   Checked case by case rather than blanket-disabled: everything listed here already has a static
+   fallback (a border, glow, color, or background) that keeps communicating the same state once
+   its animation is removed, so nothing goes invisible or unreadable — number-popup and the
+   market-event toast both rely on their un-animated base state already matching their animation's
+   resting frame, verified against each @keyframes definition. Pure color/opacity feedback
+   (hp-flash, the hit-flash overlay) is deliberately left animated — that IS the "instant change
+   instead of a shake/pulse" this is aiming for, not something to also strip out. */
+@media (prefers-reduced-motion: reduce) {
+  .player-header--targetable,
+  .board-slot__target-ring,
+  .table__play-prompt,
+  .card-face--foil,
+  .pack-reveal__card,
+  .reconnect-banner,
+  .card-face--lunge-up,
+  .card-face--lunge-down,
+  .card-face--hit,
+  .card-face--hit.card-face--lunge-up,
+  .card-face--hit.card-face--lunge-down,
+  .player-header--hit,
+  .card-face__popup,
+  .player-header__popup,
+  .market-event-toast,
+  .table__your-turn,
+  .board-slot--spotlight,
+  .player-header--spotlight,
+  .player-header__energy--spotlight,
+  .hand-card--spotlight,
+  .end-turn-btn:not(:disabled) {
+    animation: none;
+  }
+
+  .end-turn-btn--spotlight {
+    animation: none !important;
+  }
 }

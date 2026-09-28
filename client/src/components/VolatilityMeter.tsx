@@ -17,7 +17,7 @@ export function VolatilityMeter({ volatility }: VolatilityMeterProps) {
       <div className="volatility-meter__track">
         <div
           className={volatility >= 8 ? "volatility-meter__fill volatility-meter__fill--critical" : "volatility-meter__fill"}
-          style={{ width: `${(volatility / 10) * 100}%` }}
+          style={{ transform: `scaleX(${volatility / 10})` }}
         />
       </div>
     </div>

@@ -63,8 +63,16 @@ export function useMatchSounds(state: MatchState, myPlayerId: PlayerId) {
           firedLines.push(text);
         } else if (text.includes(" dies.")) playDeathSound();
         else if (text.includes(" heals ")) playHealSound();
-        else if (text.includes(" attacks ") || text.includes(" trades with ")) playAttackSound();
-        else if (text.includes(" plays ")) playCardSound();
+        else if (text.includes(" attacks ") || text.includes(" trades with ")) {
+          // combat.ts's own log wording carries the real damage number already ("... for N
+          // (HP: M)." / "...: A <-> B damage.") — extracted here rather than piped through as a
+          // structured value, same "read the log text, never crash if it doesn't match" posture
+          // as the rest of this hook. Falls back to the old flat punch if the wording ever drifts.
+          const single = text.match(/for (\d+)/);
+          const trade = text.match(/(\d+)\s*<->\s*(\d+)\s*damage/);
+          const damage = single ? Number(single[1]) : trade ? Math.max(Number(trade[1]), Number(trade[2])) : 2;
+          playAttackSound(damage);
+        } else if (text.includes(" plays ")) playCardSound();
       }
       if (firedLines.length > 0) {
         setMarketEventFlash((c) => c + 1);

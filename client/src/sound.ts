@@ -51,6 +51,42 @@ interface Note {
   gain?: number;
 }
 
+/**
+ * A short filtered white-noise burst, layered under the tonal notes on impact sounds
+ * (attack/death) so they read as a "thud" rather than a pure oscillator beep — oscillators
+ * alone can only ever sound like a clean electronic tone, never an impact, no matter how the
+ * envelope is shaped. `filterFreq` is a lowpass cutoff: lower = duller/heavier, higher = a
+ * sharper crack. A no-op (silently) when muted or Web Audio isn't available, same as playNotes.
+ */
+function playNoiseBurst(startOffset: number, duration: number, peak: number, filterFreq: number): void {
+  if (isMuted()) return;
+  const audio = getContext();
+  if (!audio) return;
+
+  const bufferSize = Math.max(1, Math.floor(audio.sampleRate * duration));
+  const buffer = audio.createBuffer(1, bufferSize, audio.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const source = audio.createBufferSource();
+  source.buffer = buffer;
+
+  const filter = audio.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = filterFreq;
+
+  const gainNode = audio.createGain();
+  const start = audio.currentTime + startOffset;
+  gainNode.gain.setValueAtTime(peak, start);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+  source.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(audio.destination);
+  source.start(start);
+  source.stop(start + duration + 0.02);
+}
+
 /** Schedules a short sequence of oscillator notes with a simple attack/decay envelope each. A no-op (silently) when muted or Web Audio isn't available. */
 function playNotes(notes: Note[]): void {
   if (isMuted()) return;
@@ -80,15 +116,25 @@ export function playCardSound(): void {
   playNotes([{ freq: 520, at: 0, duration: 0.09, type: "triangle" }, { freq: 780, at: 0.05, duration: 0.09, type: "triangle" }]);
 }
 
-export function playAttackSound(): void {
-  playNotes([{ freq: 180, at: 0, duration: 0.08, type: "square", gain: 0.16 }, { freq: 90, at: 0.04, duration: 0.1, type: "square", gain: 0.14 }]);
-}
-
-export function playHitSound(): void {
-  playNotes([{ freq: 110, at: 0, duration: 0.12, type: "sawtooth", gain: 0.14 }]);
+/**
+ * `damage` (raw amount dealt, if known — callers without a number just get the old baseline
+ * punch) scales the impact: a 1-damage poke and a 7-damage haymaker used to sound identical,
+ * since this only ever fired off the log text's *presence* ("X attacks Y"), never its amount.
+ * Normalized against 8 since that's roughly the top of the launch card pool's per-hit damage
+ * range (batlleSpec.md's finishers aside) — intensity only needs to feel "bigger," not track the
+ * exact number 1:1.
+ */
+export function playAttackSound(damage = 2): void {
+  const intensity = Math.min(1, Math.max(0, damage) / 8);
+  playNoiseBurst(0, 0.07 + intensity * 0.06, 0.16 + intensity * 0.14, 1300 - intensity * 800);
+  playNotes([
+    { freq: 180 - intensity * 40, at: 0, duration: 0.08, type: "square", gain: 0.16 },
+    { freq: 90 - intensity * 20, at: 0.04, duration: 0.1 + intensity * 0.06, type: "square", gain: 0.14 + intensity * 0.06 },
+  ]);
 }
 
 export function playDeathSound(): void {
+  playNoiseBurst(0, 0.16, 0.2, 450);
   playNotes([
     { freq: 300, at: 0, duration: 0.12, type: "square", gain: 0.12 },
     { freq: 200, at: 0.1, duration: 0.14, type: "square", gain: 0.12 },

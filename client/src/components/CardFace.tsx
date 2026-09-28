@@ -1,7 +1,9 @@
 import { CardTemplate } from "@cryptoclash/engine";
-import { CSSProperties, MouseEvent, useEffect, useRef, useState } from "react";
+import { CSSProperties, MouseEvent, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cardArt } from "../cardArt.js";
 import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
+import { useDamagePopup } from "../useDamagePopup.js";
 import { factionColor } from "../factionColor.js";
 import { factionTicker } from "../factionTicker.js";
 import { frameArt } from "../frameArt.js";
@@ -103,37 +105,34 @@ export function CardFace({
     .filter(Boolean)
     .join(". ");
 
-  // "just hit" is a one-shot trigger, distinct from `damaged` above: it fires
-  // only on the render where health *drops* from what it was last render,
-  // not on every render while the creature happens to be below max health.
-  // `popup` rides the same detection but also covers a *heal* (health rising) —
-  // one mechanism, two colors, both one-shot pop-and-fade numbers.
-  const [justHit, setJustHit] = useState(false);
-  const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
-  const prevHealthRef = useRef(health);
-  useEffect(() => {
-    const prev = prevHealthRef.current;
-    if (prev !== undefined && health !== undefined && health !== prev) {
-      const heal = health > prev;
-      prevHealthRef.current = health;
-      setPopup({ amount: Math.abs(health - prev), heal, key: Date.now() });
-      const popupTimer = setTimeout(() => setPopup(null), 700);
-      if (heal) return () => clearTimeout(popupTimer);
-      setJustHit(true);
-      const hitTimer = setTimeout(() => setJustHit(false), 450);
-      return () => {
-        clearTimeout(popupTimer);
-        clearTimeout(hitTimer);
-      };
-    }
-    prevHealthRef.current = health;
-  }, [health]);
+  const { justHit, popups } = useDamagePopup(health);
+
+  // Board-only hover/focus preview (see the badge/tooltip render below). Rendered through a
+  // portal into document.body, not as a plain nested child: `.card-face` is `overflow: hidden`
+  // (clips the art to its rounded corners) *and* every `.card-face:hover` gets a `translateY`
+  // lift, which makes the button itself the containing block for any `position: fixed`
+  // descendant (a CSS transform on an ancestor does that) — so a naive nested `fixed` tooltip
+  // still ends up clipped/mispositioned relative to the card instead of the viewport. The portal
+  // sidesteps both without touching either the widely-shared base card styling or the hover-lift
+  // effect. Only wired up for board size — hand-size cards already show everything inline.
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [tipAnchor, setTipAnchor] = useState<{ top: number; left: number } | null>(null);
+  const showTip = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (rect) setTipAnchor({ top: rect.top, left: rect.left + rect.width / 2 });
+  };
+  const hideTip = () => setTipAnchor(null);
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       aria-label={accessibleLabel}
       title={showFullFace ? undefined : accessibleLabel}
+      onMouseEnter={!showFullFace ? showTip : undefined}
+      onMouseLeave={!showFullFace ? hideTip : undefined}
+      onFocus={!showFullFace ? showTip : undefined}
+      onBlur={!showFullFace ? hideTip : undefined}
       className={[
         "card-face",
         `card-face--${size}`,
@@ -215,12 +214,47 @@ export function CardFace({
           </span>
         </span>
       )}
-      {popup && (
-        <span key={popup.key} className={`card-face__popup ${popup.heal ? "card-face__popup--heal" : "card-face__popup--damage"}`}>
+      {/* Board minions show no name/text by design (see the doc comment above) — the only way to
+          see what one does used to be tapping it (MatchView's tap-to-inspect fallback), with no
+          visual cue that tapping does anything. This badge + hover-preview make that discoverable
+          without disturbing the clean battlefield look: the badge is a small always-visible hint,
+          the preview itself only reveals on real `:hover`/keyboard focus (CSS-only — no JS touch
+          detection needed, since touch devices simply never trigger `:hover` and keep using the
+          existing tap-to-inspect overlay instead). */}
+      {!showFullFace && (
+        <span className="card-face__info-badge" aria-hidden="true">
+          i
+        </span>
+      )}
+      {!showFullFace &&
+        tipAnchor &&
+        createPortal(
+          <span className="card-face__hover-tip" role="tooltip" style={{ top: tipAnchor.top, left: tipAnchor.left }}>
+            <span className="card-face__hover-tip-name">{template.name}</span>
+            {keywords && keywords.length > 0 && (
+              <span className="card-face__hover-tip-keywords">
+                {keywords.map((kw) => (
+                  <span key={kw} className="card-face__hover-tip-keyword">
+                    <strong>{kw}</strong>
+                    {KEYWORD_TOOLTIPS[kw] ? `: ${KEYWORD_TOOLTIPS[kw]}` : ""}
+                  </span>
+                ))}
+              </span>
+            )}
+            {template.text && <span className="card-face__hover-tip-text">{template.text}</span>}
+          </span>,
+          document.body,
+        )}
+      {popups.map((popup, i) => (
+        <span
+          key={popup.key}
+          className={`card-face__popup ${popup.heal ? "card-face__popup--heal" : "card-face__popup--damage"}`}
+          style={{ "--popup-offset": `${(i - (popups.length - 1) / 2) * 20}px` } as CSSProperties}
+        >
           {popup.heal ? "+" : "-"}
           {popup.amount}
         </span>
-      )}
+      ))}
     </button>
   );
 }

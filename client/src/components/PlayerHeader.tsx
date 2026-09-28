@@ -1,5 +1,6 @@
 import { PlayerState } from "@cryptoclash/engine";
-import { useEffect, useRef, useState } from "react";
+import { CSSProperties } from "react";
+import { useDamagePopup } from "../useDamagePopup.js";
 
 export interface PlayerHeaderProps {
   name: string;
@@ -23,26 +24,7 @@ export function PlayerHeader({
   spotlightPortrait,
   isDropZone = false,
 }: PlayerHeaderProps) {
-  const [justHit, setJustHit] = useState(false);
-  const [popup, setPopup] = useState<{ amount: number; heal: boolean; key: number } | null>(null);
-  const prevHpRef = useRef(player.hp);
-  useEffect(() => {
-    const prev = prevHpRef.current;
-    if (player.hp !== prev) {
-      const heal = player.hp > prev;
-      prevHpRef.current = player.hp;
-      setPopup({ amount: Math.abs(player.hp - prev), heal, key: Date.now() });
-      const popupTimer = setTimeout(() => setPopup(null), 700);
-      if (heal) return () => clearTimeout(popupTimer);
-      setJustHit(true);
-      const hitTimer = setTimeout(() => setJustHit(false), 450);
-      return () => {
-        clearTimeout(popupTimer);
-        clearTimeout(hitTimer);
-      };
-    }
-    prevHpRef.current = player.hp;
-  }, [player.hp]);
+  const { justHit, popups } = useDamagePopup(player.hp);
 
   const accessibleLabel = [
     name,
@@ -92,15 +74,16 @@ export function PlayerHeader({
           🔒 {player.secrets.length}
         </span>
       )}
-      {popup && (
+      {popups.map((popup, i) => (
         <span
           key={popup.key}
           className={`player-header__popup ${popup.heal ? "player-header__popup--heal" : "player-header__popup--damage"}`}
+          style={{ "--popup-offset": `${(i - (popups.length - 1) / 2) * 26}px` } as CSSProperties}
         >
           {popup.heal ? "+" : "-"}
           {popup.amount}
         </span>
-      )}
+      ))}
     </button>
   );
 }
