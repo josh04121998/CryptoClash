@@ -14,6 +14,7 @@
   "dependencies": {
     "@cryptoclash/engine": "*",
     "@cryptoclash/protocol": "*",
+    "@cryptoclash/web3": "*",
     "ethers": "^6.17.0",
     "jose": "^6.2.11",
     "pg": "^8.23.0",

@@ -36,6 +36,7 @@ import {
   getTopWins,
   MIN_GAMES_FOR_WIN_RATE,
 } from "../src/leaderboardRepo.js";
+import { getMintableInstance } from "../src/mintingRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { awardRankPoints, getMyRank, getTopRank, RANK_TIER_REWARDS, RANK_TIERS } from "../src/rankRepo.js";
 import {
@@ -213,6 +214,45 @@ d("accounts + decks (integration, real Postgres)", () => {
       // A different account that never had a collection granted owns nothing.
       const other = await findOrCreateAccount(pool, "0xnocollection");
       expect(await validateOwnership(pool, other.id, ["pup_scout"])).toHaveLength(1);
+    });
+  });
+
+  describe("mintingRepo", () => {
+    it("getMintableInstance joins card_instances/card_editions with CARD_POOL into the full MintableInstance shape", async () => {
+      const account = await findOrCreateAccount(pool, "0xminter");
+      const client = await pool.connect();
+      let instanceId: string;
+      try {
+        await grantCardInstances(client, account.id, [{ templateId: "moon_dog", isFoil: true, conditionGrade: 9 }]);
+        const row = await client.query<{ id: string }>(
+          `select ci.id from card_instances ci
+           join card_editions ce on ce.id = ci.edition_id
+           where ci.owner_id = $1 and ce.template_id = 'moon_dog'`,
+          [account.id],
+        );
+        instanceId = row.rows[0].id;
+      } finally {
+        client.release();
+      }
+
+      const instance = await getMintableInstance(pool, instanceId);
+      expect(instance).not.toBeNull();
+      expect(instance).toMatchObject({
+        instanceId,
+        templateId: "moon_dog",
+        name: CARD_POOL["moon_dog"].name,
+        rarity: CARD_POOL["moon_dog"].rarity,
+        faction: "Doggos",
+        editionType: "standard",
+        isFoil: true,
+        conditionGrade: 9,
+        serialNumber: null,
+        isFirstEdition: false,
+      });
+    });
+
+    it("returns null for an id that doesn't exist", async () => {
+      expect(await getMintableInstance(pool, "00000000-0000-0000-0000-000000000000")).toBeNull();
     });
   });
 

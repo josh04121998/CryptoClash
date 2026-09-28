@@ -7,6 +7,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: #000; }
   .card {
+    box-sizing: border-box;
     width: 1500px;
     height: 2100px;
     position: relative;
@@ -14,6 +15,48 @@
     overflow: hidden;
     font-family: 'IBM Plex Mono', monospace;
     color: #dfeee7;
+  }
+  /* Foil (session 36) — same mechanism as the live client's .card-face--foil
+     (styles.css): a transparent border revealing an animated-in-the-live-UI, here
+     frozen-at-one-frame, 4-stop rainbow gradient painted at border-box, with an
+     opaque interior gradient painted at padding-box on top of it so only the
+     border ring itself shows the rainbow. box-sizing: border-box above keeps the
+     card's outer 1500x2100 dimensions identical whether or not this border is
+     added, so foil/non-foil renders stay directly comparable. Frozen at
+     background-position 0% 50% — the same resting frame the live client's own
+     prefers-reduced-motion fallback uses, since a minted image can't animate.
+     Position/size (0 0, 0% 50%) matches the live keyframes' start frame exactly. */
+  .card.foil {
+    border: 14px solid transparent;
+    background:
+      linear-gradient(160deg, #131e19, #0d1512) padding-box,
+      linear-gradient(120deg, #f0f, #7df9ff, #ffe97d, #f0f) border-box;
+    background-size: 100% 100%, 300% 300%;
+    background-position: 0 0, 0% 50%;
+    box-shadow: 0 0 32px 6px rgba(255, 255, 255, 0.35);
+  }
+  /* Condition (session 36) — same two treatments as the live client's
+     .card-face__condition--pristine/--worn (styles.css), scaled up ~10x since
+     this renders at 1500x2100 vs. a live hand card's ~150x210. */
+  .art.worn {
+    filter: saturate(0.5) brightness(0.82) contrast(0.94);
+  }
+  .condition-pristine {
+    position: absolute;
+    inset: 0;
+    /* Above .frame (z-index 2, same layer, later in DOM order wins) but below
+       .cost/.ticker/.stat (z-index 3) so the stat gems stay crisp on top. */
+    z-index: 2;
+    background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.32) 46%, rgba(255, 255, 255, 0.06) 56%, transparent 72%);
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+  .condition-worn {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: repeating-linear-gradient(115deg, transparent 0px, transparent 60px, rgba(0, 0, 0, 0.1) 70px, transparent 80px);
+    pointer-events: none;
   }
   .art {
     position: absolute;
@@ -141,9 +184,10 @@
 </style>
 </head>
 <body>
-  <div class="card" style="--faction-color: {{FACTION_COLOR}};">
-    <div class="art" style="background-image: url('{{ART_URL}}');"></div>
+  <div class="card {{CARD_CLASS}}" style="--faction-color: {{FACTION_COLOR}};">
+    <div class="art {{ART_CLASS}}" style="background-image: url('{{ART_URL}}');"></div>
     <div class="frame" style="background-image: url('{{FRAME_URL}}');"></div>
+    {{CONDITION_HTML}}
     <div class="cost"><svg class="stat-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 14.5H11L9 22L19.5 9H13L13 2Z"/></svg>{{COST}}</div>
     <div class="ticker">{{TICKER}}</div>
     <div class="body">

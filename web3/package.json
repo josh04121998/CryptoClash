@@ -10,7 +10,8 @@
     "test": "hardhat test",
     "deploy:testnet": "hardhat ignition deploy ignition/modules/FloorwarsCards.ts --network robinhoodTestnet",
     "smoke:testnet": "hardhat run scripts/testnetSmoke.ts --network robinhoodTestnet",
-    "generate-wallet": "tsx scripts/generateWallet.ts"
+    "generate-wallet": "tsx scripts/generateWallet.ts",
+    "mint-samples": "tsx scripts/mintSampleInstances.ts"
   },
   "dependencies": {
     "ethers": "^6.17.0"
