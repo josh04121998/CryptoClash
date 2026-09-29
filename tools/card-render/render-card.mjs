@@ -68,8 +68,21 @@ function conditionVisualTier(grade) {
 export async function renderCardInstance(instance, artPath, outPath) {
   const template = readFileSync(path.join(__dirname, "template.html"), "utf-8");
   const artUrl = pathToFileURL(path.resolve(artPath)).href;
-  const framePath = path.join(__dirname, `../../client/src/assets/frames/${frameFileFor(instance.rarity)}`);
-  const frameUrl = pathToFileURL(framePath).href;
+
+  // Full Art/Ultra/Secret (full-art-prompts.md): the illustrated rarity-frame border is deliberately
+  // skipped, not swapped for a different asset — .art already spans the full 1500x2100 canvas
+  // (template.html), and it's the *frame* PNG's own opaque-except-for-a-cutout design that makes
+  // Standard art read as "windowed" in the first place. Dropping the frame layer entirely, with
+  // nothing else changed, is what turns the same full-bleed art into a genuine "the illustration
+  // bleeds across the whole card" Full Art composition — .art::after's existing gradient already
+  // darkens the lower third for text legibility either way. Falls back to Standard's framed look
+  // when editionType is absent (demo mode, or any caller not yet edition-aware).
+  const isStandardEdition = !instance.editionType || instance.editionType === "standard";
+  const frameHtml = isStandardEdition
+    ? `<div class="frame" style="background-image: url('${pathToFileURL(
+        path.join(__dirname, `../../client/src/assets/frames/${frameFileFor(instance.rarity)}`),
+      ).href}');"></div>`
+    : "";
 
   const keywordHtml =
     instance.keywords && instance.keywords.length > 0
@@ -89,7 +102,7 @@ export async function renderCardInstance(instance, artPath, outPath) {
   const html = template
     .replaceAll("{{FACTION_COLOR}}", FACTION_COLOR[instance.faction] ?? "#8a93ab")
     .replaceAll("{{ART_URL}}", artUrl)
-    .replaceAll("{{FRAME_URL}}", frameUrl)
+    .replaceAll("{{FRAME_HTML}}", frameHtml)
     .replaceAll("{{COST}}", instance.cost)
     .replaceAll("{{TICKER}}", FACTION_TICKER[instance.faction] ?? "???")
     .replaceAll("{{NAME}}", instance.name)

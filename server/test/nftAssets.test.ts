@@ -3,12 +3,25 @@ import { hasArt, metadataFor, publicBaseUrl } from "../src/nftAssets.js";
 
 describe("nftAssets", () => {
   describe("hasArt", () => {
-    it("is true for a real generated card illustration", () => {
-      expect(hasArt("moon_dog")).toBe(true);
+    it("is true for a real Standard illustration", () => {
+      expect(hasArt({ templateId: "moon_dog", editionType: "standard" })).toBe(true);
+    });
+
+    it("is true for a real Standard illustration when editionType is omitted (defaults to Standard)", () => {
+      expect(hasArt({ templateId: "moon_dog" })).toBe(true);
     });
 
     it("is false for a template with no generated art", () => {
-      expect(hasArt("definitely_not_a_real_template_id")).toBe(false);
+      expect(hasArt({ templateId: "definitely_not_a_real_template_id", editionType: "standard" })).toBe(false);
+    });
+
+    it("checks the Full Art pool, not the Standard one, for a non-Standard edition", () => {
+      // alpha_dog is one of the 11 templates full-art-prompts.md actually has art for.
+      expect(hasArt({ templateId: "alpha_dog", editionType: "full_art" })).toBe(true);
+      // moon_dog has Standard art but is outside the 11-template Full Art pool.
+      expect(hasArt({ templateId: "moon_dog", editionType: "full_art" })).toBe(false);
+      expect(hasArt({ templateId: "alpha_dog", editionType: "ultra" })).toBe(true);
+      expect(hasArt({ templateId: "alpha_dog", editionType: "secret" })).toBe(true);
     });
   });
 

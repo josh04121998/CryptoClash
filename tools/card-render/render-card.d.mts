@@ -14,6 +14,8 @@ export interface RenderableCard {
   keywords?: string[];
   isFoil?: boolean;
   conditionGrade?: number | null;
+  /** Absent/"standard" renders the illustrated rarity-frame border; any other value renders full-bleed with no frame — see renderCardInstance's own comment. */
+  editionType?: "standard" | "full_art" | "ultra" | "secret";
 }
 
 export function renderCardInstance(instance: RenderableCard, artPath: string, outPath: string): Promise<void>;

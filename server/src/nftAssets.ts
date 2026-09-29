@@ -15,14 +15,34 @@ const GENERATED_DIR = path.join(REPO_ROOT, "server/generated/nft");
 
 export class ArtNotReadyError extends Error {}
 
+/** Just enough of MintableInstance for art-path selection — editionType optional, defaulting to Standard, same as render-card.mjs's own RenderableCard. */
+type ArtLookup = Pick<MintableInstance, "templateId"> & { editionType?: MintableInstance["editionType"] };
+
+/**
+ * Full Art/Ultra/Secret Editions composite from a real *different* illustration
+ * (full-art-prompts.md), not the Standard art with a border swapped — collectibility.md §4/§8:
+ * "alternate, full-bleed illustrated artwork," not a crop of the Standard print. Ultra and Secret
+ * deliberately share the same Full Art source image (a render-time presentation distinction, not
+ * a third generated asset — full-art-prompts.md's own scope note) rather than needing their own.
+ */
+function artPathFor(instance: ArtLookup): string {
+  const isStandardEdition = !instance.editionType || instance.editionType === "standard";
+  return path.join(
+    REPO_ROOT,
+    isStandardEdition ? `client/src/assets/cards/${instance.templateId}.jpg` : `client/src/assets/cards/full-art/${instance.templateId}.jpg`,
+  );
+}
+
 /**
  * Whether this session's instance actually has an on-disk illustration to composite. Per
  * STATUS.md's wiring table, not every CARD_POOL template has generated art yet — minting must
  * refuse rather than silently mint a card with a broken/placeholder image baked into an
- * otherwise-permanent on-chain asset.
+ * otherwise-permanent on-chain asset. Checks the Full Art pool for a non-Standard instance,
+ * same "refuse cleanly" posture — full-art-prompts.md's own 11-template pool is deliberately
+ * narrower than the full Standard roster.
  */
-export function hasArt(templateId: string): boolean {
-  return existsSync(path.join(REPO_ROOT, `client/src/assets/cards/${templateId}.jpg`));
+export function hasArt(instance: ArtLookup): boolean {
+  return existsSync(artPathFor(instance));
 }
 
 /**
@@ -33,15 +53,15 @@ export function hasArt(templateId: string): boolean {
  * cache miss (including "the whole directory is gone after a redeploy") just re-renders from it.
  */
 export async function renderAndCacheImage(instance: MintableInstance, tokenId: bigint): Promise<Buffer> {
-  if (!hasArt(instance.templateId)) {
-    throw new ArtNotReadyError(`No generated art exists yet for "${instance.templateId}" — can't mint it.`);
+  if (!hasArt(instance)) {
+    const editionNote = instance.editionType && instance.editionType !== "standard" ? ` (${instance.editionType} edition)` : "";
+    throw new ArtNotReadyError(`No generated art exists yet for "${instance.templateId}"${editionNote} — can't mint it.`);
   }
   mkdirSync(GENERATED_DIR, { recursive: true });
   const hex = tokenIdToUriHex(tokenId);
   const outPath = path.join(GENERATED_DIR, `${hex}.png`);
   if (!existsSync(outPath)) {
-    const artPath = path.join(REPO_ROOT, `client/src/assets/cards/${instance.templateId}.jpg`);
-    await renderCardInstance(instance, artPath, outPath);
+    await renderCardInstance(instance, artPathFor(instance), outPath);
   }
   return readFileSync(outPath);
 }
