@@ -19,6 +19,7 @@ import {
   getCollectionSummary,
   getStartingFaction,
   grantCardInstances,
+  grantFoundersSetInstance,
   grantStartingCollection,
   InvalidFactionError,
   setStartingFaction,
@@ -28,6 +29,7 @@ import {
 import { awardMatchResult, getBalance, grantWelcomeBonus, WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "../src/eventsRepo.js";
+import { confirmFoundersSetPurchase, PurchaseNotConfiguredError } from "../src/foundersSetRepo.js";
 import {
   getMyCoinsEarned,
   getMyWinRate,
@@ -380,6 +382,77 @@ d("accounts + decks (integration, real Postgres)", () => {
       it("returns null for garbage hex", async () => {
         expect(await resolveMintedInstanceByUriHex(pool, "not-hex")).toBeNull();
         expect(await resolveMintedInstanceByUriHex(pool, "")).toBeNull();
+      });
+    });
+  });
+
+  describe("Founders Set (foundersSetRepo/collectionRepo)", () => {
+    describe("grantFoundersSetInstance", () => {
+      it("stores the real edition type, foil, condition, and marks First Edition true", async () => {
+        const account = await findOrCreateAccount(pool, "0xfoundersgrant");
+        const client = await pool.connect();
+        try {
+          const { instanceId, serialNumber } = await grantFoundersSetInstance(client, account.id, {
+            templateId: "alpha_dog",
+            editionType: "full_art",
+            isFoil: true,
+            conditionGrade: 9,
+          });
+          expect(serialNumber).toBe(1);
+
+          const row = await client.query<{
+            edition_type: string;
+            is_foil: boolean;
+            condition_grade: number;
+            is_first_edition: boolean;
+            serial_number: number;
+          }>(
+            `select ce.edition_type, ci.is_foil, ci.condition_grade, ci.is_first_edition, ci.serial_number
+             from card_instances ci join card_editions ce on ce.id = ci.edition_id
+             where ci.id = $1`,
+            [instanceId],
+          );
+          expect(row.rows[0]).toMatchObject({
+            edition_type: "full_art",
+            is_foil: true,
+            condition_grade: 9,
+            is_first_edition: true,
+            serial_number: 1,
+          });
+        } finally {
+          client.release();
+        }
+      });
+
+      it("assigns sequential serial numbers per (template, editionType), independent of other editions of the same template", async () => {
+        const account = await findOrCreateAccount(pool, "0xfoundersserials");
+        const client = await pool.connect();
+        try {
+          const card = { templateId: "moon_ape", editionType: "ultra" as const, isFoil: false, conditionGrade: 7 };
+          const first = await grantFoundersSetInstance(client, account.id, card);
+          const second = await grantFoundersSetInstance(client, account.id, card);
+          const third = await grantFoundersSetInstance(client, account.id, card);
+          expect([first.serialNumber, second.serialNumber, third.serialNumber]).toEqual([1, 2, 3]);
+
+          // A different editionType of the *same* template starts its own count at 1 — serials
+          // are per (template, edition), not per template alone.
+          const secretOfSameTemplate = await grantFoundersSetInstance(client, account.id, {
+            ...card,
+            editionType: "secret",
+          });
+          expect(secretOfSameTemplate.serialNumber).toBe(1);
+        } finally {
+          client.release();
+        }
+      });
+    });
+
+    describe("confirmFoundersSetPurchase", () => {
+      it("refuses to run at all when WEB3_STORE_* isn't configured (the real CI/dev default)", async () => {
+        const account = await findOrCreateAccount(pool, "0xfoundersnotconfigured");
+        await expect(confirmFoundersSetPurchase(pool, account.id, "0xanyaddress", `0x${"1".repeat(64)}`)).rejects.toBeInstanceOf(
+          PurchaseNotConfiguredError,
+        );
       });
     });
   });

@@ -170,6 +170,58 @@ export async function grantCardInstances(client: PoolClient, accountId: string, 
   );
 }
 
+/** One Founders Set pull — see grantFoundersSetInstance below. Never 'standard': the whole point of paying for a Founders Set is a non-standard edition tier (collectibility.md §4/§8). */
+export interface FoundersSetCard {
+  templateId: string;
+  editionType: "full_art" | "ultra" | "secret";
+  isFoil: boolean;
+  conditionGrade: number;
+}
+
+/**
+ * Grants one Founders Set card at a time — unlike grantCardInstances' bulk unnest() above, each
+ * instance needs its own serial number (collectibility.md §6: "only make sense attached to
+ * Founders Set output"), computed as a count-and-lock on its specific (template, editionType)
+ * card_editions row so two concurrent Founders Set purchases rolling the same card+edition can
+ * never be handed the same serial. Founders Sets are a real-money, one-time launch product a
+ * player buys through a deliberate purchase flow, not something bulk-opened the way packs are —
+ * the per-card round trip this costs is not the real performance concern it would be in
+ * packsRepo.ts's bulk path.
+ */
+export async function grantFoundersSetInstance(
+  client: PoolClient,
+  accountId: string,
+  card: FoundersSetCard,
+): Promise<{ instanceId: string; serialNumber: number }> {
+  const editionRow = await client.query<{ id: string }>(
+    `insert into card_editions (template_id, edition_type)
+     values ($1, $2)
+     on conflict (template_id, edition_type) do update set template_id = excluded.template_id
+     returning id`,
+    [card.templateId, card.editionType],
+  );
+  const editionId = editionRow.rows[0].id;
+
+  // Locks this specific edition row so a concurrent grant for the same template+edition can't
+  // read the same "next serial" before this transaction commits its own insert below.
+  await client.query(`select id from card_editions where id = $1 for update`, [editionId]);
+
+  const countRow = await client.query<{ count: string }>(
+    `select count(*)::int as count from card_instances where edition_id = $1`,
+    [editionId],
+  );
+  const serialNumber = Number(countRow.rows[0].count) + 1;
+
+  const instanceRow = await client.query<{ id: string }>(
+    `insert into card_instances (owner_id, edition_id, is_foil, condition_grade, serial_number, is_first_edition)
+     values ($1, $2, $3, $4, $5, true)
+     returning id`,
+    [accountId, editionId, card.isFoil, card.conditionGrade, serialNumber],
+  );
+
+  return { instanceId: instanceRow.rows[0].id, serialNumber };
+}
+
 /** Owned copy count per template id, for the collection screen and deck-ownership gating. */
 export async function getCollectionCounts(pool: Pool, accountId: string): Promise<Record<string, number>> {
   const result = await pool.query<{ template_id: string; count: string }>(

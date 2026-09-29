@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Faction, validateDeck } from "@cryptoclash/engine";
 import { isValidAnonId, TELEMETRY_MAX_BATCH_SIZE, type TelemetryEvent } from "@cryptoclash/protocol";
+import { loadStoreConfig } from "@cryptoclash/web3";
 import type { Pool } from "pg";
 import { findOrCreateAccount } from "./accounts.js";
 import {
@@ -11,6 +12,7 @@ import {
   UnknownAchievementError,
 } from "./achievementsRepo.js";
 import { issueNonce, issueSessionToken, verifySessionToken, verifySiwe } from "./auth.js";
+import { getStoreClient } from "./chain.js";
 import {
   getCollectionSummary,
   getStartingFaction,
@@ -33,6 +35,12 @@ import {
 import { AlreadyClaimedTodayError, claimDaily, getDailyStatus } from "./dailyRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "./eventsRepo.js";
+import {
+  confirmFoundersSetPurchase,
+  PurchaseAlreadyGrantedError,
+  PurchaseNotConfiguredError,
+  PurchaseNotFoundError,
+} from "./foundersSetRepo.js";
 import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
@@ -144,6 +152,14 @@ async function requireAccount(req: IncomingMessage): Promise<string | null> {
   if (!header?.startsWith("Bearer ")) return null;
   const claims = await verifySessionToken(header.slice("Bearer ".length));
   return claims?.accountId ?? null;
+}
+
+/** Same as requireAccount, but also returns the session's walletAddress claim — needed only by routes that verify an on-chain action against the caller's own wallet (Founders Set purchase confirmation). */
+async function requireAccountWithWallet(req: IncomingMessage): Promise<{ accountId: string; walletAddress: string } | null> {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  const claims = await verifySessionToken(header.slice("Bearer ".length));
+  return claims ? { accountId: claims.accountId, walletAddress: claims.walletAddress } : null;
 }
 
 /**
@@ -362,6 +378,58 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
 
     if (url.pathname === "/api/craft/rates" && req.method === "GET") {
       sendJson(res, 200, { rates: getCraftRates() });
+      return true;
+    }
+
+    // Public — same "no login wall to look" posture as GET /api/packs. Tells the client whether
+    // a real purchase is even possible right now, and the exact on-chain params (store contract,
+    // payment token, chain id, current price) it needs to construct the approve + purchase
+    // transactions itself — this route never submits anything, the player's own wallet does.
+    if (url.pathname === "/api/founders-set" && req.method === "GET") {
+      const store = getStoreClient();
+      if (!store) {
+        sendJson(res, 200, { configured: false });
+        return true;
+      }
+      // loadStoreConfig() can't throw here — getStoreClient() above already called it successfully
+      // (same env vars, no I/O) to construct `store`, so a second read is a pure, safe repeat.
+      const config = loadStoreConfig();
+      const price = await store.getPrice();
+      sendJson(res, 200, {
+        configured: true,
+        price: price.toString(),
+        storeAddress: config.storeAddress,
+        paymentTokenAddress: config.usdgAddress,
+        chainId: config.chainId,
+      });
+      return true;
+    }
+
+    if (url.pathname === "/api/founders-set/confirm" && req.method === "POST") {
+      const session = await requireAccountWithWallet(req);
+      if (!session) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      const body = (await readJsonBody(req)) as { intentId?: string };
+      if (!body.intentId || !/^0x[0-9a-f]{64}$/i.test(body.intentId)) {
+        sendJson(res, 400, { error: "intentId is required and must be a 32-byte hex string." });
+        return true;
+      }
+      try {
+        const result = await confirmFoundersSetPurchase(pool, session.accountId, session.walletAddress, body.intentId);
+        sendJson(res, 200, result);
+      } catch (e) {
+        if (e instanceof PurchaseNotConfiguredError) {
+          sendJson(res, 501, { error: e.message });
+        } else if (e instanceof PurchaseNotFoundError) {
+          sendJson(res, 404, { error: e.message });
+        } else if (e instanceof PurchaseAlreadyGrantedError) {
+          sendJson(res, 409, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
       return true;
     }
 
