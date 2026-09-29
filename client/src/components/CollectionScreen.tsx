@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api.js";
 import { rarityColor } from "../rarityColor.js";
 import { CardFace } from "./CardFace.js";
+import { MintPanel } from "./MintPanel.js";
 
 export interface CollectionScreenProps {
   token: string;
@@ -39,6 +40,7 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("All");
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [foilsOnly, setFoilsOnly] = useState(false);
+  const [mintingTemplate, setMintingTemplate] = useState<CardTemplate | null>(null);
 
   useEffect(() => {
     apiFetch<{ owned: Record<string, number>; foils: Record<string, number> }>("/api/collection", { token })
@@ -149,11 +151,18 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
                 const count = owned[template.id] ?? 0;
                 const foilCount = foils[template.id] ?? 0;
                 return (
-                  <div key={template.id} className="collection__card">
+                  <button
+                    key={template.id}
+                    type="button"
+                    className="collection__card"
+                    disabled={count === 0}
+                    onClick={() => setMintingTemplate(template)}
+                    title={count > 0 ? `View your copies of ${template.name}` : undefined}
+                  >
                     <CardFace template={template} size="hand" dimmed={count === 0} foil={foilCount > 0} />
                     <span className="collection__count">{count === 0 ? "Not owned" : `${count} owned`}</span>
                     {foilCount > 0 && <span className="collection__foil-count">✨ {foilCount} foil</span>}
-                  </div>
+                  </button>
                 );
               })}
               {visibleCards.length === 0 && <p className="deck-picker__empty">No cards match these filters.</p>}
@@ -161,6 +170,8 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
           </>
         )}
       </main>
+
+      {mintingTemplate && <MintPanel token={token} template={mintingTemplate} onClose={() => setMintingTemplate(null)} />}
     </div>
   );
 }

@@ -699,4 +699,84 @@ d("/api/* over real HTTP, against real Postgres", () => {
       }
     });
   });
+
+  describe("minting over HTTP", () => {
+    it("requires auth for both the instance list and the mint route", async () => {
+      const listRes = await fetch(`${baseUrl}/api/collection/moon_dog/instances`);
+      expect(listRes.status).toBe(401);
+      const mintRes = await fetch(`${baseUrl}/api/mint/00000000-0000-0000-0000-000000000000`, { method: "POST" });
+      expect(mintRes.status).toBe(401);
+    });
+
+    it("lists this account's own instances of one template, unminted by default", async () => {
+      const { token, address } = await signIn();
+      const accountId = await accountIdFor(address);
+      await grantDeckOwnership(accountId, ["moon_dog"]);
+
+      const res = await fetch(`${baseUrl}/api/collection/moon_dog/instances`, { headers: { Authorization: `Bearer ${token}` } });
+      expect(res.status).toBe(200);
+      const { instances } = (await res.json()) as { instances: { id: string; onchainTokenId: string | null; minting: boolean }[] };
+      expect(instances.length).toBeGreaterThan(0);
+      for (const instance of instances) {
+        expect(instance.onchainTokenId).toBeNull();
+        expect(instance.minting).toBe(false);
+      }
+    });
+
+    it("404s minting an instance that doesn't exist or that belongs to someone else, without distinguishing the two", async () => {
+      // Ownership/not-found are checked before any real chain call, but only once minting is
+      // configured at all — a syntactically-valid-but-unreachable RPC is enough to exercise that
+      // check without needing a real testnet round trip (same technique db.test.ts uses).
+      process.env.WEB3_CHAIN_ID = "46630";
+      process.env.WEB3_RPC_URL = "http://127.0.0.1:1";
+      process.env.WEB3_CONTRACT_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+      process.env.WEB3_OPERATOR_PRIVATE_KEY = `0x${"1".repeat(64)}`;
+      try {
+        const { token } = await signIn();
+        const auth = { Authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+        const notFoundRes = await fetch(`${baseUrl}/api/mint/00000000-0000-0000-0000-000000000000`, { method: "POST", headers: auth });
+        expect(notFoundRes.status).toBe(404);
+
+        const { token: otherToken, address: otherAddress } = await signIn();
+        const otherAccountId = await accountIdFor(otherAddress);
+        await grantDeckOwnership(otherAccountId, ["moon_dog"]);
+        const otherInstancesRes = await fetch(`${baseUrl}/api/collection/moon_dog/instances`, {
+          headers: { Authorization: `Bearer ${otherToken}` },
+        });
+        const { instances } = (await otherInstancesRes.json()) as { instances: { id: string }[] };
+
+        const stolenRes = await fetch(`${baseUrl}/api/mint/${instances[0].id}`, { method: "POST", headers: auth });
+        expect(stolenRes.status).toBe(404);
+      } finally {
+        delete process.env.WEB3_CHAIN_ID;
+        delete process.env.WEB3_RPC_URL;
+        delete process.env.WEB3_CONTRACT_ADDRESS;
+        delete process.env.WEB3_OPERATOR_PRIVATE_KEY;
+      }
+    });
+
+    it("501s a real mint attempt when WEB3_* isn't configured (this test server's real default)", async () => {
+      const { token, address } = await signIn();
+      const accountId = await accountIdFor(address);
+      await grantDeckOwnership(accountId, ["moon_dog"]);
+      const listRes = await fetch(`${baseUrl}/api/collection/moon_dog/instances`, { headers: { Authorization: `Bearer ${token}` } });
+      const { instances } = (await listRes.json()) as { instances: { id: string }[] };
+
+      const mintRes = await fetch(`${baseUrl}/api/mint/${instances[0].id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      });
+      expect(mintRes.status).toBe(501);
+    });
+
+    it("public /api/metadata routes 404 for anything not actually minted, including garbage token ids", async () => {
+      const jsonRes = await fetch(`${baseUrl}/api/metadata/${"0".repeat(64)}.json`);
+      expect(jsonRes.status).toBe(404);
+      const pngRes = await fetch(`${baseUrl}/api/metadata/${"0".repeat(64)}.png`);
+      expect(pngRes.status).toBe(404);
+      const garbageRes = await fetch(`${baseUrl}/api/metadata/not-hex.json`);
+      expect(garbageRes.status).toBe(404);
+    });
+  });
 });

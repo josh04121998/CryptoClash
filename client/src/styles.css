@@ -1359,6 +1359,28 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 0.3rem;
+  /* A plain <button> in disguise (session 37 — clicking an owned card opens MintPanel) — reset
+     the browser's default button chrome so it still reads as the same card tile it always was. */
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.collection__card:disabled {
+  cursor: default;
+}
+
+.collection__card:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+.collection__card:not(:disabled):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .collection__count {
@@ -1369,6 +1391,98 @@ button {
 .collection__foil-count {
   font-size: 0.65rem;
   color: #ffe97d;
+}
+
+/* MintPanel — reuses the tutorial-offer modal's backdrop/card/title/actions look, just wider. */
+
+.mint-panel {
+  width: min(560px, 100%);
+  background: #0a1f18;
+  border: 1px solid rgba(242, 183, 5, 0.45);
+  border-radius: 14px;
+  padding: 22px 20px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.mint-panel__list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mint-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.mint-panel__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.mint-panel__badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.15rem 0.45rem;
+}
+
+.mint-panel__badge--foil {
+  color: #ffe97d;
+  border-color: rgba(255, 233, 125, 0.4);
+}
+
+.mint-panel__action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.mint-panel__action button {
+  background: #00e28a;
+  color: #04140e;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mint-panel__action button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mint-panel__minted {
+  color: #00e28a;
+  font-weight: 600;
+}
+
+.mint-panel__minted a {
+  color: inherit;
+}
+
+.mint-panel__error {
+  color: var(--danger);
+  font-size: 0.75rem;
 }
 
 /* Crafting */

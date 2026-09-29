@@ -31,3 +31,22 @@ export function tokenIdToInstanceId(tokenId: bigint): string {
   }
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
+
+/**
+ * ERC-1155's `{id}` URI-substitution format (EIP-1155): lowercase hex, no `0x` prefix, zero-
+ * padded to 64 characters (256 bits) regardless of the token id's actual bit width — this is
+ * what a marketplace/wallet substitutes into the contract's base `uri()` template, and what
+ * server/src's metadata/image routes must accept to be spec-compliant. The inverse,
+ * uriHexToTokenId, accepts any length up to 64 (a marketplace always sends the full padded
+ * form, but this stays lenient for manual/script use).
+ */
+export function tokenIdToUriHex(tokenId: bigint): string {
+  return tokenId.toString(16).padStart(64, "0");
+}
+
+export function uriHexToTokenId(hex: string): bigint {
+  if (!/^[0-9a-f]{1,64}$/i.test(hex)) {
+    throw new Error(`uriHexToTokenId: "${hex}" is not valid hex`);
+  }
+  return BigInt(`0x${hex}`);
+}

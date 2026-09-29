@@ -4,3 +4,4 @@ dist/
 .claude/worktrees/
 tools/card-render/_tmp_*.html
 tools/card-render/output/
+server/generated/

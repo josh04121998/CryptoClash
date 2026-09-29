@@ -1,4 +1,5 @@
 import { CARD_POOL, MAX_COPIES_PER_CARD } from "@cryptoclash/engine";
+import { deriveTokenId, tokenIdToUriHex } from "@cryptoclash/web3";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { findOrCreateAccount } from "../src/accounts.js";
@@ -36,7 +37,16 @@ import {
   getTopWins,
   MIN_GAMES_FOR_WIN_RATE,
 } from "../src/leaderboardRepo.js";
-import { getMintableInstance } from "../src/mintingRepo.js";
+import {
+  AlreadyMintedError,
+  getMintableInstance,
+  InstanceNotFoundError,
+  listInstancesForTemplate,
+  mintInstance,
+  MintingNotConfiguredError,
+  NotOwnerError,
+  resolveMintedInstanceByUriHex,
+} from "../src/mintingRepo.js";
 import { runMigrations } from "../src/migrate.js";
 import { awardRankPoints, getMyRank, getTopRank, RANK_TIER_REWARDS, RANK_TIERS } from "../src/rankRepo.js";
 import {
@@ -253,6 +263,124 @@ d("accounts + decks (integration, real Postgres)", () => {
 
     it("returns null for an id that doesn't exist", async () => {
       expect(await getMintableInstance(pool, "00000000-0000-0000-0000-000000000000")).toBeNull();
+    });
+
+    /** Grants one real instance and returns its id — the fixture every mintInstance() test below needs. */
+    async function grantOneInstance(walletAddress: string, templateId = "moon_dog"): Promise<{ accountId: string; instanceId: string }> {
+      const account = await findOrCreateAccount(pool, walletAddress);
+      const client = await pool.connect();
+      try {
+        await grantCardInstances(client, account.id, [{ templateId, isFoil: false, conditionGrade: 7 }]);
+        const row = await client.query<{ id: string }>(
+          `select ci.id from card_instances ci join card_editions ce on ce.id = ci.edition_id
+           where ci.owner_id = $1 and ce.template_id = $2 order by ci.acquired_at desc limit 1`,
+          [account.id, templateId],
+        );
+        return { accountId: account.id, instanceId: row.rows[0].id };
+      } finally {
+        client.release();
+      }
+    }
+
+    it("listInstancesForTemplate lists this account's own copies, minted/pending state derived from onchain_token_id", async () => {
+      const { accountId, instanceId } = await grantOneInstance("0xinstancelist");
+      let instances = await listInstancesForTemplate(pool, accountId, "moon_dog");
+      expect(instances).toHaveLength(1);
+      expect(instances[0]).toMatchObject({ id: instanceId, onchainTokenId: null, minting: false });
+
+      await pool.query(`update card_instances set onchain_token_id = 'pending' where id = $1`, [instanceId]);
+      instances = await listInstancesForTemplate(pool, accountId, "moon_dog");
+      expect(instances[0]).toMatchObject({ onchainTokenId: null, minting: true }); // the sentinel is never leaked as a real token id
+
+      await pool.query(`update card_instances set onchain_token_id = '123456' where id = $1`, [instanceId]);
+      instances = await listInstancesForTemplate(pool, accountId, "moon_dog");
+      expect(instances[0]).toMatchObject({ onchainTokenId: "123456", minting: false });
+
+      // A different account's own instances of the same template are invisible.
+      const other = await findOrCreateAccount(pool, "0xinstancelistother");
+      expect(await listInstancesForTemplate(pool, other.id, "moon_dog")).toHaveLength(0);
+    });
+
+    it("mintInstance refuses to run at all when WEB3_* isn't configured (the real CI/dev default)", async () => {
+      const { accountId, instanceId } = await grantOneInstance("0xmintnotconfigured");
+      await expect(mintInstance(pool, accountId, instanceId, "http://localhost")).rejects.toBeInstanceOf(MintingNotConfiguredError);
+    });
+
+    describe("with a syntactically-configured (but unreachable) chain client", () => {
+      // Ownership/not-found/already-minted are all checked before any real network call, so these
+      // are safe to test without a live chain — only the actual mint (chainClient.mint/tx.wait) needs
+      // a real RPC, verified separately against the real testnet (see STATUS.md session 37).
+      beforeAll(() => {
+        process.env.WEB3_CHAIN_ID = "46630";
+        process.env.WEB3_RPC_URL = "http://127.0.0.1:1"; // deliberately unreachable, never actually dialed by these tests
+        process.env.WEB3_CONTRACT_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+        process.env.WEB3_OPERATOR_PRIVATE_KEY = `0x${"1".repeat(64)}`;
+      });
+
+      it("throws InstanceNotFoundError for an id that doesn't exist", async () => {
+        const { accountId } = await grantOneInstance("0xmintnotfound");
+        await expect(mintInstance(pool, accountId, "00000000-0000-0000-0000-000000000000", "http://localhost")).rejects.toBeInstanceOf(
+          InstanceNotFoundError,
+        );
+      });
+
+      it("throws NotOwnerError when the caller isn't the instance's owner", async () => {
+        const { instanceId } = await grantOneInstance("0xmintrealowner");
+        const impostor = await findOrCreateAccount(pool, "0xmintimpostor");
+        await expect(mintInstance(pool, impostor.id, instanceId, "http://localhost")).rejects.toBeInstanceOf(NotOwnerError);
+      });
+
+      it("throws AlreadyMintedError when onchain_token_id is already set or a mint is already in flight", async () => {
+        const { accountId, instanceId } = await grantOneInstance("0xmintalready");
+        await pool.query(`update card_instances set onchain_token_id = '999' where id = $1`, [instanceId]);
+        await expect(mintInstance(pool, accountId, instanceId, "http://localhost")).rejects.toBeInstanceOf(AlreadyMintedError);
+
+        const { accountId: pendingAccountId, instanceId: pendingInstanceId } = await grantOneInstance("0xmintpending");
+        await pool.query(`update card_instances set onchain_token_id = 'pending' where id = $1`, [pendingInstanceId]);
+        await expect(mintInstance(pool, pendingAccountId, pendingInstanceId, "http://localhost")).rejects.toBeInstanceOf(AlreadyMintedError);
+      });
+
+      it(
+        "claims the row (sets onchain_token_id to 'pending') then releases it back to null when the chain call itself fails",
+        async () => {
+          // WEB3_RPC_URL points at an unreachable loopback address (never dialed successfully) — the
+          // real failure mode this safety net exists for, not a contrived one. ethers retries a
+          // failed JSON-RPC call a few times with backoff before giving up, so this genuinely takes
+          // a few seconds — confirms the atomic claim doesn't permanently strand the row as 'pending'
+          // when minting can't complete.
+          const { accountId, instanceId } = await grantOneInstance("0xmintchainfails");
+          await expect(mintInstance(pool, accountId, instanceId, "http://localhost")).rejects.toThrow();
+          const row = await pool.query<{ onchain_token_id: string | null }>(`select onchain_token_id from card_instances where id = $1`, [
+            instanceId,
+          ]);
+          expect(row.rows[0].onchain_token_id).toBeNull();
+        },
+        20_000,
+      );
+    });
+
+    describe("resolveMintedInstanceByUriHex", () => {
+      it("returns the instance for a real, already-minted token id's hex", async () => {
+        const { instanceId } = await grantOneInstance("0xresolvehex");
+        const tokenId = deriveTokenId(instanceId);
+        await pool.query(`update card_instances set onchain_token_id = $2 where id = $1`, [instanceId, tokenId.toString()]);
+
+        const resolved = await resolveMintedInstanceByUriHex(pool, tokenIdToUriHex(tokenId));
+        expect(resolved).not.toBeNull();
+        expect(resolved!.instance.instanceId).toBe(instanceId);
+        expect(resolved!.tokenId).toBe(tokenId);
+      });
+
+      it("returns null for an instance that hasn't actually been minted yet", async () => {
+        const { instanceId } = await grantOneInstance("0xresolveunminted");
+        const tokenId = deriveTokenId(instanceId);
+        expect(await resolveMintedInstanceByUriHex(pool, tokenIdToUriHex(tokenId))).toBeNull();
+      });
+
+      it("returns null for garbage hex", async () => {
+        expect(await resolveMintedInstanceByUriHex(pool, "not-hex")).toBeNull();
+        expect(await resolveMintedInstanceByUriHex(pool, "")).toBeNull();
+      });
     });
   });
 

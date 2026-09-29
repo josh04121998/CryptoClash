@@ -37,6 +37,17 @@ import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWin
 import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
 import { getMyRank, getTopRank } from "./rankRepo.js";
+import {
+  AlreadyMintedError,
+  ArtNotReadyError,
+  InstanceNotFoundError,
+  listInstancesForTemplate,
+  mintInstance,
+  MintingNotConfiguredError,
+  NotOwnerError,
+  resolveMintedInstanceByUriHex,
+} from "./mintingRepo.js";
+import { metadataFor, publicBaseUrl, renderAndCacheImage } from "./nftAssets.js";
 import { getReferralStats, recordReferralSignup } from "./referralsRepo.js";
 import { insertTelemetryEvents, validateTelemetryEvent } from "./telemetryRepo.js";
 import { AlreadyClaimedThisWeekError, claimWeekly, getWeeklyStatus } from "./weeklyRepo.js";
@@ -243,6 +254,71 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return true;
       }
       sendJson(res, 200, await getCollectionSummary(pool, accountId));
+      return true;
+    }
+
+    const collectionInstancesMatch = url.pathname.match(/^\/api\/collection\/([^/]+)\/instances$/);
+    if (collectionInstancesMatch && req.method === "GET") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      sendJson(res, 200, { instances: await listInstancesForTemplate(pool, accountId, collectionInstancesMatch[1]) });
+      return true;
+    }
+
+    const mintMatch = url.pathname.match(/^\/api\/mint\/([^/]+)$/);
+    if (mintMatch && req.method === "POST") {
+      const accountId = await requireAccount(req);
+      if (!accountId) {
+        sendJson(res, 401, { error: "Not authenticated." });
+        return true;
+      }
+      try {
+        const result = await mintInstance(pool, accountId, mintMatch[1], publicBaseUrl(req));
+        sendJson(res, 200, result);
+      } catch (e) {
+        if (e instanceof InstanceNotFoundError || e instanceof NotOwnerError) {
+          // Same "404, not 403" posture as cross-account deck access — existence isn't leaked.
+          sendJson(res, 404, { error: "No such card instance." });
+        } else if (e instanceof AlreadyMintedError) {
+          sendJson(res, 409, { error: e.message });
+        } else if (e instanceof ArtNotReadyError) {
+          sendJson(res, 409, { error: e.message });
+        } else if (e instanceof MintingNotConfiguredError) {
+          sendJson(res, 501, { error: e.message });
+        } else {
+          throw e;
+        }
+      }
+      return true;
+    }
+
+    // Public ERC-1155 metadata/image routes — EIP-1155's `{id}` URI-substitution format (lowercase
+    // hex, no 0x, zero-padded to 64 chars, see web3/src/tokenId.ts's tokenIdToUriHex). Marketplaces
+    // and wallets fetch these directly, unauthenticated, matching FloorwarsCards.sol's base uri().
+    const metadataJsonMatch = url.pathname.match(/^\/api\/metadata\/([0-9a-f]{1,64})\.json$/i);
+    if (metadataJsonMatch && req.method === "GET") {
+      const resolved = await resolveMintedInstanceByUriHex(pool, metadataJsonMatch[1]);
+      if (!resolved) {
+        sendJson(res, 404, { error: "No minted card exists under this token id." });
+        return true;
+      }
+      sendJson(res, 200, metadataFor(resolved.instance, resolved.tokenId, publicBaseUrl(req)));
+      return true;
+    }
+
+    const metadataPngMatch = url.pathname.match(/^\/api\/metadata\/([0-9a-f]{1,64})\.png$/i);
+    if (metadataPngMatch && req.method === "GET") {
+      const resolved = await resolveMintedInstanceByUriHex(pool, metadataPngMatch[1]);
+      if (!resolved) {
+        sendJson(res, 404, { error: "No minted card exists under this token id." });
+        return true;
+      }
+      const png = await renderAndCacheImage(resolved.instance, resolved.tokenId);
+      res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable", ...corsHeaders() });
+      res.end(png);
       return true;
     }
 
