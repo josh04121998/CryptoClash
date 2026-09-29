@@ -1,4 +1,6 @@
 {
   "FloorwarsCardsModule#FloorwarsCards": "0xEc270E3903f53cc13a116d1C8c2713Fc4c70CF11",
-  "FloorwarsStoreModule#FloorwarsStore": "0x585a2E58120F8555B1a390c0ae87C80a0850e651"
+  "FloorwarsStoreModule#FloorwarsStore": "0x585a2E58120F8555B1a390c0ae87C80a0850e651",
+  "TestStoreModule#MockERC20": "0x29509F272818BB1E8BD218397C472468825497cE",
+  "TestStoreModule#TestFloorwarsStore": "0xb4D8FaF5B61cE265109b78db1c937E1fC0eabC26"
 }
