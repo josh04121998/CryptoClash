@@ -1,6 +1,7 @@
 import { CARD_POOL, MatchState, PlayerId, getEffectiveAttack } from "@cryptoclash/engine";
 import { allKeywords } from "./BoardRow.js";
 import { CardFace } from "./CardFace.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 export interface CardInspectOverlayProps {
   state: MatchState;
@@ -24,12 +25,17 @@ export interface CardInspectOverlayProps {
  */
 export function CardInspectOverlay({ state, playerId, slot, onClose }: CardInspectOverlayProps) {
   const creature = state.players[playerId].board[slot];
+  // Every other dialog in this codebase (ConfirmModal, WalletPicker, MintPanel, ...) skips
+  // role="button"/tabIndex on its backdrop — a real role="dialog" plus the focus trap below
+  // already gives keyboard/screen-reader users a correct, non-redundant way in and out, so the
+  // backdrop itself stays a plain mouse-only click-to-close target here too now.
+  const dialogRef = useFocusTrap<HTMLDivElement>(onClose);
   if (!creature) return null;
   const template = CARD_POOL[creature.templateId];
 
   return (
-    <div className="card-inspect-backdrop" onClick={onClose} role="button" tabIndex={0} aria-label="Close card detail">
-      <div className="card-inspect-card">
+    <div className="card-inspect-backdrop" onClick={onClose}>
+      <div ref={dialogRef} tabIndex={-1} className="card-inspect-card" role="dialog" aria-modal="true" aria-label={`${template.name} detail`}>
         {/* Passing onClick here matters beyond wiring up "tap the card to close" —
             CardFace renders as `disabled={!onClick}`, and a disabled <button> never
             dispatches (or bubbles) a click event in Chrome at all. Without this, every

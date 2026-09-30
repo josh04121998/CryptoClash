@@ -1,5 +1,6 @@
 import { PlayerId } from "@cryptoclash/engine";
 import { useMemo } from "react";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 export interface MatchResultOverlayProps {
   winner: PlayerId | "Draw";
@@ -50,6 +51,11 @@ export function MatchResultOverlay({
         ? "YOU LOSE"
         : "DRAW";
 
+  // Escape stands in for the backdrop click, and only exists where that's also unambiguous — a
+  // tutorial-exit result has two live choices (Practice vs AI / Main menu) and deliberately no
+  // single "cancel" either the backdrop or Escape could trigger.
+  const dialogRef = useFocusTrap<HTMLDivElement>(tutorialExit ? undefined : onDismiss);
+
   return (
     <div className="match-result__backdrop" onClick={tutorialExit ? undefined : onDismiss}>
       {strips.map((s, i) => (
@@ -66,6 +72,8 @@ export function MatchResultOverlay({
         />
       ))}
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className={`match-result__card match-result__card--${outcome}`}
         role="dialog"
         aria-modal="true"

@@ -4,6 +4,7 @@ import { apiFetch, ApiError } from "../api.js";
 import { CardFace } from "./CardFace.js";
 import { conditionBandName } from "../conditionGrade.js";
 import { EDITION_LABEL, EditionType, isSpecialEdition } from "../editionType.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 interface InstanceSummary {
   id: string;
@@ -44,6 +45,7 @@ export function MintPanel({ token, template, onClose }: MintPanelProps) {
   const [mintingId, setMintingId] = useState<string | null>(null);
   const [justMinted, setJustMinted] = useState<Record<string, MintResult>>({});
   const [mintErrors, setMintErrors] = useState<Record<string, string>>({});
+  const dialogRef = useFocusTrap<HTMLDivElement>(onClose);
 
   function load() {
     apiFetch<{ instances: InstanceSummary[] }>(`/api/collection/${template.id}/instances`, { token })
@@ -71,7 +73,15 @@ export function MintPanel({ token, template, onClose }: MintPanelProps) {
 
   return (
     <div className="tutorial-offer__backdrop" onClick={onClose}>
-      <div className="mint-panel" role="dialog" aria-modal="true" aria-labelledby="mint-panel-title" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="mint-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mint-panel-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="tutorial-offer__title" id="mint-panel-title">
           {template.name} — your copies
         </h2>

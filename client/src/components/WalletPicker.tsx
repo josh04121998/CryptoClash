@@ -1,4 +1,5 @@
 import { DiscoveredWallet } from "../useWallet.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 export interface WalletPickerProps {
   wallets: DiscoveredWallet[];
@@ -8,9 +9,12 @@ export interface WalletPickerProps {
 
 /** Shown whenever more than one EIP-6963 wallet is installed — lets the user pick which extension to sign in with, instead of the app silently grabbing whichever one claimed `window.ethereum`. */
 export function WalletPicker({ wallets, onSelect, onClose }: WalletPickerProps) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(onClose);
   return (
     <div className="wallet-picker__backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="wallet-picker"
         role="dialog"
         aria-modal="true"

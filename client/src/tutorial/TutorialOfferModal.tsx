@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ConfirmModal } from "../components/ConfirmModal.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 export interface TutorialOfferModalProps {
   onAccept: () => void;
@@ -8,11 +9,20 @@ export interface TutorialOfferModalProps {
 
 export function TutorialOfferModal({ onAccept, onSkip }: TutorialOfferModalProps) {
   const [confirmingSkip, setConfirmingSkip] = useState(false);
+  // No onClose: Learn/Skip are two equally-live choices with no single "cancel" Escape could mean.
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   return (
     <>
       <div className="tutorial-offer__backdrop">
-        <div className="tutorial-offer__card" role="dialog" aria-modal="true" aria-labelledby="tutorial-offer-title">
+        <div
+          ref={dialogRef}
+          tabIndex={-1}
+          className="tutorial-offer__card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tutorial-offer-title"
+        >
           <h2 className="tutorial-offer__title" id="tutorial-offer-title">
             Learn the floor (2 min)
           </h2>

@@ -1,3 +1,5 @@
+import { useFocusTrap } from "../useFocusTrap.js";
+
 export interface ConfirmModalProps {
   title: string;
   body?: string;
@@ -17,9 +19,12 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const dialogRef = useFocusTrap<HTMLDivElement>(onCancel);
   return (
     <div className="tutorial-offer__backdrop" onClick={onCancel}>
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className="tutorial-offer__card"
         role="dialog"
         aria-modal="true"

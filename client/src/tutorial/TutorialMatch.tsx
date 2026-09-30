@@ -7,6 +7,7 @@ import { markTutorialCompleted, markTutorialSkipped } from "../tutorialStorage.j
 import { coachFor, spotlightFor } from "./beats.js";
 import { CoachCard } from "./CoachCard.js";
 import { useTutorialMatch } from "./useTutorialMatch.js";
+import { useFocusTrap } from "../useFocusTrap.js";
 
 export interface TutorialMatchProps {
   onPracticeAi: () => void;
@@ -89,21 +90,7 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
         </div>
       </header>
 
-      {!ctrl.preMatchAck && (
-        <div className="tutorial-offer__backdrop">
-          <div className="tutorial-offer__card" role="dialog" aria-modal="true" aria-labelledby="tutorial-premtach-title">
-            <h2 className="tutorial-offer__title" id="tutorial-premtach-title">
-              Goal: take them to 0 HP
-            </h2>
-            <p className="tutorial-offer__body">One thing at a time. No wallet. Follow the coach tips.</p>
-            <div className="tutorial-offer__actions">
-              <button type="button" className="tutorial-offer__primary" onClick={ackPreMatch}>
-                Got it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {!ctrl.preMatchAck && <PreMatchDialog onAck={ackPreMatch} />}
 
       <MatchView
         state={state}
@@ -154,6 +141,41 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
           onCancel={() => setPendingConfirm(null)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * Extracted into its own component (rather than inlined as conditional JSX inside TutorialMatch,
+ * which never itself unmounts) specifically so useFocusTrap's mount/unmount lifecycle lines up
+ * with the dialog's own — a hook whose effect runs once needs the ref'd element to genuinely
+ * mount and unmount with the component, not just toggle visibility inside an always-mounted one.
+ */
+function PreMatchDialog({ onAck }: { onAck: () => void }) {
+  // A single "Got it" acknowledgement, not a real cancel — but it's the only action available, so
+  // Escape standing in for it (same as the WAI-ARIA "dismiss on Escape" pattern for a pure-info
+  // dialog) doesn't invent any ambiguity the way a two-choice dialog would.
+  const dialogRef = useFocusTrap<HTMLDivElement>(onAck);
+  return (
+    <div className="tutorial-offer__backdrop">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="tutorial-offer__card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tutorial-premtach-title"
+      >
+        <h2 className="tutorial-offer__title" id="tutorial-premtach-title">
+          Goal: take them to 0 HP
+        </h2>
+        <p className="tutorial-offer__body">One thing at a time. No wallet. Follow the coach tips.</p>
+        <div className="tutorial-offer__actions">
+          <button type="button" className="tutorial-offer__primary" onClick={onAck}>
+            Got it
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
