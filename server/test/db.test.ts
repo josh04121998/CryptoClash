@@ -288,7 +288,7 @@ d("accounts + decks (integration, real Postgres)", () => {
       const { accountId, instanceId } = await grantOneInstance("0xinstancelist");
       let instances = await listInstancesForTemplate(pool, accountId, "moon_dog");
       expect(instances).toHaveLength(1);
-      expect(instances[0]).toMatchObject({ id: instanceId, onchainTokenId: null, minting: false });
+      expect(instances[0]).toMatchObject({ id: instanceId, editionType: "standard", onchainTokenId: null, minting: false });
 
       await pool.query(`update card_instances set onchain_token_id = 'pending' where id = $1`, [instanceId]);
       instances = await listInstancesForTemplate(pool, accountId, "moon_dog");
@@ -453,6 +453,71 @@ d("accounts + decks (integration, real Postgres)", () => {
         await expect(confirmFoundersSetPurchase(pool, account.id, "0xanyaddress", `0x${"1".repeat(64)}`)).rejects.toBeInstanceOf(
           PurchaseNotConfiguredError,
         );
+      });
+    });
+
+    // The gap the client-side "wire in Full Art/editionType" pass (STATUS.md, this session) closed:
+    // a Founders Set grant's real edition_type used to be invisible past grantFoundersSetInstance's
+    // own return value — neither listInstancesForTemplate (MintPanel's data source) nor
+    // getCollectionSummary (the Collection grid's data source) surfaced it at all.
+    describe("editionType surfaced to the client (listInstancesForTemplate, getCollectionSummary)", () => {
+      it("listInstancesForTemplate reports a Founders Set instance's real editionType, not just 'standard'", async () => {
+        const account = await findOrCreateAccount(pool, "0xfoundersedition");
+        const client = await pool.connect();
+        try {
+          await grantFoundersSetInstance(client, account.id, {
+            templateId: "moon_dog",
+            editionType: "secret",
+            isFoil: false,
+            conditionGrade: 7,
+          });
+        } finally {
+          client.release();
+        }
+        const instances = await listInstancesForTemplate(pool, account.id, "moon_dog");
+        expect(instances).toHaveLength(1);
+        expect(instances[0].editionType).toBe("secret");
+      });
+
+      it("getCollectionSummary reports the best-owned non-Standard edition per template, and omits Standard-only templates", async () => {
+        const account = await findOrCreateAccount(pool, "0xfoundersbestedition");
+        const client = await pool.connect();
+        try {
+          // A plain Standard copy of a *different* template — must never appear in specialEditions.
+          await grantCardInstances(client, account.id, [{ templateId: "fast_fang", isFoil: false, conditionGrade: 7 }]);
+          // moon_dog: a Standard copy plus a Full Art Founders Set pull — Full Art should win
+          // (it's the only non-Standard edition owned), and the Standard copy still counts toward
+          // the plain owned total.
+          await grantCardInstances(client, account.id, [{ templateId: "moon_dog", isFoil: false, conditionGrade: 7 }]);
+          await grantFoundersSetInstance(client, account.id, {
+            templateId: "moon_dog",
+            editionType: "full_art",
+            isFoil: false,
+            conditionGrade: 7,
+          });
+        } finally {
+          client.release();
+        }
+
+        let summary = await getCollectionSummary(pool, account.id);
+        expect(summary.owned["moon_dog"]).toBe(2);
+        expect(summary.specialEditions["moon_dog"]).toBe("full_art");
+        expect(summary.specialEditions["fast_fang"]).toBeUndefined();
+
+        // Grant a Secret pull of the same template — ranked above Full Art, so it should now win.
+        const client2 = await pool.connect();
+        try {
+          await grantFoundersSetInstance(client2, account.id, {
+            templateId: "moon_dog",
+            editionType: "secret",
+            isFoil: false,
+            conditionGrade: 7,
+          });
+        } finally {
+          client2.release();
+        }
+        summary = await getCollectionSummary(pool, account.id);
+        expect(summary.specialEditions["moon_dog"]).toBe("secret");
       });
     });
   });

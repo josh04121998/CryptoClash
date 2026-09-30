@@ -1,10 +1,13 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "../api.js";
+import { CardFace } from "./CardFace.js";
 import { conditionBandName } from "../conditionGrade.js";
+import { EDITION_LABEL, EditionType, isSpecialEdition } from "../editionType.js";
 
 interface InstanceSummary {
   id: string;
+  editionType: EditionType;
   isFoil: boolean;
   conditionGrade: number | null;
   serialNumber: number | null;
@@ -80,7 +83,17 @@ export function MintPanel({ token, template, onClose }: MintPanelProps) {
         <ul className="mint-panel__list">
           {instances?.map((instance) => (
             <li key={instance.id} className="mint-panel__row">
+              <CardFace
+                template={template}
+                size="board"
+                foil={instance.isFoil}
+                conditionGrade={instance.conditionGrade ?? undefined}
+                editionType={instance.editionType}
+              />
               <div className="mint-panel__badges">
+                {isSpecialEdition(instance.editionType) && (
+                  <span className="mint-panel__badge">{EDITION_LABEL[instance.editionType]}</span>
+                )}
                 {instance.isFoil && <span className="mint-panel__badge mint-panel__badge--foil">✨ Foil</span>}
                 {instance.conditionGrade !== null && (
                   <span className="mint-panel__badge">

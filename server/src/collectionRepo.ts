@@ -237,25 +237,35 @@ export async function getCollectionCounts(pool: Pool, accountId: string): Promis
   return counts;
 }
 
+/** Non-Standard print tiers, ranked for "best owned" purposes (collectibility.md §4/§8) — Secret
+ * outranks Ultra outranks Full Art, matching the Edition ladder's own ordering. Index 0 (Standard)
+ * never appears in the ranked-edition result below (only a real Founders Set pull sets a rank > 0),
+ * kept only so the SQL `case` below and this array agree on the same 0-3 numbering. */
+const EDITION_BY_RANK = ["standard", "full_art", "ultra", "secret"] as const;
+
 /**
- * Owned copy counts *and* owned foil copy counts per template id, in one
- * query — the collection screen (spec.md Section 19) needs both together, and
- * a conditional aggregate (`count(...) filter (where ci.is_foil)`) gets them
- * from the same scan/join getCollectionCounts already does, rather than a
- * second DB round trip. Deliberately not folded into getCollectionCounts
- * itself: deck-ownership gating (validateOwnership below) only ever needs
- * plain owned counts, and must never care whether a copy is foil — that
- * function stays as-is so nothing there can accidentally start depending on
- * foil status.
+ * Owned copy counts, owned foil copy counts, and the best non-Standard edition owned (if any) per
+ * template id, in one query — the collection screen (spec.md Section 19) needs all three together,
+ * and conditional aggregates (`count(...) filter (...)`, `max(case ...)`) get them from the same
+ * scan/join getCollectionCounts already does, rather than extra DB round trips. Deliberately not
+ * folded into getCollectionCounts itself: deck-ownership gating (validateOwnership below) only
+ * ever needs plain owned counts, and must never care about foil/edition — that function stays
+ * as-is so nothing there can accidentally start depending on either.
  */
 export async function getCollectionSummary(
   pool: Pool,
   accountId: string,
-): Promise<{ owned: Record<string, number>; foils: Record<string, number> }> {
-  const result = await pool.query<{ template_id: string; count: string; foil_count: string }>(
+): Promise<{ owned: Record<string, number>; foils: Record<string, number>; specialEditions: Record<string, "full_art" | "ultra" | "secret"> }> {
+  const result = await pool.query<{ template_id: string; count: string; foil_count: string; best_edition_rank: number }>(
     `select ce.template_id as template_id,
             count(ci.id)::int as count,
-            count(ci.id) filter (where ci.is_foil)::int as foil_count
+            count(ci.id) filter (where ci.is_foil)::int as foil_count,
+            max(case ce.edition_type
+                  when 'secret' then 3
+                  when 'ultra' then 2
+                  when 'full_art' then 1
+                  else 0
+                end) as best_edition_rank
      from card_instances ci
      join card_editions ce on ce.id = ci.edition_id
      where ci.owner_id = $1
@@ -264,12 +274,15 @@ export async function getCollectionSummary(
   );
   const owned: Record<string, number> = {};
   const foils: Record<string, number> = {};
+  const specialEditions: Record<string, "full_art" | "ultra" | "secret"> = {};
   for (const row of result.rows) {
     owned[row.template_id] = Number(row.count);
     const foilCount = Number(row.foil_count);
     if (foilCount > 0) foils[row.template_id] = foilCount;
+    const rank = Number(row.best_edition_rank);
+    if (rank > 0) specialEditions[row.template_id] = EDITION_BY_RANK[rank] as "full_art" | "ultra" | "secret";
   }
-  return { owned, foils };
+  return { owned, foils, specialEditions };
 }
 
 /**

@@ -551,6 +551,43 @@ button {
   cursor: default;
 }
 
+/* Full Art/Ultra/Secret (collectibility.md §4/§8, Founders Set only) — no illustrated frame PNG
+   sits over the art (see CardFace.tsx's doc comment: dropping the frame is the whole of what
+   "Full Art" means here), so the ordinary rarity-colored border is the only thing marking the
+   card's edges at all. A brighter, slightly thicker border stands in for the frame's missing
+   visual weight rather than leaving the art looking unbordered/unfinished. */
+.card-face--full-art {
+  border-width: 3px;
+  border-color: var(--rarity-color, var(--border-bright));
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 0 10px 1px var(--rarity-color, var(--border-bright)),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* A small always-visible pill naming which non-Standard print this is — the only way to tell a
+   Full Art/Ultra/Secret copy apart from a plain Standard one at a glance before hovering/tapping
+   in for the full accessible label. */
+.card-face__edition-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.72);
+  border: 1px solid var(--rarity-color, var(--border-bright));
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.card-face--board .card-face__edition-badge {
+  font-size: 8px;
+  padding: 0 4px;
+}
+
 /* Condition/Floor Grade (collectibility.md Section 7) — cosmetic-only, never reflects
    gameplay. A separate overlay span rather than a pseudo-element on .card-face__art,
    since that element's own ::before/::after are already spoken for (placeholder tint,
@@ -1433,6 +1470,10 @@ button {
   background: var(--panel-alt);
   border: 1px solid var(--border);
   border-radius: 8px;
+  /* Overrides the board-size CardFace's own 120x158 fallback — a plain visual reference in a
+     compact list, not a battlefield slot, so it can afford to be smaller. */
+  --board-card-w: 76px;
+  --board-card-h: 100px;
 }
 
 .mint-panel__badges {

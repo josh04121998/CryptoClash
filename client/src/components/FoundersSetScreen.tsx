@@ -3,6 +3,7 @@ import { BrowserProvider, Contract, hexlify, randomBytes } from "ethers";
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "../api.js";
 import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
+import { EDITION_LABEL } from "../editionType.js";
 import { playRevealSound } from "../sound.js";
 import { track } from "../telemetry.js";
 import type { Eip1193Provider } from "../useWallet.js";
@@ -36,12 +37,6 @@ export interface FoundersSetScreenProps {
   onBack: () => void;
   onHome: () => void;
 }
-
-const EDITION_LABEL: Record<GrantedCard["editionType"], string> = {
-  full_art: "✨ Full Art",
-  ultra: "🌟 Ultra",
-  secret: "💎 Secret",
-};
 
 type PurchaseStep = "idle" | "switching-network" | "approving" | "buying" | "confirming";
 
@@ -220,7 +215,13 @@ export function FoundersSetScreen({ token, activeProvider, onBack, onHome }: Fou
                 <div key={`${card.templateId}-${i}`} className="pack-reveal__slot">
                   {i < revealedCount ? (
                     <div className="pack-reveal__card">
-                      <CardFace template={CARD_POOL[card.templateId]} size="hand" foil={card.isFoil} conditionGrade={card.conditionGrade} />
+                      <CardFace
+                        template={CARD_POOL[card.templateId]}
+                        size="hand"
+                        foil={card.isFoil}
+                        conditionGrade={card.conditionGrade}
+                        editionType={card.editionType}
+                      />
                       <span className="pack-reveal__edition-tag">
                         {EDITION_LABEL[card.editionType]} · #{card.serialNumber}
                       </span>

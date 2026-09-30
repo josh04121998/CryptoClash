@@ -68,6 +68,7 @@ export async function getMintableInstance(db: Pool | PoolClient, instanceId: str
 /** One instance the Collection screen's per-template picker shows, so a player can choose which specific copy to mint. */
 export interface InstanceSummary {
   id: string;
+  editionType: MintableInstance["editionType"];
   isFoil: boolean;
   conditionGrade: number | null;
   serialNumber: number | null;
@@ -82,13 +83,14 @@ export interface InstanceSummary {
 export async function listInstancesForTemplate(pool: Pool, accountId: string, templateId: string): Promise<InstanceSummary[]> {
   const result = await pool.query<{
     id: string;
+    edition_type: MintableInstance["editionType"];
     is_foil: boolean;
     condition_grade: number | null;
     serial_number: number | null;
     is_first_edition: boolean;
     onchain_token_id: string | null;
   }>(
-    `select ci.id, ci.is_foil, ci.condition_grade, ci.serial_number, ci.is_first_edition, ci.onchain_token_id
+    `select ci.id, ce.edition_type, ci.is_foil, ci.condition_grade, ci.serial_number, ci.is_first_edition, ci.onchain_token_id
      from card_instances ci
      join card_editions ce on ce.id = ci.edition_id
      where ci.owner_id = $1 and ce.template_id = $2
@@ -97,6 +99,7 @@ export async function listInstancesForTemplate(pool: Pool, accountId: string, te
   );
   return result.rows.map((row) => ({
     id: row.id,
+    editionType: row.edition_type,
     isFoil: row.is_foil,
     conditionGrade: row.condition_grade,
     serialNumber: row.serial_number,

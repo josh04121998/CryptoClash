@@ -76,6 +76,18 @@ import stopLossOrder from "./assets/cards/stop_loss_order.jpg";
 import puppy from "./assets/cards/puppy.jpg";
 import tadpole from "./assets/cards/tadpole.jpg";
 
+import fullArtAlphaDog from "./assets/cards/full-art/alpha_dog.jpg";
+import fullArtCompoundBrahman from "./assets/cards/full-art/compound_brahman.jpg";
+import fullArtDeepCroak from "./assets/cards/full-art/deep_croak.jpg";
+import fullArtExitSilverback from "./assets/cards/full-art/exit_silverback.jpg";
+import fullArtFullStackGrizzly from "./assets/cards/full-art/full_stack_grizzly.jpg";
+import fullArtLoyalHound from "./assets/cards/full-art/loyal_hound.jpg";
+import fullArtMoonApe from "./assets/cards/full-art/moon_ape.jpg";
+import fullArtPrimordialCroak from "./assets/cards/full-art/primordial_croak.jpg";
+import fullArtSteadfastTabby from "./assets/cards/full-art/steadfast_tabby.jpg";
+import fullArtUnicornBull from "./assets/cards/full-art/unicorn_bull.jpg";
+import fullArtUnicornUrsa from "./assets/cards/full-art/unicorn_ursa.jpg";
+
 /**
  * templateId -> illustration. Sparse on purpose — branding.md Section 9's art
  * pass is a slow background task (Grok generation limits), so most cards have
@@ -170,4 +182,32 @@ const CARD_ART: Partial<Record<string, string>> = {
 
 export function cardArt(templateId: string): string | undefined {
   return CARD_ART[templateId];
+}
+
+/**
+ * Full Art illustration -> templateId, for card_instances whose edition_type is
+ * full_art/ultra/secret (collectibility.md §4/§8). Ultra and Secret deliberately reuse this same
+ * pool rather than needing a third/fourth generated asset — only Rarity/Foil/Condition/Serial
+ * differ between the three, not the art itself (full-art-prompts.md). Sparse on purpose, same as
+ * CARD_ART above: only 11 of 83 templates have a real Full Art illustration generated so far
+ * (the rest are lowest priority — nothing grants a non-Doggos/Frogs/Bears/Apes/Bulls/Cats
+ * non-standard edition at real volume yet, see mintingRepo.ts). `cardArt()`'s Standard
+ * illustration is the fallback everywhere a template has no Full Art entry here yet.
+ */
+const FULL_ART: Partial<Record<string, string>> = {
+  alpha_dog: fullArtAlphaDog,
+  compound_brahman: fullArtCompoundBrahman,
+  deep_croak: fullArtDeepCroak,
+  exit_silverback: fullArtExitSilverback,
+  full_stack_grizzly: fullArtFullStackGrizzly,
+  loyal_hound: fullArtLoyalHound,
+  moon_ape: fullArtMoonApe,
+  primordial_croak: fullArtPrimordialCroak,
+  steadfast_tabby: fullArtSteadfastTabby,
+  unicorn_bull: fullArtUnicornBull,
+  unicorn_ursa: fullArtUnicornUrsa,
+};
+
+export function fullCardArt(templateId: string): string | undefined {
+  return FULL_ART[templateId];
 }

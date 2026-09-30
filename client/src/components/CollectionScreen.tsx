@@ -24,16 +24,19 @@ type FactionFilter = Faction | "All";
 type RarityFilter = Rarity | "All";
 
 /**
- * The "digital binder" view (spec.md Section 19). First Editions and
- * Serialised cards (two of Section 19's other listed filters) still aren't
- * shown — nothing grants a non-standard `edition_type` or a serial number yet
- * (see STATUS.md), so those fields exist in the schema but have no real data
- * behind them. Foils are now real (packs roll them — see packsRepo.ts), so
- * this screen surfaces them: a summary count and a per-card badge/filter.
+ * The "digital binder" view (spec.md Section 19). Foils are real (packs roll them — see
+ * packsRepo.ts), so this screen surfaces them: a summary count and a per-card badge/filter.
+ * Full Art/Ultra/Secret/First Edition/Serial (Founders Set only — collectibility.md §4/§8) are
+ * real too now: the grid tile for a template with any special-edition copy owned shows that
+ * copy's real illustration (falling back to the Standard art it aggregates alongside, per
+ * `getCollectionSummary`'s "best owned edition, ranked" pick) plus an edition badge — the
+ * per-instance breakdown (which exact copies, their Foil/Condition/Serial) lives in MintPanel,
+ * opened by clicking the tile, same as before this wiring pass.
  */
 export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProps) {
   const [owned, setOwned] = useState<Record<string, number>>({});
   const [foils, setFoils] = useState<Record<string, number>>({});
+  const [specialEditions, setSpecialEditions] = useState<Record<string, "full_art" | "ultra" | "secret">>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [factionFilter, setFactionFilter] = useState<FactionFilter>("All");
@@ -43,10 +46,15 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
   const [mintingTemplate, setMintingTemplate] = useState<CardTemplate | null>(null);
 
   useEffect(() => {
-    apiFetch<{ owned: Record<string, number>; foils: Record<string, number> }>("/api/collection", { token })
+    apiFetch<{
+      owned: Record<string, number>;
+      foils: Record<string, number>;
+      specialEditions: Record<string, "full_art" | "ultra" | "secret">;
+    }>("/api/collection", { token })
       .then((res) => {
         setOwned(res.owned);
         setFoils(res.foils);
+        setSpecialEditions(res.specialEditions);
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
@@ -150,6 +158,7 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
               {visibleCards.map((template) => {
                 const count = owned[template.id] ?? 0;
                 const foilCount = foils[template.id] ?? 0;
+                const specialEdition = specialEditions[template.id];
                 return (
                   <button
                     key={template.id}
@@ -159,7 +168,7 @@ export function CollectionScreen({ token, onBack, onHome }: CollectionScreenProp
                     onClick={() => setMintingTemplate(template)}
                     title={count > 0 ? `View your copies of ${template.name}` : undefined}
                   >
-                    <CardFace template={template} size="hand" dimmed={count === 0} foil={foilCount > 0} />
+                    <CardFace template={template} size="hand" dimmed={count === 0} foil={foilCount > 0} editionType={specialEdition} />
                     <span className="collection__count">{count === 0 ? "Not owned" : `${count} owned`}</span>
                     {foilCount > 0 && <span className="collection__foil-count">✨ {foilCount} foil</span>}
                   </button>

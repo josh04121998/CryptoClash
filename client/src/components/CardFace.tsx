@@ -1,8 +1,9 @@
 import { CardTemplate } from "@cryptoclash/engine";
 import { CSSProperties, MouseEvent, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { cardArt } from "../cardArt.js";
+import { cardArt, fullCardArt } from "../cardArt.js";
 import { conditionBandName, conditionVisualTier } from "../conditionGrade.js";
+import { EDITION_LABEL, EDITION_NAME, EditionType, isSpecialEdition } from "../editionType.js";
 import { useDamagePopup } from "../useDamagePopup.js";
 import { factionColor } from "../factionColor.js";
 import { factionTicker } from "../factionTicker.js";
@@ -24,6 +25,8 @@ export interface CardFaceProps {
   foil?: boolean;
   /** Cosmetic-only Condition/Floor Grade, 1-10 (collectibility.md Section 7) — never affects gameplay. Omitted where the caller has no specific instance in hand (e.g. a template browsed in isolation with no owned copy). */
   conditionGrade?: number;
+  /** Cosmetic-only print/edition (collectibility.md §4/§8) — never affects gameplay stats or legality. Omitted (or "standard") where the caller has no specific instance, or the instance is a plain Standard print, same as every card outside a Founders Set. */
+  editionType?: EditionType;
   size?: "hand" | "board";
   /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
   attackDirection?: "up" | "down";
@@ -41,6 +44,15 @@ export interface CardFaceProps {
  * yet (most of the pool — art generation is a slow background task,
  * branding.md §9.5) or no rarity yet (tokens — `frameArt` falls back to the
  * Legendary frame shape, only Common..Legendary have real art).
+ *
+ * A Full Art/Ultra/Secret instance (`editionType`, Founders Set only) swaps in
+ * `fullCardArt()`'s illustration and drops the frame layer entirely, mirroring
+ * `tools/card-render/render-card.mjs`'s own mint-time compositor exactly: the frame PNG's
+ * opaque-except-a-cutout design is what makes Standard art read as "windowed" at all, so a
+ * bleeding-edge-to-edge illustration with no frame overlay is the whole of what "Full Art" means
+ * here — no separate layout. Falls back to the plain Standard look (art + frame) when the
+ * instance's template has no Full Art illustration generated yet, same "don't show a broken/empty
+ * state" posture as the ordinary no-art-yet placeholder.
  *
  * Hearthstone-style split, not one layout at every size: a battlefield
  * minion (`size="board"`) shows only portrait + cost/attack/health — no
@@ -64,6 +76,7 @@ export function CardFace({
   dimmed = false,
   foil = false,
   conditionGrade,
+  editionType,
   size = "board",
   attackDirection,
   onClick,
@@ -72,9 +85,14 @@ export function CardFace({
   const showHealth = health ?? template.health;
   const damaged = maxHealth !== undefined && health !== undefined && health < maxHealth;
   const isCreature = template.type === "Creature";
-  const art = cardArt(template.id);
+  const fullArt = isSpecialEdition(editionType) ? fullCardArt(template.id) : undefined;
+  const art = fullArt ?? cardArt(template.id);
   const showFullFace = size !== "board";
-  const frame = frameArt(template.rarity, !showFullFace);
+  // Only actually drop the frame when a real Full Art illustration is in play — a special-edition
+  // instance whose template has no Full Art asset yet still gets the ordinary framed Standard look
+  // rather than bleeding a Standard illustration edge-to-edge, which the frame art was never
+  // designed to sit under.
+  const frame = fullArt ? undefined : frameArt(template.rarity, !showFullFace);
   const conditionTier = conditionGrade !== undefined ? conditionVisualTier(conditionGrade) : null;
   // A real playtest flag: a board minion's Guard status was invisible at a glance (board size
   // shows no keyword text at all, per the deliberate Hearthstone-style split above) — you only
@@ -100,6 +118,7 @@ export function CardFace({
     template.text || undefined,
     foil ? "foil" : undefined,
     conditionGrade !== undefined ? `Condition: ${conditionBandName(conditionGrade)}` : undefined,
+    isSpecialEdition(editionType) ? EDITION_NAME[editionType] : undefined,
     affordable === false ? "not enough energy" : undefined,
   ]
     .filter(Boolean)
@@ -141,6 +160,7 @@ export function CardFace({
         !affordable ? "card-face--unaffordable" : "",
         justHit ? "card-face--hit" : "",
         foil ? "card-face--foil" : "",
+        fullArt ? "card-face--full-art" : "",
         conditionTier ? `card-face--condition-${conditionTier}` : "",
         attackDirection ? `card-face--lunge-${attackDirection}` : "",
       ]
@@ -168,6 +188,11 @@ export function CardFace({
       />
       {frame && <span className="card-face__frame" aria-hidden="true" style={{ backgroundImage: `url(${frame})` }} />}
       {conditionTier && <span className={`card-face__condition card-face__condition--${conditionTier}`} aria-hidden="true" />}
+      {fullArt && isSpecialEdition(editionType) && (
+        <span className="card-face__edition-badge" aria-hidden="true">
+          {EDITION_LABEL[editionType]}
+        </span>
+      )}
 
       <span className="card-face__cost">
         <StatIcon kind="energy" />
