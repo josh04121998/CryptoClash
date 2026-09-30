@@ -150,7 +150,16 @@ button {
      fluid clamp bounded by both vw and vh (min() of the two) rather than vw alone, so a
      wide-but-short window doesn't overflow before the compact breakpoint kicks in — it
      floors at today's fixed sizes (unchanged look on typical desktop widths) and grows on
-     genuinely large screens instead of sitting fixed-size forever. */
+     genuinely large screens instead of sitting fixed-size forever.
+     That floor was also the actual mechanism behind a real, previously-flagged-but-unfixed bug
+     (STATUS.md session 35, "the match view already needed to scroll ~300px to see your own hand
+     on an ordinary 1280×800 window"): the floor holds these at full desktop size right up until
+     the compact breakpoint below, which only kicked in at 760px tall — so any window in the very
+     common ~761-1000px-tall range got the *biggest* card size (this floor) with the *least* room
+     to show it in, worse off than a shorter window one pixel below the breakpoint. Measured
+     directly (session 39, a real Playwright run against a real match) rather than guessed at: the
+     floor size needs a 943px-tall `.table` to render without scrolling. See the media query
+     immediately below, which closes that exact gap. */
   --board-card-w: clamp(120px, min(8vw, 14vh), 170px);
   --board-card-h: calc(var(--board-card-w) * 1.31667);
   --hand-card-w: clamp(150px, min(10vw, 17vh), 210px);
@@ -174,6 +183,25 @@ button {
   width: 100%;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* Closes the "floor is too big for the room available" gap the comment above describes, for
+   .table's card sizing specifically — deliberately narrower than the full compact-mode media
+   query further down (max-width:640px / max-height:760px), which additionally hides card rules
+   text, shrinks stat-gem/name fonts, etc. This rule only overrides the two size custom
+   properties, so a short-but-not-narrow desktop window gets the smaller compact card size without
+   also re-compacting Collection/Crafting/DeckBuilder/Packs' card text on every screen under
+   1000px tall — those were never measured for this fix and use `.card-face--hand`'s plain 150x210
+   fallback outside `.table`'s custom properties regardless, so they're unaffected either way. The
+   760px→1000px jump between this block and the fuller one below applies the exact same values
+   (harmless, same source of truth), so nothing double-applies incorrectly across the overlap. */
+@media (max-height: 1000px) {
+  .table {
+    --board-card-w: 90px;
+    --board-card-h: 119px;
+    --hand-card-w: 112px;
+    --hand-card-h: 157px;
+  }
 }
 
 /* The [data-drop-zone="battlefield"] wrapper in MatchView needs the same column layout as
@@ -398,12 +426,43 @@ button {
 /* Sits at the very top of the screen, above the opponent's own board — flip the tray so its
    border/gradient seam reads as the bottom edge of the opponent's zone, not a stray top line. */
 .hand-row--opponent {
-  padding: 0.25rem 0.5rem 0.4rem;
+  padding: 0.2rem 0.5rem 0.3rem;
   margin-top: 0;
   background: linear-gradient(0deg, transparent 0%, var(--panel-alt) 100%);
   border-top: none;
   border-bottom: 1px solid var(--border-bright);
   border-radius: 0 0 14px 14px;
+  /* Real, measured fix for the "match view needs ~300px of scroll to see your own hand"
+     complaint (STATUS.md session 35, confirmed still true and quantified session 39): a face-down
+     count-only row was being rendered at the exact same size as the player's real, interactive
+     hand — the single largest item in the whole vertical stack after the two real hand rows
+     themselves, for a purely decorative "how many cards" indicator. Scaling it down (count/labels
+     stay fully legible at this size) hands back real space to every viewport height, at every
+     size tier, without touching a single card the player actually reads or plays.
+     Deliberately a NEW property name, not a local override of --hand-card-w itself: verified live
+     that redeclaring --hand-card-w here (even routed through a second custom property first)
+     silently computes to nothing. CSS custom-property cycle detection runs across *all* of one
+     element's own declarations together, not top-to-bottom — this element declaring --hand-card-w
+     at all (even derived from a supposedly-already-resolved helper property) makes it depend on
+     itself the moment that helper also references --hand-card-w, and the whole chain goes invalid.
+     --opp-hand-card-w only ever reads the *inherited* --hand-card-w (never redeclares it), so
+     there's no cycle — applied directly to width/height below instead of back through the shared
+     property name. */
+  --opp-hand-card-w: calc(var(--hand-card-w) * 0.55);
+  --opp-hand-card-h: calc(var(--opp-hand-card-w) * 1.4);
+}
+
+.hand-row--opponent .card-face--back {
+  width: var(--opp-hand-card-w);
+  height: var(--opp-hand-card-h);
+}
+
+.hand-row--opponent > div:not(:first-child) {
+  margin-left: calc(var(--opp-hand-card-w) * -0.467);
+}
+
+.hand-row--opponent .card-face--back::after {
+  font-size: 0.65rem;
 }
 
 /*
