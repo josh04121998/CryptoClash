@@ -17,14 +17,14 @@ const TICKER_ITEMS = [
   { text: "BLACK SWAN EVENT DETECTED", direction: "down" as const },
   { text: "GENESIS SUPPLY: PERMANENTLY CAPPED" },
   { text: "FOMO +12%", direction: "up" as const },
-  { text: "DEGENS PAY HP FOR POWER", direction: "down" as const },
-  { text: "BUILDERS DRAW AHEAD" },
+  { text: "APES PAY HP FOR POWER", direction: "down" as const },
+  { text: "BEARS DRAW AHEAD" },
   { text: "PUMP.SIGNAL CONFIRMED", direction: "up" as const },
   { text: "6 FACTIONS. ONE FLOOR." },
 ];
 
 const PILLARS = [
-  { title: "COLLECT", desc: "Open packs, chase rarity, land a foil. Every card is a real, ownable asset — not a skin." },
+  { title: "COLLECT", desc: "Open packs, chase rarity, land a foil. Built to become a real, ownable asset on-chain — not just a skin." },
   { title: "BATTLE", desc: "Deterministic, server-authoritative combat. Deck-build across 6 crypto-native factions." },
   { title: "TRADE", desc: "Disenchant duplicates into Dust, craft the cards you actually want. A real economy, not a grind wall." },
 ];

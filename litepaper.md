@@ -14,7 +14,7 @@ This file is the canonical source text. The published version is `client/public/
 
 Floorwars brings the Pokémon-collectibles experience on-chain. Collecting and chasing rarity is the main draw — not a side layer bolted onto a card game. The battle engine, the six factions, the ranked ladder: all of it is the vehicle. The thing players are meant to get hooked on is owning, showing off, and trading cards that are genuinely theirs.
 
-**"The floor is the battlefield."** Every faction is trading-culture themed — Doggos, Frogs, Degens, Crypto Bros, Builders, Normies — because the whole identity of the game is a Wall Street trading floor at night doubling as a battle arena.
+**"The floor is the battlefield."** Every faction is trading-culture themed — Doggos, Frogs, Apes, Bulls, Bears, Cats — because the whole identity of the game is a Wall Street trading floor at night doubling as a battle arena.
 
 ## 2. The game
 
@@ -24,10 +24,10 @@ A deterministic, server-authoritative PvP trading-card battler. Two players, fiv
 |---|---|
 | Doggos | Swarm — more friends on board, more Attack |
 | Frogs | Copy your best creature and lean into chaos |
-| Builders | Draw cards, chain combos, out-value the board |
-| Degens | Pay your own HP for explosive, above-rate power |
-| Crypto Bros | Ramp your Energy and scale out of control |
-| Normies | Simple, sturdy, defensive — hard to punish |
+| Bears | Draw cards, chain combos, out-value the board |
+| Apes | Pay your own HP for explosive, above-rate power |
+| Bulls | Ramp your Energy and scale out of control |
+| Cats | Simple, sturdy, defensive — hard to punish |
 
 **Free to play. No wallet required to jump in.** Play vs AI and Play Online both work with zero connection — a wallet is only ever asked for the moment something needs to persist, like a saved deck or a collection. That's a deliberate floor on friction, not an oversight: the collecting hook only works if getting to the game itself is instant.
 
