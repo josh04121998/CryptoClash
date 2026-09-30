@@ -698,6 +698,17 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     text: "At the start of your turn, gain 1 Energy this turn.",
     effects: [{ trigger: "onTurnStart", action: { kind: "gainEnergy", amount: 1 } }],
   },
+  bull_calf: {
+    id: "bull_calf",
+    name: "Bull Calf",
+    faction: "Bulls",
+    type: "Creature",
+    cost: 1,
+    rarity: "Common",
+    attack: 2,
+    health: 2,
+    text: "Vanilla.",
+  },
   angel_bull: {
     id: "angel_bull",
     name: "Angel Bull",
@@ -1083,16 +1094,17 @@ export const APE_SAMPLE_DECK: string[] = [
 
 /** A legal 30-card Bulls deck, exercising the gainEnergy/gainMaxEnergy ramp signature. */
 export const BULL_SAMPLE_DECK: string[] = [
-  ...Array(3).fill("seed_round"),
+  ...Array(2).fill("seed_round"),
   ...Array(3).fill("hodl_bull"),
+  ...Array(3).fill("bull_calf"),
   ...Array(3).fill("angel_bull"),
   ...Array(3).fill("venture_capital"),
   ...Array(3).fill("bull_run"),
   ...Array(2).fill("to_the_moon"),
   ...Array(3).fill("whale_longhorn"),
   ...Array(2).fill("compound_brahman"),
-  ...Array(3).fill("pump_signal"),
-  ...Array(2).fill("spark_bolt"),
+  ...Array(2).fill("pump_signal"),
+  ...Array(1).fill("spark_bolt"),
   ...Array(2).fill("power_core"),
   ...Array(1).fill("unicorn_bull"),
 ];

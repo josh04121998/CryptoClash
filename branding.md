@@ -177,6 +177,8 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 
 **Correction 2026-09-17:** four new Commons added to close the Builders/Degens single-Common gap (STATUS.md roadmap item 2) — Code Monkey, Ship-It Bruin (Builders), Overleveraged Gibbon, Slow Burn (Degens). Table count is now 75.
 
+**Correction 2026-09-30:** one new Common added to close Bulls' (Crypto Bros) turn-1 dead-hand gap — Bull Calf, a real 1-cost vanilla body alongside HODL Bull. Table count is now 76. See STATUS.md session 39 for the full balance writeup and simulation numbers.
+
 **Doggos**
 
 | Card | Rarity | Concept |
@@ -251,6 +253,7 @@ One line per card — terse and prompt-ready, not a full paragraph brief. Groupe
 |---|---|---|
 | Seed Round | Common | A confident handshake sealing an early deal, sunglasses |
 | HODL Bull | Common | A bro gripping a hardware wallet tightly like a lifeline, chain jewelry, unshaken stance |
+| Bull Calf | Common | A young, wide-eyed junior trader on his very first day — oversized blazer, eager grin, clutching a single stock printout |
 | Angel Bull | Uncommon | A slick investor with a subtle wing motif, tailored suit, offering a check |
 | Venture Capital | Uncommon | A boardroom pitch moment — a bro presenting a hockey-stick growth chart |
 | Bull Run | Rare | A bro riding/wrangling a Wall-Street bull, chaotic momentum, other bros nearby |
