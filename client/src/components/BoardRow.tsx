@@ -8,6 +8,12 @@ export interface BoardRowProps {
   side: "own" | "enemy";
   selectedSlot?: number;
   targetable?: boolean;
+  /** When set alongside `targetable`, only this specific slot renders the target ring — combat.ts's
+   * Guard rule ("must be attacked first") means only the Guard's own slot is ever a legal attack
+   * target while one's up, not every enemy creature. Undefined preserves the old
+   * every-occupied-slot behavior, which is still correct for targeted spells/items (Guard is an
+   * attack-only rule, never applied to effect targeting). */
+  restrictTargetToSlot?: number;
   /** Keys from useAttackAnimations, `${playerId}-${slot}` — which creatures just attacked. */
   attackingSlots?: Set<string>;
   /** Which physical direction "toward the enemy" is for this row — MatchView renders the opponent's row above mine, so this differs per call site. */
@@ -29,6 +35,7 @@ export function BoardRow({
   side,
   selectedSlot,
   targetable = false,
+  restrictTargetToSlot,
   attackingSlots,
   attackDirection,
   onSlotClick,
@@ -80,7 +87,9 @@ export function BoardRow({
               attackDirection={attackingSlots?.has(`${playerId}-${slot}`) ? attackDirection : undefined}
               onClick={() => onSlotClick(slot)}
             />
-            {targetable && <div className="board-slot__target-ring" />}
+            {targetable && (restrictTargetToSlot === undefined || restrictTargetToSlot === slot) && (
+              <div className="board-slot__target-ring" />
+            )}
           </div>
         );
       })}

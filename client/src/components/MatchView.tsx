@@ -312,6 +312,18 @@ export function MatchView({
     (selection.type === "attacker" ||
       (selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && !targetsFriendly(me.hand[selection.handIndex])));
 
+  // combat.ts's resolveAttack forces every attack (creature or face) to target an enemy Guard
+  // while one's up — never applied to targeted spells/items, only real attacks. A real playtest
+  // (2026-09-30) found every enemy creature still highlighted as attackable regardless, so the
+  // only feedback a Guard was actually up came from a real, but reactive, error message *after*
+  // clicking a non-Guard target — hit in half the matches played. Restricting the visual target
+  // affordance to match the real rule closes that gap instead of just explaining it after the fact.
+  const enemyGuardSlot = state.players[opponentId].board.findIndex(
+    (c) => c && (c.keywords.has("Guard") || c.tempKeywords.has("Guard")),
+  );
+  const attackBlockedByGuard = selection.type === "attacker" && enemyGuardSlot !== -1;
+  const enemyPortraitTargetable = enemyTargetable && !attackBlockedByGuard;
+
   const ownBoardTargetable =
     canAct && selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && targetsFriendly(me.hand[selection.handIndex]);
 
@@ -361,8 +373,8 @@ export function MatchView({
             name={opponentLabel}
             player={state.players[opponentId]}
             isActive={state.activePlayer === opponentId}
-            targetable={enemyTargetable}
-            onClick={enemyTargetable ? onEnemyPortraitClick : undefined}
+            targetable={enemyPortraitTargetable}
+            onClick={enemyPortraitTargetable ? onEnemyPortraitClick : undefined}
             spotlightPortrait={spotlightPortrait}
             isDropZone
           />
@@ -371,6 +383,7 @@ export function MatchView({
             playerId={opponentId}
             side="enemy"
             targetable={enemyTargetable}
+            restrictTargetToSlot={attackBlockedByGuard ? enemyGuardSlot : undefined}
             attackingSlots={attackingSlots}
             attackDirection="down"
             onSlotClick={onEnemySlotClick}

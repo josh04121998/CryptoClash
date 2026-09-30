@@ -452,7 +452,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     rarity: "Rare",
     attack: 3,
     health: 4,
-    text: "Gain +1 Attack while next to another Builder.",
+    text: "Gain +1 Attack while next to another Bear.",
     aura: { filter: "adjacentSameFaction", attack: 1 },
   },
   iterating_bruin: {
@@ -729,7 +729,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     rarity: "Rare",
     attack: 3,
     health: 4,
-    text: "Gain +1 Attack while next to another Crypto Bro.",
+    text: "Gain +1 Attack while next to another Bull.",
     aura: { filter: "adjacentSameFaction", attack: 1 },
   },
   to_the_moon: {
@@ -842,7 +842,7 @@ export const CARD_POOL: Record<string, CardTemplate> = {
     rarity: "Rare",
     attack: 3,
     health: 3,
-    text: "Gain +1 Attack while next to another Normie.",
+    text: "Gain +1 Attack while next to another Cat.",
     aura: { filter: "adjacentSameFaction", attack: 1 },
   },
   old_alley_cat: {
