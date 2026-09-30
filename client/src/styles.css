@@ -280,6 +280,20 @@ button {
   background: transparent;
 }
 
+/* A creature card is selected (tapped, not dragged) and this slot is a real place to drop it —
+   closes a real discoverability gap (2026-09-30 playtest): the first tap already selects the
+   card with a visible accent-colored glow, but with nothing at all marking where the *second*
+   tap should land, that selection read as a dead end rather than the working first half of a
+   tap-then-tap gesture. Deliberately the same --accent color as .card-face--selected's own glow
+   (one color language: "the thing I selected" and "where it can go"), not the combat ring's red
+   --danger — this is a friendly placement affordance, never a hostile-target one. */
+.board-slot--placeable {
+  border-style: solid;
+  border-color: var(--accent);
+  background: rgba(242, 183, 5, 0.08);
+  animation: pulse 1.2s infinite;
+}
+
 .board-slot__target-ring {
   position: absolute;
   inset: -4px;

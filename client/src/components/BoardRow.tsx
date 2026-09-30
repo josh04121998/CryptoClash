@@ -14,6 +14,12 @@ export interface BoardRowProps {
    * every-occupied-slot behavior, which is still correct for targeted spells/items (Guard is an
    * attack-only rule, never applied to effect targeting). */
   restrictTargetToSlot?: number;
+  /** Highlights every *empty* slot as a valid drop target — a selected creature card needs an
+   * empty slot, not an occupied one, so this is deliberately separate from `targetable` (which
+   * only ever renders on occupied slots, for attack/friendly-effect targeting). Styled distinctly
+   * from `targetable`'s red combat ring (see CardFace/BoardRow's own doc comments) — this is a
+   * friendly placement affordance, not a hostile-target one. */
+  targetableEmpty?: boolean;
   /** Keys from useAttackAnimations, `${playerId}-${slot}` — which creatures just attacked. */
   attackingSlots?: Set<string>;
   /** Which physical direction "toward the enemy" is for this row — MatchView renders the opponent's row above mine, so this differs per call site. */
@@ -36,6 +42,7 @@ export function BoardRow({
   selectedSlot,
   targetable = false,
   restrictTargetToSlot,
+  targetableEmpty = false,
   attackingSlots,
   attackDirection,
   onSlotClick,
@@ -54,11 +61,18 @@ export function BoardRow({
             <button
               key={slot}
               type="button"
-              aria-label={`Empty board slot ${slot + 1}`}
+              aria-label={
+                targetableEmpty ? `Place selected creature in board slot ${slot + 1}` : `Empty board slot ${slot + 1}`
+              }
               data-drop-zone={side === "own" ? "own-slot" : "enemy-slot"}
               data-slot={slot}
               data-empty="true"
-              className={["board-slot", "board-slot--empty", spotEmpty ? "board-slot--spotlight" : ""]
+              className={[
+                "board-slot",
+                "board-slot--empty",
+                spotEmpty ? "board-slot--spotlight" : "",
+                targetableEmpty ? "board-slot--placeable" : "",
+              ]
                 .filter(Boolean)
                 .join(" ")}
               onClick={() => onSlotClick(slot)}

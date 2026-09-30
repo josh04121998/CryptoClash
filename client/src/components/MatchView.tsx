@@ -327,6 +327,16 @@ export function MatchView({
   const ownBoardTargetable =
     canAct && selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && targetsFriendly(me.hand[selection.handIndex]);
 
+  // A selected creature card doesn't "need a target" in needsTarget()'s sense — it needs an empty
+  // slot — so it fell through every existing targetable check above and got zero visual signal
+  // for where tapping would actually place it. A real playtest (2026-09-30) found this made the
+  // whole tap-to-select-then-tap-to-place flow read as "tapping does nothing": the first tap
+  // *does* select the card (a real border glow + lift, `.card-face--selected`), but with no
+  // affordance at all on the board telling you where the second tap goes, that selection looked
+  // like a dead end rather than a working first half of a two-step gesture.
+  const ownEmptySlotTargetable =
+    canAct && selection.type === "hand" && CARD_POOL[me.hand[selection.handIndex]].type === "Creature";
+
   // A selected card that needs no target (a spell/item with no requiresTarget effect) has no
   // slot/portrait to click to confirm — this is the tap-path equivalent of "drop it anywhere
   // on the battlefield" for drag (see onCardDragEnd's no-target branch).
@@ -418,6 +428,7 @@ export function MatchView({
             side="own"
             selectedSlot={selection.type === "attacker" ? selection.slot : undefined}
             targetable={ownBoardTargetable}
+            targetableEmpty={ownEmptySlotTargetable}
             attackingSlots={attackingSlots}
             attackDirection="up"
             onSlotClick={onOwnSlotClick}
