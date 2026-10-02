@@ -1,8 +1,10 @@
-import { CARD_POOL, Intent, MatchState, PlayerId, targetsFriendlyCreature } from "@cryptoclash/engine";
+import { BoardCreature, CARD_POOL, Intent, MatchState, PlayerId, getEffectiveAttack, targetsFriendlyCreature } from "@cryptoclash/engine";
 import { useEffect, useRef, useState } from "react";
+import { startBgm, stopBgm } from "../bgm.js";
 import { playClickSound, playErrorSound, playEndTurnSound, playSelectSound } from "../sound.js";
 import type { SpotlightTarget } from "../tutorial/beats.js";
 import { useAttackAnimations } from "../useAttackAnimations.js";
+import { useCardPlayAnimations } from "../useCardPlayAnimations.js";
 import { useMatchSounds } from "../useMatchSounds.js";
 import { BoardRow } from "./BoardRow.js";
 import { CardInspectOverlay } from "./CardInspectOverlay.js";
@@ -22,6 +24,16 @@ function needsTarget(templateId: string): boolean {
 
 function targetsFriendly(templateId: string): boolean {
   return targetsFriendlyCreature(CARD_POOL[templateId]);
+}
+
+/** Same eligibility combat.ts's resolveAttack itself enforces (attacked already / just summoned
+ * without Rush) — mirrored here so the lethal telegraph below counts only damage the player could
+ * actually land this turn, not a hopeful over-count. */
+function canCreatureAttack(creature: BoardCreature, turnNumber: number): boolean {
+  if (creature.hasAttackedThisTurn) return false;
+  const hasRush = creature.keywords.has("Rush") || creature.tempKeywords.has("Rush");
+  if (creature.summonedOnTurn === turnNumber && !hasRush) return false;
+  return true;
 }
 
 /** A drop-zone element under the pointer, resolved via elementFromPoint at drag-end — see onCardDragEnd. */
@@ -48,6 +60,8 @@ export interface MatchViewProps {
   tutorialMode?: boolean;
   onTutorialPracticeAi?: () => void;
   onTutorialMainMenu?: () => void;
+  /** Starts a fresh AI match straight from the result overlay — see MatchResultOverlay's own doc comment. */
+  onPlayAgain?: () => void;
 }
 
 export function MatchView({
@@ -64,6 +78,7 @@ export function MatchView({
   tutorialMode = false,
   onTutorialPracticeAi,
   onTutorialMainMenu,
+  onPlayAgain,
 }: MatchViewProps) {
   const opponentId: PlayerId = myPlayerId === "A" ? "B" : "A";
   const [selection, setSelection] = useState<Selection>({ type: "none" });
@@ -71,6 +86,16 @@ export function MatchView({
 
   const { marketEventFlash, marketEventText } = useMatchSounds(state, myPlayerId);
   const attackingSlots = useAttackAnimations(state);
+  const justPlayedSlots = useCardPlayAnimations(state);
+
+  // Ambient loop for the whole time a match screen is mounted — every match screen (Play vs AI,
+  // Play Online, the tutorial) renders this component, so this one effect covers all of them
+  // without each needing its own start/stop call. Mute-respecting via bgm.ts's own subscription
+  // to sound.ts's mute state, not anything this component tracks itself.
+  useEffect(() => {
+    startBgm();
+    return () => stopBgm();
+  }, []);
   const [resultDismissed, setResultDismissed] = useState(false);
   const prevErrorRef = useRef(lastError);
   useEffect(() => {
@@ -369,6 +394,37 @@ export function MatchView({
   const attackBlockedByGuard = selection.type === "attacker" && enemyGuardSlot !== -1;
   const enemyPortraitTargetable = enemyTargetable && !attackBlockedByGuard;
 
+  // Lethal telegraph: total effective attack still available from creatures that haven't attacked
+  // this turn, summed the same way a player would have to actually land it — straight at the
+  // enemy face. Only meaningful with no enemy Guard up, since combat.ts's own rule forces every
+  // attack onto the Guard first while one's alive; there's no partial-overflow mechanic that lets
+  // some damage spill past it onto the face in the same turn.
+  const lethalAvailable =
+    canAct &&
+    enemyGuardSlot === -1 &&
+    me.board.reduce(
+      (sum, creature, slot) => (creature && canCreatureAttack(creature, state.turnNumber) ? sum + getEffectiveAttack(state, myPlayerId, slot) : sum),
+      0,
+    ) >= state.players[opponentId].hp;
+
+  // Guard-down telegraph: a Guard dying mid-combat (to an attack, an effect, anything) silently
+  // reopened the face/other creatures as legal targets with nothing announcing it — a player who
+  // just traded into the Guard had to notice its slot went empty themselves. True→false on
+  // "is any enemy Guard up" is the one-shot trigger, same before/after-ref shape as the market
+  // event toast above.
+  const [guardDownToast, setGuardDownToast] = useState(false);
+  const prevEnemyGuardUpRef = useRef(enemyGuardSlot !== -1);
+  useEffect(() => {
+    const wasUp = prevEnemyGuardUpRef.current;
+    const isUp = enemyGuardSlot !== -1;
+    prevEnemyGuardUpRef.current = isUp;
+    if (wasUp && !isUp) {
+      setGuardDownToast(true);
+      const timer = setTimeout(() => setGuardDownToast(false), 2400);
+      return () => clearTimeout(timer);
+    }
+  }, [enemyGuardSlot]);
+
   const ownBoardTargetable =
     canAct && selection.type === "hand" && needsTarget(me.hand[selection.handIndex]) && targetsFriendly(me.hand[selection.handIndex]);
 
@@ -433,6 +489,11 @@ export function MatchView({
             {toastText}
           </div>
         )}
+        {guardDownToast && (
+          <div className="market-event-toast guard-down-toast" role="status" aria-live="polite">
+            🛡️ Guard is down — the way is clear.
+          </div>
+        )}
         {/* data-drop-zone="battlefield" is the drag-and-drop fallback for the gaps between
             slots/portraits (the volatility meter, the turn divider, spacing between cards) —
             BoardRow/PlayerHeader tag their own more specific zones, which `.closest` picks up
@@ -447,6 +508,7 @@ export function MatchView({
             targetable={enemyPortraitTargetable}
             onClick={enemyPortraitTargetable ? onEnemyPortraitClick : undefined}
             spotlightPortrait={spotlightPortrait}
+            lethal={lethalAvailable}
             isDropZone
           />
           <BoardRow
@@ -456,6 +518,7 @@ export function MatchView({
             targetable={enemyTargetable}
             restrictTargetToSlot={attackBlockedByGuard ? enemyGuardSlot : undefined}
             attackingSlots={attackingSlots}
+            justPlayedSlots={justPlayedSlots}
             attackDirection="down"
             onSlotClick={onEnemySlotClick}
             spotlightGuard={enemySpotlightGuard}
@@ -493,6 +556,7 @@ export function MatchView({
             targetable={ownBoardTargetable}
             targetableEmpty={ownEmptySlotTargetable}
             attackingSlots={attackingSlots}
+            justPlayedSlots={justPlayedSlots}
             attackDirection="up"
             onSlotClick={onOwnSlotClick}
             spotlightSlot={mySpotlightSlot}
@@ -538,6 +602,7 @@ export function MatchView({
           tutorialExit={showTutorialResult}
           onPracticeAi={onTutorialPracticeAi}
           onMainMenu={onTutorialMainMenu}
+          onPlayAgain={showTutorialResult ? undefined : onPlayAgain}
         />
       )}
 

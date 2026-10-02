@@ -10,6 +10,9 @@ export interface PlayerHeaderProps {
   onClick?: () => void;
   spotlightEnergy?: boolean;
   spotlightPortrait?: boolean;
+  /** This player is one unblocked attack away from losing right now — MatchView only ever computes
+   * this for the opponent's own header. See MatchView's lethalAvailable doc comment. */
+  lethal?: boolean;
   /** Set on the opponent's header only — lets a dragged card be dropped on this portrait. See MatchView's onCardDragEnd. */
   isDropZone?: boolean;
 }
@@ -22,6 +25,7 @@ export function PlayerHeader({
   onClick,
   spotlightEnergy,
   spotlightPortrait,
+  lethal = false,
   isDropZone = false,
 }: PlayerHeaderProps) {
   const { justHit, popups } = useDamagePopup(player.hp);
@@ -35,6 +39,7 @@ export function PlayerHeader({
       ? `${player.secrets.length} Secret${player.secrets.length > 1 ? "s" : ""} armed`
       : undefined,
     isActive ? "active turn" : undefined,
+    lethal ? "lethal — attacking now can win the game" : undefined,
   ]
     .filter(Boolean)
     .join(", ");
@@ -50,6 +55,7 @@ export function PlayerHeader({
         targetable ? "player-header--targetable" : "",
         justHit ? "player-header--hit" : "",
         spotlightPortrait ? "player-header--spotlight" : "",
+        lethal ? "player-header--lethal" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -57,6 +63,11 @@ export function PlayerHeader({
       disabled={!onClick}
     >
       <span className="player-header__name">{name}</span>
+      {lethal && (
+        <span className="player-header__lethal-badge" aria-hidden="true">
+          Lethal
+        </span>
+      )}
       <span className={`player-header__hp ${justHit ? "player-header__hp--hit" : ""}`}>♥ {player.hp}</span>
       <span
         className={

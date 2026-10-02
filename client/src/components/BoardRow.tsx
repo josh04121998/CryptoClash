@@ -22,6 +22,8 @@ export interface BoardRowProps {
   targetableEmpty?: boolean;
   /** Keys from useAttackAnimations, `${playerId}-${slot}` — which creatures just attacked. */
   attackingSlots?: Set<string>;
+  /** Keys from useCardPlayAnimations, `${playerId}-${slot}` — which creatures were just placed. */
+  justPlayedSlots?: Set<string>;
   /** Which physical direction "toward the enemy" is for this row — MatchView renders the opponent's row above mine, so this differs per call site. */
   attackDirection?: "up" | "down";
   onSlotClick: (slot: number) => void;
@@ -44,6 +46,7 @@ export function BoardRow({
   restrictTargetToSlot,
   targetableEmpty = false,
   attackingSlots,
+  justPlayedSlots,
   attackDirection,
   onSlotClick,
   spotlightSlot,
@@ -99,6 +102,7 @@ export function BoardRow({
               selected={selectedSlot === slot}
               dimmed={creature.hasAttackedThisTurn}
               attackDirection={attackingSlots?.has(`${playerId}-${slot}`) ? attackDirection : undefined}
+              justPlayed={justPlayedSlots?.has(`${playerId}-${slot}`)}
               onClick={() => onSlotClick(slot)}
             />
             {targetable && (restrictTargetToSlot === undefined || restrictTargetToSlot === slot) && (

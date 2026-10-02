@@ -121,6 +121,7 @@ export function LocalMatch({ deckCards, onExit, subtitle, notice, telemetryMode 
         opponentTurnLabel="Bot is thinking…"
         logOpen={logOpen}
         onCloseLog={() => setLogOpen(false)}
+        onPlayAgain={restartMatch}
       />
 
       {pendingConfirm && (

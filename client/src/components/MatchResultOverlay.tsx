@@ -10,6 +10,13 @@ export interface MatchResultOverlayProps {
   tutorialExit?: boolean;
   onPracticeAi?: () => void;
   onMainMenu?: () => void;
+  /**
+   * Starts a fresh AI match immediately, without closing the overlay first and reaching for
+   * the app bar's own "New Match" button. LocalMatch passes this (a winner already means
+   * nothing to lose, so it can restart with no confirm, same as requestRestart there) — not
+   * wired for OnlineMatch, where "again" has no obvious single meaning (requeue vs. rematch).
+   */
+  onPlayAgain?: () => void;
 }
 
 interface Strip {
@@ -39,6 +46,7 @@ export function MatchResultOverlay({
   tutorialExit,
   onPracticeAi,
   onMainMenu,
+  onPlayAgain,
 }: MatchResultOverlayProps) {
   const outcome: "win" | "loss" | "draw" = winner === "Draw" ? "draw" : winner === myPlayerId ? "win" : "loss";
   const strips = useMemo(() => (outcome !== "loss" ? makeStrips(outcome === "win" ? 60 : 30) : []), [outcome]);
@@ -90,6 +98,15 @@ export function MatchResultOverlay({
             </button>
             <button type="button" onClick={onMainMenu}>
               Main menu
+            </button>
+          </div>
+        ) : onPlayAgain ? (
+          <div className="match-result__actions">
+            <button type="button" onClick={onPlayAgain}>
+              Play Again
+            </button>
+            <button type="button" className="match-result__secondary" onClick={onDismiss}>
+              Continue
             </button>
           </div>
         ) : (

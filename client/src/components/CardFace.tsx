@@ -30,6 +30,8 @@ export interface CardFaceProps {
   size?: "hand" | "board";
   /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
   attackDirection?: "up" | "down";
+  /** This creature was just placed on the board this render pass — a one-shot landing "pop", purely cosmetic. */
+  justPlayed?: boolean;
   onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -79,6 +81,7 @@ export function CardFace({
   editionType,
   size = "board",
   attackDirection,
+  justPlayed = false,
   onClick,
 }: CardFaceProps) {
   const showAttack = attack ?? template.attack;
@@ -163,6 +166,7 @@ export function CardFace({
         fullArt ? "card-face--full-art" : "",
         conditionTier ? `card-face--condition-${conditionTier}` : "",
         attackDirection ? `card-face--lunge-${attackDirection}` : "",
+        justPlayed ? "card-face--just-played" : "",
       ]
         .filter(Boolean)
         .join(" ")}

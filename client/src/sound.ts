@@ -22,12 +22,30 @@ function getContext(): AudioContext | null {
   return ctx;
 }
 
+/** bgm.ts reuses the same singleton AudioContext as every one-shot effect above, rather than
+ * opening a second one — browsers cap how many contexts can exist/run concurrently. */
+export function getAudioContext(): AudioContext | null {
+  return getContext();
+}
+
 export function isMuted(): boolean {
   try {
     return localStorage.getItem(MUTE_KEY) === "1";
   } catch {
     return false;
   }
+}
+
+type MuteListener = (muted: boolean) => void;
+const muteListeners = new Set<MuteListener>();
+
+/** bgm.ts subscribes so a mute toggle flipped mid-loop takes effect immediately — a one-shot
+ * blip can just check isMuted() at play-time, but a *continuous* sound has nothing to re-check
+ * until its next scheduled note without this, which could be a second or more away. Returns an
+ * unsubscribe function. */
+export function onMuteChange(fn: MuteListener): () => void {
+  muteListeners.add(fn);
+  return () => muteListeners.delete(fn);
 }
 
 export function setMuted(muted: boolean): void {
@@ -37,6 +55,7 @@ export function setMuted(muted: boolean): void {
   } catch {
     // Private browsing / storage disabled — mute just won't survive a reload.
   }
+  muteListeners.forEach((fn) => fn(muted));
 }
 
 interface Note {
