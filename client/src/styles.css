@@ -1341,6 +1341,21 @@ button {
   overflow-y: auto;
 }
 
+.packs-screen__testnet-note {
+  max-width: 480px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+}
+
+.packs-screen__testnet-note a {
+  color: var(--accent);
+}
+
 .pack-reveal {
   display: flex;
   gap: 0.75rem;

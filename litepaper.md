@@ -1,8 +1,10 @@
 # Floorwars — Litepaper
 
-### v1.1 — 2026-09-14
+### v1.2 — 2026-10-02
 
 The community/marketing-facing companion to this repo's internal design docs (`spec.md`, `architecture.md`, `collectibility.md`) — written for players, holders, and anyone sizing up the project from outside, not for a future session picking up engineering work. Where a number or decision here touches something still open internally, it's stated as open here too — this document doesn't get ahead of what's actually decided.
+
+**v1.2 changes:** Section 7 was badly stale — it still said the on-chain layer hadn't started, when minting and crypto pack purchases have actually been live on **testnet** since mid-session-37/38 work this doc never caught up to. Corrected to say plainly what's real today (the mechanics work, proven on a public testnet) and what still isn't (real money, which is gated on mainnet — itself gated on real demand and a security review, not a date). Section 3's Serial Number/population-report example also updated — it described a capped print run that no longer exists (collectibility.md v1.4: specials are now an uncapped, ongoing pack mechanic, not a one-time run).
 
 **v1.1 changes:** the token section was trimmed to a plain **TBC** — the earlier draft's self-listing/Doggos-meme-anchor/Funding-Rule detail was accurate to `STATUS.md`'s internal design direction, but the user judged it premature to publish in a public-facing document before those specifics are actually locked. Also moved off a claude.ai Artifact link and onto a real static page served from the game's own domain (`client/public/litepaper.html`) — see below.
 
@@ -38,12 +40,12 @@ Every card a player owns is real and independently valuable across five separate
 - **Rarity** — how hard the *design* is to pull from a pack at all. Common through Genesis, seven tiers. Genesis is permanently capped at roughly 100 cards, ever — the game's own "genesis block."
 - **Edition** — the print tier of a specific copy: Standard, First Edition, Full Art, Ultra, or Secret. Cosmetic only — no print of a card is ever stronger in a match than any other print of the same card. This is the one rule everything else exists to serve: real collectible value without pay-to-win.
 - **Foil** — an independent shine roll on any copy, any rarity, any edition. Closer to a Pokémon "shiny" than a value multiplier stacked on rarity.
-- **Serial Number** — a specific numbered copy from a capped print run (`#004/250`), where that applies.
+- **Serial Number** — a specific numbered copy (`#41`) when a card rolls a special Edition — a real, permanent mint order, not a slot in a capped run.
 - **Condition (Floor Grade)** — a permanent 1–10 quality roll assigned once at mint, using the game's own finance vocabulary instead of a physical grading company's (10 = Blue Chip, down to 1 = Distressed).
 
 These axes multiply, not add. A Legendary, Secret Edition, Blue-Chip-graded, foil pull isn't a big number — it's the product of five independent long shots, exactly the way a real "only a handful in the world" card gets that way.
 
-**Where being on-chain actually beats the physical original:** a physical grading company needs weeks and a real industry to prove a card is genuine and undamaged. A Floorwars card's Condition is provable from the chain itself, the moment it's minted — no third party, no waiting, no risk of a counterfeit slab. And where PSA publishes population reports collectors pore over, Floorwars can expose the *live, trustless* equivalent — "3 Blue Chip Secret Edition Alpha Dogs minted, out of a 250-unit run, 0 in Foil" — computed directly from the chain, verifiable by anyone, not just claimed.
+**Where being on-chain actually beats the physical original:** a physical grading company needs weeks and a real industry to prove a card is genuine and undamaged. A Floorwars card's Condition is provable from the chain itself, the moment it's minted — no third party, no waiting, no risk of a counterfeit slab. And where PSA publishes population reports collectors pore over, Floorwars can expose the *live, trustless* equivalent — "3 Blue Chip Secret Edition Alpha Dogs minted so far, 0 in Foil" — computed directly from the chain, verifiable by anyone, not just claimed.
 
 ## 4. The economy
 
@@ -69,11 +71,13 @@ Floorwars is being built in a deliberate sequence, not because on-chain features
 2. **Real visual identity and card art.** The current focus — every one of the game's card illustrations, generated and reviewed one at a time.
 3. **Early access.** A real, playable, balanced game a crypto-native audience can actually judge — the thing that proves this isn't another unfinished promise.
 4. **Token launch** — self-listed, liquidity visibly locked, an airdrop to early players and holders. The acquisition and community-building lever, launched once there's a real product to point at.
-5. **On-chain minting and a marketplace** — once there's a real community actually playing and holding, built for the demand that's already there instead of hoping demand shows up because the assets exist.
+5. **Mainnet minting and a marketplace** — once there's a real community actually playing and holding, built for the demand that's already there instead of hoping demand shows up because the assets exist. (The mechanics themselves are already built and proven — see Section 7 — what's gated on real demand is turning them on with real money.)
 
 ## 7. Where things actually stand today
 
-Not a promise — a status. The battle engine, all six factions, and the entire free Coins-earn loop (matches, daily/weekly rewards, quests, permanent achievements, a public leaderboard, referrals) are built and live. Wallet-connect (Sign-In with Ethereum) is the identity layer from day one. Packs, foils, rarity, crafting, and duplicate protection are all real, working systems today, not concepts. What's left before the on-chain layer starts: finishing the game's real illustrated card art (in progress) and the early-access push itself.
+Not a promise — a status. The battle engine, all six factions, and the entire free Coins-earn loop (matches, daily/weekly rewards, quests, permanent achievements, a public leaderboard, referrals) are built and live. Wallet-connect (Sign-In with Ethereum) is the identity layer from day one. Packs, foils, rarity, crafting, and duplicate protection are all real, working systems today, not concepts.
+
+The on-chain layer has started too — deliberately on **testnet**, not mainnet, so the mechanics could be proven out before any real money touches them. Minting a card instance, and buying a pack with crypto instead of Coins, both work today against a real smart contract on Robinhood Chain's public test network — not a mockup. What that means right now: no real money changes hands yet, since testnet tokens have no real-world value and aren't purchasable with real dollars. What's left before any of this moves to mainnet: finishing the game's real illustrated card art (in progress), the early-access push itself, and a real security review of the contracts before they ever hold actual funds.
 
 ---
 

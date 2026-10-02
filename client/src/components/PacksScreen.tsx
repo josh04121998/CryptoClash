@@ -241,6 +241,17 @@ export function PacksScreen({ token, balance, onBalanceChange, activeProvider, o
       <main className="packs-screen">
         {error && <p className="deck-picker__empty">{error}</p>}
 
+        {/* The $ price is real pricing, but paying it today genuinely isn't — it's a testnet USDG
+            transaction (obtained from a faucet, not purchasable with real dollars), not a real
+            charge. Said plainly, in-flow, rather than only in Terms/Privacy — a "Buy — $7.99"
+            button with no caveat reads exactly like a real payment button otherwise. */}
+        {offer?.configured && !revealedCards && (
+          <p className="packs-screen__testnet-note">
+            Testnet demo — "Buy" sends a real on-chain transaction, but on Robinhood Chain's public testnet. It costs test
+            USDG (free from a faucet), not real dollars. See <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms</a> for what that means.
+          </p>
+        )}
+
         {!revealedCards && (
           <div className="deck-picker__grid">
             {packs.map((pack) => {
