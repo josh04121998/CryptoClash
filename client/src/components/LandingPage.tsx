@@ -102,7 +102,7 @@ export function LandingPage({ onEnter }: LandingPageProps) {
         <nav className="landing__nav">
           <span className="landing__logo">FLOORWARS</span>
           <button type="button" className="landing__nav-enter" onClick={onEnter}>
-            Enter the Arena
+            Play vs AI
           </button>
         </nav>
 
@@ -115,9 +115,15 @@ export function LandingPage({ onEnter }: LandingPageProps) {
             Collect, deck-build, and clash across six crypto-native factions — Doggos, Frogs, Apes, Bulls, Bears, and Cats.
             Free to play. No wallet required to jump in.
           </p>
+          {/* A claim ladder, not one undifferentiated button row: the primary rung names the
+              actual, honest, zero-friction payoff (a real match, no account/wallet) rather than
+              vague "Enter the Arena" flavor text — that genuinely matched production's own real
+              funnel (session 39's report: of the handful of visitors who clicked past landing,
+              every one of them went on to start an AI match). The litepaper stays the lower-
+              commitment second rung for anyone who wants more before clicking anything live. */}
           <div className="landing__cta-row">
             <button type="button" className="landing__cta" onClick={onEnter}>
-              Enter the Arena →
+              Play vs AI — free, no wallet →
             </button>
             <a className="landing__cta-secondary" href={LITEPAPER_URL} target="_blank" rel="noopener noreferrer">
               Read the Litepaper
