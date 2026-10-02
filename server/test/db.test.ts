@@ -19,7 +19,7 @@ import {
   getCollectionSummary,
   getStartingFaction,
   grantCardInstances,
-  grantFoundersSetInstance,
+  grantSpecialEditionInstance,
   grantStartingCollection,
   InvalidFactionError,
   setStartingFaction,
@@ -29,7 +29,6 @@ import {
 import { awardMatchResult, getBalance, grantWelcomeBonus, WELCOME_BONUS_COINS } from "../src/coinsRepo.js";
 import { AlreadyClaimedTodayError, claimDaily, DAILY_REWARDS, getDailyStatus } from "../src/dailyRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "../src/eventsRepo.js";
-import { confirmFoundersSetPurchase, PurchaseNotConfiguredError } from "../src/foundersSetRepo.js";
 import {
   getMyCoinsEarned,
   getMyWinRate,
@@ -75,7 +74,15 @@ import {
   InsufficientDustError,
   InvalidTemplateError,
 } from "../src/craftingRepo.js";
-import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, rollPackCards, UnknownPackTypeError } from "../src/packsRepo.js";
+import {
+  confirmPackPurchase,
+  InsufficientCoinsError,
+  openPack,
+  PACK_DEFINITIONS,
+  PurchaseNotConfiguredError,
+  rollPackCards,
+  UnknownPackTypeError,
+} from "../src/packsRepo.js";
 import { AlreadyClaimedThisWeekError, claimWeekly, getWeeklyStatus, WEEKLY_REWARDS } from "../src/weeklyRepo.js";
 
 // These hit a real Postgres — set DATABASE_URL (see server/README.md) to run them.
@@ -386,13 +393,13 @@ d("accounts + decks (integration, real Postgres)", () => {
     });
   });
 
-  describe("Founders Set (foundersSetRepo/collectionRepo)", () => {
-    describe("grantFoundersSetInstance", () => {
-      it("stores the real edition type, foil, condition, and marks First Edition true", async () => {
-        const account = await findOrCreateAccount(pool, "0xfoundersgrant");
+  describe("Special editions (collectionRepo/packsRepo) — session 40's pack-sprinkle, replacing the old Founders Set", () => {
+    describe("grantSpecialEditionInstance", () => {
+      it("stores the real edition type, foil, condition, and leaves First Edition false (no more launch-window concept)", async () => {
+        const account = await findOrCreateAccount(pool, "0xspecialgrant");
         const client = await pool.connect();
         try {
-          const { instanceId, serialNumber } = await grantFoundersSetInstance(client, account.id, {
+          const { instanceId, serialNumber } = await grantSpecialEditionInstance(client, account.id, {
             templateId: "alpha_dog",
             editionType: "full_art",
             isFoil: true,
@@ -416,7 +423,7 @@ d("accounts + decks (integration, real Postgres)", () => {
             edition_type: "full_art",
             is_foil: true,
             condition_grade: 9,
-            is_first_edition: true,
+            is_first_edition: false,
             serial_number: 1,
           });
         } finally {
@@ -425,18 +432,18 @@ d("accounts + decks (integration, real Postgres)", () => {
       });
 
       it("assigns sequential serial numbers per (template, editionType), independent of other editions of the same template", async () => {
-        const account = await findOrCreateAccount(pool, "0xfoundersserials");
+        const account = await findOrCreateAccount(pool, "0xspecialserials");
         const client = await pool.connect();
         try {
           const card = { templateId: "moon_ape", editionType: "ultra" as const, isFoil: false, conditionGrade: 7 };
-          const first = await grantFoundersSetInstance(client, account.id, card);
-          const second = await grantFoundersSetInstance(client, account.id, card);
-          const third = await grantFoundersSetInstance(client, account.id, card);
+          const first = await grantSpecialEditionInstance(client, account.id, card);
+          const second = await grantSpecialEditionInstance(client, account.id, card);
+          const third = await grantSpecialEditionInstance(client, account.id, card);
           expect([first.serialNumber, second.serialNumber, third.serialNumber]).toEqual([1, 2, 3]);
 
           // A different editionType of the *same* template starts its own count at 1 — serials
           // are per (template, edition), not per template alone.
-          const secretOfSameTemplate = await grantFoundersSetInstance(client, account.id, {
+          const secretOfSameTemplate = await grantSpecialEditionInstance(client, account.id, {
             ...card,
             editionType: "secret",
           });
@@ -447,25 +454,25 @@ d("accounts + decks (integration, real Postgres)", () => {
       });
     });
 
-    describe("confirmFoundersSetPurchase", () => {
+    describe("confirmPackPurchase", () => {
       it("refuses to run at all when WEB3_STORE_* isn't configured (the real CI/dev default)", async () => {
-        const account = await findOrCreateAccount(pool, "0xfoundersnotconfigured");
-        await expect(confirmFoundersSetPurchase(pool, account.id, "0xanyaddress", `0x${"1".repeat(64)}`)).rejects.toBeInstanceOf(
+        const account = await findOrCreateAccount(pool, "0xpurchasenotconfigured");
+        await expect(confirmPackPurchase(pool, account.id, "0xanyaddress", `0x${"1".repeat(64)}`)).rejects.toBeInstanceOf(
           PurchaseNotConfiguredError,
         );
       });
     });
 
-    // The gap the client-side "wire in Full Art/editionType" pass (STATUS.md, this session) closed:
-    // a Founders Set grant's real edition_type used to be invisible past grantFoundersSetInstance's
+    // The gap the client-side "wire in Full Art/editionType" pass (STATUS.md, session 37) closed:
+    // a special-edition grant's real edition_type used to be invisible past grantSpecialEditionInstance's
     // own return value — neither listInstancesForTemplate (MintPanel's data source) nor
     // getCollectionSummary (the Collection grid's data source) surfaced it at all.
     describe("editionType surfaced to the client (listInstancesForTemplate, getCollectionSummary)", () => {
-      it("listInstancesForTemplate reports a Founders Set instance's real editionType, not just 'standard'", async () => {
-        const account = await findOrCreateAccount(pool, "0xfoundersedition");
+      it("listInstancesForTemplate reports a special-edition instance's real editionType, not just 'standard'", async () => {
+        const account = await findOrCreateAccount(pool, "0xspecialedition");
         const client = await pool.connect();
         try {
-          await grantFoundersSetInstance(client, account.id, {
+          await grantSpecialEditionInstance(client, account.id, {
             templateId: "moon_dog",
             editionType: "secret",
             isFoil: false,
@@ -480,16 +487,16 @@ d("accounts + decks (integration, real Postgres)", () => {
       });
 
       it("getCollectionSummary reports the best-owned non-Standard edition per template, and omits Standard-only templates", async () => {
-        const account = await findOrCreateAccount(pool, "0xfoundersbestedition");
+        const account = await findOrCreateAccount(pool, "0xspecialbestedition");
         const client = await pool.connect();
         try {
           // A plain Standard copy of a *different* template — must never appear in specialEditions.
           await grantCardInstances(client, account.id, [{ templateId: "fast_fang", isFoil: false, conditionGrade: 7 }]);
-          // moon_dog: a Standard copy plus a Full Art Founders Set pull — Full Art should win
-          // (it's the only non-Standard edition owned), and the Standard copy still counts toward
-          // the plain owned total.
+          // moon_dog: a Standard copy plus a Full Art special pull — Full Art should win (it's the
+          // only non-Standard edition owned), and the Standard copy still counts toward the plain
+          // owned total.
           await grantCardInstances(client, account.id, [{ templateId: "moon_dog", isFoil: false, conditionGrade: 7 }]);
-          await grantFoundersSetInstance(client, account.id, {
+          await grantSpecialEditionInstance(client, account.id, {
             templateId: "moon_dog",
             editionType: "full_art",
             isFoil: false,
@@ -507,7 +514,7 @@ d("accounts + decks (integration, real Postgres)", () => {
         // Grant a Secret pull of the same template — ranked above Full Art, so it should now win.
         const client2 = await pool.connect();
         try {
-          await grantFoundersSetInstance(client2, account.id, {
+          await grantSpecialEditionInstance(client2, account.id, {
             templateId: "moon_dog",
             editionType: "secret",
             isFoil: false,
@@ -667,6 +674,41 @@ d("accounts + decks (integration, real Postgres)", () => {
       const midBand = (counts.get(6) ?? 0) + (counts.get(7) ?? 0);
       const extremes = (counts.get(1) ?? 0) + (counts.get(10) ?? 0);
       expect(midBand).toBeGreaterThan(extremes * 3);
+    });
+
+    // Session 40: Full Art/Ultra/Secret are now a rare secondary roll on top of a Legendary pull,
+    // not a separate guaranteed product — these assert the sprinkle only ever touches Legendaries
+    // and genuinely skews toward Full Art over many rolls, the same shape the old Founders Set
+    // odds test asserted for its own (now-deleted) EDITION_ODDS table.
+    it("only ever upgrades a Legendary pull to a special edition — every non-Legendary card stays 'standard'", () => {
+      for (let seed = 0; seed < 1000; seed++) {
+        for (const card of rollPackCards("standard", seed)) {
+          const rarity = CARD_POOL[card.templateId].rarity;
+          if (rarity !== "Legendary") {
+            expect(card.editionType).toBe("standard");
+          }
+        }
+      }
+    });
+
+    it("special editions are rare but reachable, and skew toward Full Art over Ultra over Secret", () => {
+      const counts = { standard: 0, full_art: 0, ultra: 0, secret: 0 };
+      let legendaryCount = 0;
+      for (let seed = 0; seed < 20000; seed++) {
+        for (const card of rollPackCards("standard", seed)) {
+          if (CARD_POOL[card.templateId].rarity !== "Legendary") continue;
+          legendaryCount++;
+          counts[card.editionType!]++;
+        }
+      }
+      expect(legendaryCount).toBeGreaterThan(0); // the sweep actually hit some Legendaries
+      expect(counts.full_art).toBeGreaterThan(0);
+      expect(counts.ultra).toBeGreaterThan(0);
+      expect(counts.secret).toBeGreaterThan(0); // rare, but must still be reachable
+      expect(counts.full_art).toBeGreaterThan(counts.ultra);
+      expect(counts.ultra).toBeGreaterThan(counts.secret);
+      // The overwhelming majority of even a Legendary pull should still be plain Standard art.
+      expect(counts.standard).toBeGreaterThan(counts.full_art + counts.ultra + counts.secret);
     });
 
     it("opens a pack: debits Coins, grants card instances (foils included), and logs the roll", async () => {

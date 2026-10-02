@@ -9,7 +9,6 @@ import { DeckBuilder } from "./components/DeckBuilder.js";
 import { DeckPicker } from "./components/DeckPicker.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { EventBanner } from "./components/EventBanner.js";
-import { FoundersSetScreen } from "./components/FoundersSetScreen.js";
 import { MyDecksScreen, SavedDeck } from "./components/MyDecksScreen.js";
 import { LandingPage } from "./components/LandingPage.js";
 import { LeaderboardScreen } from "./components/LeaderboardScreen.js";
@@ -40,7 +39,6 @@ type Mode =
   | "my-decks"
   | "deck-builder"
   | "packs"
-  | "founders-set"
   | "collection"
   | "crafting"
   | "quests"
@@ -199,16 +197,6 @@ export default function App() {
         token={wallet.token}
         balance={coinsBalance}
         onBalanceChange={setCoinsBalance}
-        onBack={() => setMode("menu")}
-        onHome={() => setMode("landing")}
-      />
-    );
-  }
-
-  if (mode === "founders-set" && wallet.token) {
-    return (
-      <FoundersSetScreen
-        token={wallet.token}
         activeProvider={wallet.activeProvider}
         onBack={() => setMode("menu")}
         onHome={() => setMode("landing")}
@@ -311,9 +299,6 @@ export default function App() {
               <button type="button" onClick={() => setMode("packs")}>
                 Packs
               </button>
-              <button type="button" onClick={() => setMode("founders-set")}>
-                Founders Set
-              </button>
               <button type="button" onClick={() => setMode("collection")}>
                 Collection
               </button>
@@ -344,9 +329,6 @@ export default function App() {
                   path in. */}
               <button type="button" className="app-bar__locked" title="Connect a wallet to open Packs" onClick={handleConnectClick}>
                 Packs
-              </button>
-              <button type="button" className="app-bar__locked" title="Connect a wallet to buy the Founders Set" onClick={handleConnectClick}>
-                Founders Set
               </button>
               <button type="button" className="app-bar__locked" title="Connect a wallet to view your Collection" onClick={handleConnectClick}>
                 Collection

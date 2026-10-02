@@ -392,7 +392,6 @@ describe("the allowlist", () => {
       "queue_waited",
       "bot_fallback_shown",
       "pack_opened",
-      "founders_set_purchased",
       "craft_action",
       "daily_claimed",
       "screen_view",

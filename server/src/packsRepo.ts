@@ -2,8 +2,9 @@ import { CARD_POOL, mulberry32, Rarity } from "@cryptoclash/engine";
 import { randomInt } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { recordAchievementProgress } from "./achievementsRepo.js";
+import { getStoreClient } from "./chain.js";
 import { applyCoinDeltaOnClient } from "./coinsRepo.js";
-import { grantCardInstances, PackCard } from "./collectionRepo.js";
+import { grantCardInstances, grantSpecialEditionInstance, PackCard, SpecialEditionCard } from "./collectionRepo.js";
 import { withTransaction } from "./txHelper.js";
 
 export interface PackDefinition {
@@ -89,6 +90,40 @@ for (const odds of [NORMAL_ODDS, LAST_SLOT_ODDS]) {
       throw new Error(`Pack odds reference ${rarity}, which PACK_ELIGIBLE_RARITIES excludes — see its comment.`);
     }
   }
+}
+
+/**
+ * Session 40 — replaces the old separate, guaranteed-$7.99 "Founders Set" product (collectibility.md
+ * §13 item 5's original build drifted from its own resolved design, which called for "random pull,
+ * reusing the existing pack mechanism" — this closes that gap). Full Art/Ultra/Secret are no longer
+ * something you buy directly; they're a rare secondary roll layered on top of an ordinary pack's own
+ * Legendary roll, same way a real TCG's alt-art/secret-rare chase sits on top of its Rarity curve.
+ *
+ * Only fires when a slot's Rarity roll (NORMAL_ODDS/LAST_SLOT_ODDS above) comes up Legendary — every
+ * one of the game's 11 Legendary templates already has a real Full Art illustration
+ * (full-art-prompts.md), so this never needs an art-readiness guard the way a wider pool would.
+ * ~90% of Legendary pulls stay plain Standard art; the remaining ~10% splits toward Full Art, same
+ * 70/25/5 relative shape the old Founders Set's EDITION_ODDS already used for "given a special
+ * pull, which tier." Compounded with Legendary's own ~1.8% expected/pack (packsRepo.ts's own NORMAL_
+ * /LAST_SLOT_ODDS comment), a Secret pull lands around 1-in-11,000 packs for any of the 11 — the
+ * genuine grail tier collectibility.md §8's "~5 in the world" math was written to describe. First
+ * pass, not tuned against real data, same caveat as every other number in this file.
+ */
+const SPECIAL_EDITION_ODDS: [Exclude<PackCard["editionType"], "standard" | undefined>, number][] = [
+  ["full_art", 0.07],
+  ["ultra", 0.025],
+  ["secret", 0.005],
+];
+
+function rollEditionType(rarity: Rarity, rng: () => number): PackCard["editionType"] {
+  if (rarity !== "Legendary") return "standard";
+  const roll = rng();
+  let cumulative = 0;
+  for (const [edition, weight] of SPECIAL_EDITION_ODDS) {
+    cumulative += weight;
+    if (roll < cumulative) return edition;
+  }
+  return "standard";
 }
 
 /**
@@ -181,40 +216,70 @@ export function rollPackCards(packType: string, seed: number): PackCard[] {
     const templateId = pool[Math.floor(rng() * pool.length)];
     const isFoil = rng() < FOIL_CHANCE;
     const conditionGrade = rollCondition(rng);
-    cards.push({ templateId, isFoil, conditionGrade });
+    const editionType = rollEditionType(rarity, rng);
+    cards.push({ templateId, isFoil, conditionGrade, editionType });
   }
   return cards;
 }
 
 export interface PackOpenResult {
-  cards: PackCard[];
+  cards: (PackCard & { serialNumber?: number })[];
   balance: number;
 }
 
 /**
  * Rolls a fresh seed, grants the resulting cards, and logs the roll to
- * pack_openings — the shared middle step between a paid open (openPack,
- * coinsSpent = the pack's cost) and a free grant (referralsRepo's viral-invite
- * rewards, coinsSpent = 0 — a real audit-log row, not a special case, so a
- * free pack is just as reproducible/auditable as a paid one). Takes a
+ * pack_openings — the shared middle step between a Coins-paid open (openPack,
+ * coinsSpent = the pack's cost, usdgPaid = undefined), a real-money open
+ * (confirmPackPurchase, coinsSpent = 0, usdgPaid = the on-chain amount actually paid), and a free
+ * grant (referralsRepo's viral-invite rewards, both 0/undefined — a real audit-log row, not a
+ * special case, so a free pack is just as reproducible/auditable as a paid one). Takes a
  * `PoolClient` so callers compose it into their own transaction. Also advances the
  * "pack_opened_total" achievement (achievementsRepo.ts) by one per call — this is the one shared
- * path both a paid open and a free grant (referralsRepo.ts's viral-invite rewards) go through,
- * so hooking it here covers both without a second tracking call site.
+ * path every grant path goes through, so hooking it here covers all of them without a second
+ * tracking call site.
+ *
+ * Grants in two groups, not one bulk call: the overwhelming majority of a roll is Standard-edition
+ * (grantCardInstances' cheap bulk unnest()), but any card this roll upgraded to a special edition
+ * (rollEditionType above, session 40) needs its own serial number and so goes through
+ * grantSpecialEditionInstance one at a time instead — see collectionRepo.ts's own doc comments on
+ * both for why they can't share a code path. Almost always zero special cards per pack; the loop
+ * is simply skipped in that case. The returned array attaches each special card's real
+ * serialNumber (standard cards never get one) so the client can show "#N" on a genuine chase pull,
+ * the same reveal detail the old Founders Set screen always showed.
  */
-export async function rollGrantAndLog(client: PoolClient, accountId: string, packType: string, coinsSpent: number): Promise<PackCard[]> {
+export async function rollGrantAndLog(
+  client: PoolClient,
+  accountId: string,
+  packType: string,
+  coinsSpent: number,
+  realMoney?: { usdgPaid: string; intentId: string },
+): Promise<(PackCard & { serialNumber?: number })[]> {
   const def = PACK_DEFINITIONS[packType];
   if (!def) throw new UnknownPackTypeError(`Unknown pack type: ${packType}`);
 
   const seed = randomInt(0, 2 ** 31 - 1);
   const cards = rollPackCards(packType, seed);
-  await grantCardInstances(client, accountId, cards);
+
+  const standardCards: PackCard[] = [];
+  const result: (PackCard & { serialNumber?: number })[] = [];
+  for (const card of cards) {
+    if (card.editionType && card.editionType !== "standard") {
+      const { serialNumber } = await grantSpecialEditionInstance(client, accountId, card as PackCard & SpecialEditionCard);
+      result.push({ ...card, serialNumber });
+    } else {
+      standardCards.push(card);
+      result.push(card);
+    }
+  }
+  await grantCardInstances(client, accountId, standardCards);
+
   await client.query(
-    `insert into pack_openings (account_id, pack_type, coins_spent, cards, seed) values ($1, $2, $3, $4, $5)`,
-    [accountId, packType, coinsSpent, JSON.stringify(cards), seed],
+    `insert into pack_openings (account_id, pack_type, coins_spent, cards, seed, usdg_paid, intent_id) values ($1, $2, $3, $4, $5, $6, $7)`,
+    [accountId, packType, coinsSpent, JSON.stringify(result), seed, realMoney?.usdgPaid ?? null, realMoney?.intentId ?? null],
   );
   await recordAchievementProgress(client, accountId, "pack_opened_total", 1);
-  return cards;
+  return result;
 }
 
 /**
@@ -241,5 +306,59 @@ export async function openPack(pool: Pool, accountId: string, packType: string):
     const cards = await rollGrantAndLog(client, accountId, packType, def.cost);
 
     return { cards, balance: balanceAfter };
+  });
+}
+
+export class PurchaseNotConfiguredError extends Error {}
+export class PurchaseNotFoundError extends Error {}
+export class PurchaseAlreadyGrantedError extends Error {}
+
+/**
+ * The real-money path onto the exact same "standard" pack `openPack` above sells for Coins —
+ * session 40 replaced the old separate, guaranteed-$7.99 Founders Set product with this: $7.99
+ * (FloorwarsStore.sol's `price`) buys the identical pack a player could also earn with Coins, odds
+ * and all, just through a different payment rail. Reuses `FloorwarsStore.sol` exactly as already
+ * deployed to testnet — its `purchaseFoundersSet` function is now spent on packs instead, a
+ * cosmetic on-chain naming wart worth a clean rename+redeploy later but harmless today (nothing
+ * about the contract's actual behavior — pull `price` in `paymentToken`, record an `intentId`,
+ * emit `Purchase` — was ever specific to the old product; zero real purchases ever happened under
+ * the old name per production telemetry, so there's no real-money history being reinterpreted).
+ *
+ * This never submits a transaction itself — the player's own wallet calls the contract directly
+ * (see FloorwarsStore.sol's own doc comment for why). All this does is read `StoreClient.
+ * verifyPurchase` to confirm `intentId` was really paid by `walletAddress`, then roll/grant/log
+ * exactly like a Coins-paid open.
+ *
+ * The `pack_purchases` row (migration 0017, renamed from founders_set_purchases) inserted via `on
+ * conflict do nothing` is the idempotency guard for *this* function specifically — the contract's
+ * own on-chain `purchased` mapping already stops the same intentId being paid twice, but does
+ * nothing to stop this confirm endpoint being called twice for one real payment (a retry, a
+ * duplicate request), which would otherwise double-grant a pack for a single purchase. Same
+ * "claim via an atomic insert before doing the real work" shape as mintingRepo.ts's mintInstance.
+ */
+export async function confirmPackPurchase(pool: Pool, accountId: string, walletAddress: string, intentId: string): Promise<PackOpenResult> {
+  const store = getStoreClient();
+  if (!store) throw new PurchaseNotConfiguredError("Real-money pack purchases aren't configured on this server.");
+
+  const purchase = await store.verifyPurchase(intentId, walletAddress);
+  if (!purchase) throw new PurchaseNotFoundError("No matching on-chain purchase found for this intent.");
+
+  return withTransaction(pool, async (client) => {
+    const claim = await client.query<{ intent_id: string }>(
+      `insert into pack_purchases (intent_id, account_id, amount_paid)
+       values ($1, $2, $3)
+       on conflict (intent_id) do nothing
+       returning intent_id`,
+      [intentId, accountId, purchase.amount.toString()],
+    );
+    if (claim.rows.length === 0) {
+      throw new PurchaseAlreadyGrantedError("This purchase has already been granted.");
+    }
+
+    const amountStr = purchase.amount.toString();
+    const cards = await rollGrantAndLog(client, accountId, "standard", 0, { usdgPaid: amountStr, intentId });
+
+    const balanceRow = await client.query<{ coins_balance: number }>("select coins_balance from accounts where id = $1", [accountId]);
+    return { cards, balance: balanceRow.rows[0]?.coins_balance ?? 0 };
   });
 }

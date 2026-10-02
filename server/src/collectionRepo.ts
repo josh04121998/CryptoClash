@@ -117,16 +117,22 @@ export async function setStartingFaction(pool: Pool, accountId: string, faction:
   });
 }
 
-/** A single card grant: which template, whether this copy rolled the pack's cosmetic foil chance, and its rolled Condition (Floor Grade, collectibility.md Section 7) — 1-10, permanent once granted. */
+/** A single card grant: which template, whether this copy rolled the pack's cosmetic foil chance,
+ * its rolled Condition (Floor Grade, collectibility.md Section 7) — 1-10, permanent once granted
+ * — and its rolled Edition. `editionType` is omitted (or "standard") for the overwhelming majority
+ * of pulls; packsRepo.ts only ever sets it to a non-standard tier on the rare secondary roll that
+ * fires when a slot's Rarity roll comes up Legendary (session 40 — replaces the old separate
+ * guaranteed-$7.99-Founders-Set product with specials sprinkled into ordinary packs instead). */
 export interface PackCard {
   templateId: string;
   isFoil: boolean;
   conditionGrade: number;
+  editionType?: "standard" | "full_art" | "ultra" | "secret";
 }
 
 /**
  * The fixed, zero-RNG Condition grade (Section 7's "Near Prime" band) for
- * every path that isn't a real pack/Founders Set roll — Starter Decks
+ * every path that isn't a real pack roll — Starter Decks
  * (grantStartingCollectionWithClient below) and Crafting (craftingRepo.ts),
  * both already deterministic/non-foil/Standard-Edition-only by design, so a
  * random Condition roll would be the odd one out among their guarantees.
@@ -146,6 +152,15 @@ export const BASELINE_CONDITION_GRADE = 7;
  */
 export async function grantCardInstances(client: PoolClient, accountId: string, cards: PackCard[]): Promise<void> {
   if (cards.length === 0) return;
+  // This bulk path always inserts 'standard' edition_type below — it has no serial-number logic
+  // (that only applies to non-standard editions, collectibility.md §6) and no per-row edition
+  // column in its unnest(). A non-standard card reaching here would silently get downgraded to
+  // Standard rather than erroring, which is worse than failing loudly — callers must route any
+  // special-edition card through grantSpecialEditionInstance instead (see packsRepo.ts's own
+  // partitioning of a roll's cards before granting).
+  if (cards.some((c) => c.editionType && c.editionType !== "standard")) {
+    throw new Error("grantCardInstances only grants Standard-edition cards — route non-standard cards through grantSpecialEditionInstance.");
+  }
   const uniqueIds = [...new Set(cards.map((c) => c.templateId))];
 
   const editionRows = await client.query<{ id: string; template_id: string }>(
@@ -170,8 +185,11 @@ export async function grantCardInstances(client: PoolClient, accountId: string, 
   );
 }
 
-/** One Founders Set pull — see grantFoundersSetInstance below. Never 'standard': the whole point of paying for a Founders Set is a non-standard edition tier (collectibility.md §4/§8). */
-export interface FoundersSetCard {
+/** One non-Standard-edition pull — see grantSpecialEditionInstance below. editionType is never
+ * 'standard' here by construction (callers only reach this function for a card that already
+ * rolled a special tier); typed narrower than PackCard's own optional field to keep that
+ * invariant visible at the call site rather than just asserted in a comment. */
+export interface SpecialEditionCard {
   templateId: string;
   editionType: "full_art" | "ultra" | "secret";
   isFoil: boolean;
@@ -179,19 +197,24 @@ export interface FoundersSetCard {
 }
 
 /**
- * Grants one Founders Set card at a time — unlike grantCardInstances' bulk unnest() above, each
- * instance needs its own serial number (collectibility.md §6: "only make sense attached to
- * Founders Set output"), computed as a count-and-lock on its specific (template, editionType)
- * card_editions row so two concurrent Founders Set purchases rolling the same card+edition can
- * never be handed the same serial. Founders Sets are a real-money, one-time launch product a
- * player buys through a deliberate purchase flow, not something bulk-opened the way packs are —
- * the per-card round trip this costs is not the real performance concern it would be in
- * packsRepo.ts's bulk path.
+ * Grants one special-edition card at a time — unlike grantCardInstances' bulk unnest() above,
+ * each instance needs its own serial number (collectibility.md §6: "only make sense attached to
+ * [non-Standard] output"), computed as a count-and-lock on its specific (template, editionType)
+ * card_editions row so two concurrent grants rolling the same card+edition can never be handed
+ * the same serial. Originally built for the one-time Founders Set product (a deliberate purchase
+ * flow, so the per-card round trip wasn't the real performance concern it would be in
+ * packsRepo.ts's bulk path); session 40 folded Full Art/Ultra/Secret into ordinary pack rolls
+ * instead, still via this same per-instance path since they're rare enough per pack (at most a
+ * couple of a 5-card pack's slots, usually zero) that the round-trip cost stays negligible.
+ *
+ * `is_first_edition` is always false here now — that flag specifically meant "part of the
+ * original Founders Set launch window" (collectibility.md §10.5), a concept that stopped existing
+ * once specials became an ongoing pack mechanic rather than a one-time print run.
  */
-export async function grantFoundersSetInstance(
+export async function grantSpecialEditionInstance(
   client: PoolClient,
   accountId: string,
-  card: FoundersSetCard,
+  card: SpecialEditionCard,
 ): Promise<{ instanceId: string; serialNumber: number }> {
   const editionRow = await client.query<{ id: string }>(
     `insert into card_editions (template_id, edition_type)
@@ -214,7 +237,7 @@ export async function grantFoundersSetInstance(
 
   const instanceRow = await client.query<{ id: string }>(
     `insert into card_instances (owner_id, edition_id, is_foil, condition_grade, serial_number, is_first_edition)
-     values ($1, $2, $3, $4, $5, true)
+     values ($1, $2, $3, $4, $5, false)
      returning id`,
     [accountId, editionId, card.isFoil, card.conditionGrade, serialNumber],
   );
@@ -239,8 +262,8 @@ export async function getCollectionCounts(pool: Pool, accountId: string): Promis
 
 /** Non-Standard print tiers, ranked for "best owned" purposes (collectibility.md §4/§8) — Secret
  * outranks Ultra outranks Full Art, matching the Edition ladder's own ordering. Index 0 (Standard)
- * never appears in the ranked-edition result below (only a real Founders Set pull sets a rank > 0),
- * kept only so the SQL `case` below and this array agree on the same 0-3 numbering. */
+ * never appears in the ranked-edition result below (only a real special-edition pull sets a rank
+ * > 0), kept only so the SQL `case` below and this array agree on the same 0-3 numbering. */
 const EDITION_BY_RANK = ["standard", "full_art", "ultra", "secret"] as const;
 
 /**

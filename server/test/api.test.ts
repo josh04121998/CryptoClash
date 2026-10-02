@@ -780,15 +780,15 @@ d("/api/* over real HTTP, against real Postgres", () => {
     });
   });
 
-  describe("Founders Set over HTTP", () => {
-    it("GET /api/founders-set is public and reports not configured by this test server's real default", async () => {
-      const res = await fetch(`${baseUrl}/api/founders-set`);
+  describe("Real-money pack purchases over HTTP (session 40 — replaces the old Founders Set routes)", () => {
+    it("GET /api/packs/purchase-offer is public and reports not configured by this test server's real default", async () => {
+      const res = await fetch(`${baseUrl}/api/packs/purchase-offer`);
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual({ configured: false });
     });
 
-    it("POST /api/founders-set/confirm requires auth", async () => {
-      const res = await fetch(`${baseUrl}/api/founders-set/confirm`, {
+    it("POST /api/packs/confirm-purchase requires auth", async () => {
+      const res = await fetch(`${baseUrl}/api/packs/confirm-purchase`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ intentId: `0x${"1".repeat(64)}` }),
@@ -796,9 +796,9 @@ d("/api/* over real HTTP, against real Postgres", () => {
       expect(res.status).toBe(401);
     });
 
-    it("POST /api/founders-set/confirm rejects a malformed intentId with 400 before ever reaching the config check", async () => {
+    it("POST /api/packs/confirm-purchase rejects a malformed intentId with 400 before ever reaching the config check", async () => {
       const { token } = await signIn();
-      const res = await fetch(`${baseUrl}/api/founders-set/confirm`, {
+      const res = await fetch(`${baseUrl}/api/packs/confirm-purchase`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ intentId: "not-a-real-intent-id" }),
@@ -806,9 +806,9 @@ d("/api/* over real HTTP, against real Postgres", () => {
       expect(res.status).toBe(400);
     });
 
-    it("POST /api/founders-set/confirm 501s a well-formed request when WEB3_STORE_* isn't configured", async () => {
+    it("POST /api/packs/confirm-purchase 501s a well-formed request when WEB3_STORE_* isn't configured", async () => {
       const { token } = await signIn();
-      const res = await fetch(`${baseUrl}/api/founders-set/confirm`, {
+      const res = await fetch(`${baseUrl}/api/packs/confirm-purchase`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ intentId: `0x${"1".repeat(64)}` }),

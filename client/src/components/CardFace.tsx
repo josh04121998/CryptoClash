@@ -25,7 +25,7 @@ export interface CardFaceProps {
   foil?: boolean;
   /** Cosmetic-only Condition/Floor Grade, 1-10 (collectibility.md Section 7) — never affects gameplay. Omitted where the caller has no specific instance in hand (e.g. a template browsed in isolation with no owned copy). */
   conditionGrade?: number;
-  /** Cosmetic-only print/edition (collectibility.md §4/§8) — never affects gameplay stats or legality. Omitted (or "standard") where the caller has no specific instance, or the instance is a plain Standard print, same as every card outside a Founders Set. */
+  /** Cosmetic-only print/edition (collectibility.md §4/§8) — never affects gameplay stats or legality. Omitted (or "standard") where the caller has no specific instance, or the instance is a plain Standard print, same as the overwhelming majority of pack pulls (session 40: Full Art/Ultra/Secret are a rare secondary roll, not a separate product). */
   editionType?: EditionType;
   size?: "hand" | "board";
   /** This creature just attacked — a one-shot lunge toward the enemy row (BoardRow decides which physical direction that is). */
@@ -47,7 +47,7 @@ export interface CardFaceProps {
  * branding.md §9.5) or no rarity yet (tokens — `frameArt` falls back to the
  * Legendary frame shape, only Common..Legendary have real art).
  *
- * A Full Art/Ultra/Secret instance (`editionType`, Founders Set only) swaps in
+ * A Full Art/Ultra/Secret instance (`editionType`, a rare pack-roll upgrade — session 40) swaps in
  * `fullCardArt()`'s illustration and drops the frame layer entirely, mirroring
  * `tools/card-render/render-card.mjs`'s own mint-time compositor exactly: the frame PNG's
  * opaque-except-a-cutout design is what makes Standard art read as "windowed" at all, so a

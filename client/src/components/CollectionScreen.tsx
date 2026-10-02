@@ -26,8 +26,8 @@ type RarityFilter = Rarity | "All";
 /**
  * The "digital binder" view (spec.md Section 19). Foils are real (packs roll them — see
  * packsRepo.ts), so this screen surfaces them: a summary count and a per-card badge/filter.
- * Full Art/Ultra/Secret/First Edition/Serial (Founders Set only — collectibility.md §4/§8) are
- * real too now: the grid tile for a template with any special-edition copy owned shows that
+ * Full Art/Ultra/Secret/Serial (a rare pack-roll upgrade, session 40 — collectibility.md §4/§8)
+ * are real too now: the grid tile for a template with any special-edition copy owned shows that
  * copy's real illustration (falling back to the Standard art it aggregates alongside, per
  * `getCollectionSummary`'s "best owned edition, ranked" pick) plus an edition badge — the
  * per-instance breakdown (which exact copies, their Foil/Condition/Serial) lives in MintPanel,

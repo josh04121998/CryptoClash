@@ -166,8 +166,11 @@ export const TELEMETRY_EVENT_NAMES = [
   "match_ended",
   "queue_waited",
   "bot_fallback_shown",
+  // "viaMoney" (boolean prop) distinguishes a real-money pack open from a Coins one — a single
+  // event, not two, same reasoning as every other "same action, different payment rail" question
+  // in this app. Replaces the old "founders_set_purchased" (removed session 40 — that product no
+  // longer exists as a separate purchase, see packsRepo.ts's confirmPackPurchase).
   "pack_opened",
-  "founders_set_purchased",
   "craft_action",
   "daily_claimed",
   "screen_view",

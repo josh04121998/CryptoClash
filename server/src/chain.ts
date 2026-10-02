@@ -34,7 +34,7 @@ export function getStoreClient(): StoreClient | null {
     return new StoreClient(loadStoreConfig());
   } catch (e) {
     if (e instanceof Error && e.message.includes("is not set")) return null;
-    console.error("[chain] WEB3_STORE_* env vars are set but invalid, Founders Set purchases stay disabled:", (e as Error).message);
+    console.error("[chain] WEB3_STORE_* env vars are set but invalid, real-money pack purchases stay disabled:", (e as Error).message);
     return null;
   }
 }

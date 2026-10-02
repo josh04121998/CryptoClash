@@ -305,7 +305,7 @@ export function useWallet() {
     startingFaction,
     chooseStartingFaction,
     // The raw EIP-1193 provider that actually signed the current session, for anything that
-    // needs to submit a *transaction* through the same wallet (Founders Set purchases) rather
+    // needs to submit a *transaction* through the same wallet (real-money pack purchases) rather
     // than just call the read-only REST API. Falls back to window.ethereum the same way the
     // hook's own internal listeners already do, for a caller that mounts before a session was
     // ever established here (nothing signed in yet, but a single injected wallet still exists).

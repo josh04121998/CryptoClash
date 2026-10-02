@@ -35,14 +35,17 @@ import {
 import { AlreadyClaimedTodayError, claimDaily, getDailyStatus } from "./dailyRepo.js";
 import { createDeck, deleteDeck, listDecks, updateDeck } from "./decksRepo.js";
 import { deleteEvent, getActiveEvent, upsertEvent } from "./eventsRepo.js";
+import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
 import {
-  confirmFoundersSetPurchase,
+  confirmPackPurchase,
+  InsufficientCoinsError,
+  openPack,
+  PACK_DEFINITIONS,
   PurchaseAlreadyGrantedError,
   PurchaseNotConfiguredError,
   PurchaseNotFoundError,
-} from "./foundersSetRepo.js";
-import { getMyCoinsEarned, getMyWinRate, getMyWins, getTopCoinsEarned, getTopWinRate, getTopWins } from "./leaderboardRepo.js";
-import { InsufficientCoinsError, openPack, PACK_DEFINITIONS, UnknownPackTypeError } from "./packsRepo.js";
+  UnknownPackTypeError,
+} from "./packsRepo.js";
 import { claimQuest, getTodayQuests, QuestAlreadyClaimedError, QuestNotCompleteError, UnknownQuestError } from "./questsRepo.js";
 import { getMyRank, getTopRank } from "./rankRepo.js";
 import {
@@ -382,10 +385,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     }
 
     // Public — same "no login wall to look" posture as GET /api/packs. Tells the client whether
-    // a real purchase is even possible right now, and the exact on-chain params (store contract,
-    // payment token, chain id, current price) it needs to construct the approve + purchase
-    // transactions itself — this route never submits anything, the player's own wallet does.
-    if (url.pathname === "/api/founders-set" && req.method === "GET") {
+    // a real-money purchase is even possible right now, and the exact on-chain params (store
+    // contract, payment token, chain id, current price) it needs to construct the approve +
+    // purchase transactions itself — this route never submits anything, the player's own wallet
+    // does. Same FloorwarsStore.sol deployment the old Founders Set flow used (packsRepo.ts's own
+    // doc comment on confirmPackPurchase explains why reusing it is safe).
+    if (url.pathname === "/api/packs/purchase-offer" && req.method === "GET") {
       const store = getStoreClient();
       if (!store) {
         sendJson(res, 200, { configured: false });
@@ -405,7 +410,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
       return true;
     }
 
-    if (url.pathname === "/api/founders-set/confirm" && req.method === "POST") {
+    if (url.pathname === "/api/packs/confirm-purchase" && req.method === "POST") {
       const session = await requireAccountWithWallet(req);
       if (!session) {
         sendJson(res, 401, { error: "Not authenticated." });
@@ -417,7 +422,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
         return true;
       }
       try {
-        const result = await confirmFoundersSetPurchase(pool, session.accountId, session.walletAddress, body.intentId);
+        const result = await confirmPackPurchase(pool, session.accountId, session.walletAddress, body.intentId);
         sendJson(res, 200, result);
       } catch (e) {
         if (e instanceof PurchaseNotConfiguredError) {
