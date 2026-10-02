@@ -101,9 +101,21 @@ export function MatchView({
 
   const me = state.players[myPlayerId];
   const canAct = state.activePlayer === myPlayerId && !state.winner;
+  // Client-side rejections (a drag/tap that never reached dispatch at all, e.g. a creature
+  // dropped on an occupied slot) used to just silently reset the selection — real feedback only
+  // ever existed for *engine*-rejected actions (lastError, above). A real re-playtest (session 39)
+  // flagged exactly this gap and deferred it; this is that fix. See the hint call sites below.
+  const [actionHint, setActionHint] = useState<string | null>(null);
+  useEffect(() => {
+    if (!actionHint) return;
+    const timer = setTimeout(() => setActionHint(null), 3000);
+    return () => clearTimeout(timer);
+  }, [actionHint]);
+
   const act = (fn: () => void) => {
     fn();
     setSelection({ type: "none" });
+    setActionHint(null);
   };
 
   // A tap always just previews/selects — never commits a play on its own, regardless of card
@@ -113,6 +125,7 @@ export function MatchView({
   // onEnemyPortraitClick below); a no-target card commits via confirmNoTargetPlay's prompt.
   function onCardTap(index: number) {
     if (!canAct) return;
+    setActionHint(null);
     if (selection.type === "hand" && selection.handIndex === index) {
       playClickSound();
       setSelection({ type: "none" });
@@ -129,6 +142,7 @@ export function MatchView({
 
   function onCardDragStart(index: number) {
     if (!canAct) return;
+    setActionHint(null);
     playSelectSound();
     setSelection({ type: "hand", handIndex: index });
   }
@@ -150,6 +164,9 @@ export function MatchView({
         act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: index, slot: drop.slot }));
         return;
       }
+      setActionHint(
+        drop?.zone === "own-slot" ? "That slot is already occupied — drop on an empty one." : "Creatures go on an empty slot of your own board.",
+      );
       setSelection({ type: "none" });
       return;
     }
@@ -191,6 +208,9 @@ export function MatchView({
           return;
         }
       }
+      setActionHint(
+        targetsFriendly(templateId) ? "Drop it on one of your own creatures to target them." : "Drop it on an enemy creature or their portrait to target them.",
+      );
       setSelection({ type: "none" });
       return;
     }
@@ -201,6 +221,7 @@ export function MatchView({
       act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: index }));
       return;
     }
+    setActionHint("Drop it anywhere on the battlefield to play it.");
     setSelection({ type: "none" });
   }
 
@@ -211,20 +232,30 @@ export function MatchView({
       if (selection.type === "hand") {
         const templateId = me.hand[selection.handIndex];
         const template = CARD_POOL[templateId];
-        if (template.type === "Creature" && !creature) {
-          act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex, slot }));
+        if (template.type === "Creature") {
+          if (!creature) {
+            act(() => dispatch({ kind: "playCard", playerId: myPlayerId, handIndex: selection.handIndex, slot }));
+          } else {
+            setActionHint("That slot is already occupied — pick an empty one.");
+          }
           return;
         }
-        if (needsTarget(templateId) && targetsFriendly(templateId) && creature) {
-          act(() =>
-            dispatch({
-              kind: "playCard",
-              playerId: myPlayerId,
-              handIndex: selection.handIndex,
-              target: { type: "creature", playerId: myPlayerId, slot },
-            }),
-          );
+        if (needsTarget(templateId) && targetsFriendly(templateId)) {
+          if (creature) {
+            act(() =>
+              dispatch({
+                kind: "playCard",
+                playerId: myPlayerId,
+                handIndex: selection.handIndex,
+                target: { type: "creature", playerId: myPlayerId, slot },
+              }),
+            );
+          } else {
+            setActionHint("Select a friendly creature to target, not an empty slot.");
+          }
+          return;
         }
+        setActionHint(`${template.name} can't be played on your own board.`);
         return;
       }
 
@@ -234,6 +265,9 @@ export function MatchView({
         return;
       }
 
+      if (selection.type === "attacker") {
+        setActionHint(creature ? "That creature already attacked this turn." : "Select one of your own creatures to attack with.");
+      }
       setSelection({ type: "none" });
     }
 
@@ -250,28 +284,39 @@ export function MatchView({
     if (canAct) {
       if (selection.type === "hand") {
         const templateId = me.hand[selection.handIndex];
-        if (needsTarget(templateId) && !targetsFriendly(templateId) && enemyCreature) {
-          act(() =>
-            dispatch({
-              kind: "playCard",
-              playerId: myPlayerId,
-              handIndex: selection.handIndex,
-              target: { type: "creature", playerId: opponentId, slot },
-            }),
-          );
+        const template = CARD_POOL[templateId];
+        if (needsTarget(templateId) && !targetsFriendly(templateId)) {
+          if (enemyCreature) {
+            act(() =>
+              dispatch({
+                kind: "playCard",
+                playerId: myPlayerId,
+                handIndex: selection.handIndex,
+                target: { type: "creature", playerId: opponentId, slot },
+              }),
+            );
+          } else {
+            setActionHint("Select an enemy creature to target — that slot is empty.");
+          }
+        } else {
+          setActionHint(`${template.name} can't target the enemy board.`);
         }
         return;
       }
 
-      if (selection.type === "attacker" && enemyCreature) {
-        act(() =>
-          dispatch({
-            kind: "attack",
-            playerId: myPlayerId,
-            attackerSlot: selection.slot,
-            target: { type: "creature", playerId: opponentId, slot },
-          }),
-        );
+      if (selection.type === "attacker") {
+        if (enemyCreature) {
+          act(() =>
+            dispatch({
+              kind: "attack",
+              playerId: myPlayerId,
+              attackerSlot: selection.slot,
+              target: { type: "creature", playerId: opponentId, slot },
+            }),
+          );
+        } else {
+          setActionHint("No creature there — attack an enemy creature or their portrait.");
+        }
         return;
       }
     }
@@ -345,6 +390,22 @@ export function MatchView({
       ? CARD_POOL[me.hand[selection.handIndex]]
       : undefined;
 
+  // A proactive "what does my second tap/drop do" hint — the selection glow and board
+  // highlights (ownBoardTargetable/ownEmptySlotTargetable/enemyTargetable above) already show
+  // *where*, but said nothing in words about *what to do there*, especially on a first playthrough.
+  const selectionHint: string | null = (() => {
+    if (!canAct) return null;
+    if (selection.type === "attacker") return "Tap an enemy creature or their portrait to attack.";
+    if (selection.type !== "hand") return null;
+    const templateId = me.hand[selection.handIndex];
+    const template = CARD_POOL[templateId];
+    if (template.type === "Creature") return "Tap or drop on an empty slot of your own to play it.";
+    if (needsTarget(templateId)) {
+      return targetsFriendly(templateId) ? "Tap one of your own creatures to target." : "Tap an enemy creature or their portrait to target.";
+    }
+    return null; // no-target, non-creature card — the ▶ Play prompt below covers this case
+  })();
+
   const winnerText = state.winner ? (state.winner === "Draw" ? "Draw!" : state.winner === myPlayerId ? "You win!" : "You lose.") : null;
 
   const mySpotlightSlot = spotlight.kind === "emptySlot" || spotlight.kind === "ownCreature" ? spotlight.slot : undefined;
@@ -409,15 +470,17 @@ export function MatchView({
               <button type="button" className="table__play-prompt" onClick={confirmNoTargetPlay}>
                 ▶ Play {pendingNoTargetCard.name}
               </button>
+            ) : selectionHint ? (
+              <span className="table__hint">{selectionHint}</span>
             ) : (
               <span>
                 Turn {state.turnNumber} —{" "}
                 {state.activePlayer === myPlayerId ? <strong className="table__your-turn">Your move</strong> : opponentTurnLabel}
               </span>
             )}
-            {lastError && (
+            {(lastError || actionHint) && (
               <span className="table__error" role="status" aria-live="polite">
-                {lastError}
+                {lastError ?? actionHint}
               </span>
             )}
           </div>

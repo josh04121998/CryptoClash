@@ -375,6 +375,14 @@ button {
   font-size: 0.75rem;
 }
 
+/* Proactive "what does my next tap do" hint while a card/attacker is selected — replaces the
+   plain turn text in the same slot, same idea as .table__play-prompt but for cases that still
+   need a target rather than a single confirm tap. */
+.table__hint {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* Confirm affordance for a selected no-target spell/item — there's no slot/portrait to click
    to commit it, so this stands in for one, replacing the turn indicator while it's up. */
 .table__play-prompt {
