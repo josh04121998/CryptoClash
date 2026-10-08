@@ -7,6 +7,7 @@ import { shouldFallBackToBot, shouldShowQueueHint } from "./queueFallback.js";
 import { playRewardSound } from "./sound.js";
 import { track } from "./telemetry.js";
 import { useOnlineMatch } from "./useOnlineMatch.js";
+import { trackMatchCompleteOnVercel } from "./vercelEvents.js";
 
 export interface OnlineMatchProps {
   deckCards: string[];
@@ -95,11 +96,9 @@ export function OnlineMatch({ deckCards, token, onExit }: OnlineMatchProps) {
   useEffect(() => {
     if (!state?.winner || !playerId || endedRef.current) return;
     endedRef.current = true;
-    track("match_ended", {
-      mode: "online",
-      result: state.winner === "Draw" ? "draw" : state.winner === playerId ? "win" : "loss",
-      turns: state.turnNumber,
-    });
+    const result = state.winner === "Draw" ? "draw" : state.winner === playerId ? "win" : "loss";
+    track("match_ended", { mode: "online", result, turns: state.turnNumber });
+    trackMatchCompleteOnVercel("online", result, state.turnNumber);
   }, [state, playerId]);
 
   /** Re-queueing ("Find another match" / "Retry") is a whole new match — re-arm both guards. */

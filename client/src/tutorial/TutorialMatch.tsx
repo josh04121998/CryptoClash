@@ -8,6 +8,7 @@ import { coachFor, spotlightFor } from "./beats.js";
 import { CoachCard } from "./CoachCard.js";
 import { useTutorialMatch } from "./useTutorialMatch.js";
 import { useFocusTrap } from "../useFocusTrap.js";
+import { trackMatchCompleteOnVercel } from "../vercelEvents.js";
 
 export interface TutorialMatchProps {
   onPracticeAi: () => void;
@@ -39,11 +40,9 @@ export function TutorialMatch({ onPracticeAi, onMainMenu }: TutorialMatchProps) 
   useEffect(() => {
     if (!state.winner || endedRef.current) return;
     endedRef.current = true;
-    track("match_ended", {
-      mode: "tutorial",
-      result: state.winner === "Draw" ? "draw" : state.winner === "A" ? "win" : "loss",
-      turns: state.turnNumber,
-    });
+    const result = state.winner === "Draw" ? "draw" : state.winner === "A" ? "win" : "loss";
+    track("match_ended", { mode: "tutorial", result, turns: state.turnNumber });
+    trackMatchCompleteOnVercel("tutorial", result, state.turnNumber);
   }, [state.winner, state.turnNumber]);
 
   /** Leaving the tutorial before the board resolves is an abandoned match, whichever exit was used. */

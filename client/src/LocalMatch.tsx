@@ -4,6 +4,7 @@ import { MatchView } from "./components/MatchView.js";
 import { MuteToggle } from "./components/MuteToggle.js";
 import { track } from "./telemetry.js";
 import { useMatch } from "./useMatch.js";
+import { trackMatchCompleteOnVercel } from "./vercelEvents.js";
 
 export interface LocalMatchProps {
   deckCards: string[];
@@ -47,11 +48,9 @@ export function LocalMatch({ deckCards, onExit, subtitle, notice, telemetryMode 
   useEffect(() => {
     if (!state.winner || endedRef.current) return;
     endedRef.current = true;
-    track("match_ended", {
-      mode: telemetryMode,
-      result: state.winner === "Draw" ? "draw" : state.winner === "A" ? "win" : "loss",
-      turns: state.turnNumber,
-    });
+    const result = state.winner === "Draw" ? "draw" : state.winner === "A" ? "win" : "loss";
+    track("match_ended", { mode: telemetryMode, result, turns: state.turnNumber });
+    trackMatchCompleteOnVercel(telemetryMode, result, state.turnNumber);
   }, [state.winner, state.turnNumber]);
 
   /** A match left with no winner is `abandoned` — same event, different result. */
