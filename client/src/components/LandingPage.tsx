@@ -107,7 +107,7 @@ export function LandingPage({ onEnter }: LandingPageProps) {
         </nav>
 
         <section className="landing__hero">
-          <span className="landing__eyebrow">Web3 Trading-Card Battler</span>
+          <span className="landing__eyebrow">Free trading-floor card battler</span>
           <h1 className="landing__title">
             The floor is <span>the battlefield</span>.
           </h1>
